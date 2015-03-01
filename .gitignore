@@ -9,6 +9,7 @@ dist/
 doc/build
 *.DS_Store
 *.pyc
+bsnstacklib.egg-info/
 neutron.egg-info/
 neutron/vcsversion.py
 neutron/versioninfo
