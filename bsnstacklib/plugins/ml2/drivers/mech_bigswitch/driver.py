@@ -24,12 +24,12 @@ from neutron.extensions import portbindings
 from neutron.openstack.common import excutils
 from neutron.openstack.common import log
 from neutron.openstack.common import timeutils
-from neutron.plugins.bigswitch import config as pl_config
-from neutron.plugins.bigswitch import plugin
-from neutron.plugins.bigswitch import servermanager
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
 
+from bsnstacklib.plugins.bigswitch import config as pl_config
+from bsnstacklib.plugins.bigswitch import plugin
+from bsnstacklib.plugins.bigswitch import servermanager
 
 EXTERNAL_PORT_OWNER = 'neutron:external_port'
 LOG = log.getLogger(__name__)

@@ -20,21 +20,22 @@ from oslo.config import cfg
 import webob.exc
 
 from neutron.openstack.common import log as logging
-from neutron.tests.unit.bigswitch import fake_server
-from neutron.tests.unit.bigswitch import test_base
 from neutron.tests.unit import test_api_v2
 from neutron.tests.unit import test_db_plugin as test_plugin
 
+from bsnstacklib.tests.unit.bigswitch import fake_server
+from bsnstacklib.tests.unit.bigswitch import test_base
+
 LOG = logging.getLogger(__name__)
 
-SERVERMANAGER = 'neutron.plugins.bigswitch.servermanager'
+SERVERMANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPS = SERVERMANAGER + '.HTTPSConnectionWithValidation'
 CERTCOMBINER = SERVERMANAGER + '.ServerPool._combine_certs_to_file'
 FILEPUT = SERVERMANAGER + '.ServerPool._file_put_contents'
 GETCACERTS = SERVERMANAGER + '.ServerPool._get_ca_cert_paths'
 GETHOSTCERT = SERVERMANAGER + '.ServerPool._get_host_cert_path'
 SSLGETCERT = SERVERMANAGER + '.ssl.get_server_certificate'
-FAKECERTGET = 'neutron.tests.unit.bigswitch.fake_server.get_cert_contents'
+FAKECERTGET = 'bsnstacklib.tests.unit.bigswitch.fake_server.get_cert_contents'
 
 
 class test_ssl_certificate_base(test_plugin.NeutronDbPluginV2TestCase,

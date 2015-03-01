@@ -20,15 +20,15 @@ import mock
 from oslo.config import cfg
 from oslo.db import exception as db_exc
 
+from bsnstacklib.plugins.bigswitch.db import consistency_db
+from bsnstacklib.plugins.bigswitch import servermanager
+from bsnstacklib.tests.unit.bigswitch import test_restproxy_plugin as test_rp
 from neutron import context
 from neutron import manager
 from neutron.openstack.common import importutils
 from neutron.openstack.common import jsonutils
-from neutron.plugins.bigswitch.db import consistency_db
-from neutron.plugins.bigswitch import servermanager
-from neutron.tests.unit.bigswitch import test_restproxy_plugin as test_rp
 
-SERVERMANAGER = 'neutron.plugins.bigswitch.servermanager'
+SERVERMANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
 HTTPSCON = SERVERMANAGER + '.HTTPSConnectionWithValidation'
 

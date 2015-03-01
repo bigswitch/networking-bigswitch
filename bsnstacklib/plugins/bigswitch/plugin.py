@@ -78,12 +78,13 @@ from neutron.extensions import portbindings
 from neutron import manager
 from neutron.openstack.common import importutils
 from neutron.openstack.common import log as logging
-from neutron.plugins.bigswitch import config as pl_config
-from neutron.plugins.bigswitch.db import porttracker_db
-from neutron.plugins.bigswitch import extensions
-from neutron.plugins.bigswitch import servermanager
-from neutron.plugins.bigswitch import version
 from neutron.plugins.common import constants as pconst
+
+from bsnstacklib.plugins.bigswitch import config as pl_config
+from bsnstacklib.plugins.bigswitch.db import porttracker_db
+from bsnstacklib.plugins.bigswitch import extensions
+from bsnstacklib.plugins.bigswitch import servermanager
+from bsnstacklib.plugins.bigswitch import version
 
 LOG = logging.getLogger(__name__)
 

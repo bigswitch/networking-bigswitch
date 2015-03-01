@@ -23,21 +23,31 @@ from neutron import context as neutron_context
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.openstack.common import jsonutils
-from neutron.plugins.bigswitch import servermanager
 from neutron.plugins.ml2 import config as ml2_config
-from neutron.plugins.ml2.drivers.mech_bigswitch import driver as bsn_driver
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
-import neutron.tests.unit.bigswitch.test_restproxy_plugin as trp
 from neutron.tests.unit.ml2 import test_ml2_plugin
 from neutron.tests.unit import test_db_plugin
+
+from bsnstacklib.plugins.bigswitch import servermanager
+from bsnstacklib.plugins.ml2.drivers.mech_bigswitch import driver as bsn_driver
+import bsnstacklib.tests.unit.bigswitch.test_restproxy_plugin as trp
 
 PHYS_NET = 'physnet1'
 VLAN_START = 1000
 VLAN_END = 1100
-SERVER_MANAGER = 'neutron.plugins.bigswitch.servermanager'
+SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 SERVER_POOL = SERVER_MANAGER + '.ServerPool'
-DRIVER_MOD = 'neutron.plugins.ml2.drivers.mech_bigswitch.driver'
+DRIVER_MOD = 'bsnstacklib.plugins.ml2.drivers.mech_bigswitch.driver'
 DRIVER = DRIVER_MOD + '.BigSwitchMechanismDriver'
+
+# NOTE: this won't be necessary once the upstream neutron driver
+# imports bsnstacklib
+from bsnstacklib.plugins.ml2 import drivers as stackdrivers
+from neutron.plugins.ml2 import drivers
+import neutron.plugins.ml2.drivers.mech_bigswitch.driver
+neutron.plugins.ml2.drivers.mech_bigswitch.driver.BigSwitchMechanismDriver = stackdrivers.mech_bigswitch.driver.BigSwitchMechanismDriver  # noqa
+drivers.mech_bigswitch.driver = stackdrivers.mech_bigswitch.driver
+drivers.mech_bigswitch = stackdrivers.mech_bigswitch
 
 
 class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):

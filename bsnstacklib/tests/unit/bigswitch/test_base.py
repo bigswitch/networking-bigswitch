@@ -20,18 +20,19 @@ import mock
 from oslo.config import cfg
 
 import neutron.common.test_lib as test_lib
-from neutron.plugins.bigswitch import config
-from neutron.plugins.bigswitch.db import consistency_db
-from neutron.tests.unit.bigswitch import fake_server
+
+from bsnstacklib.plugins.bigswitch import config
+from bsnstacklib.plugins.bigswitch.db import consistency_db
+from bsnstacklib.tests.unit.bigswitch import fake_server
 
 
-RESTPROXY_PKG_PATH = 'neutron.plugins.bigswitch.plugin'
-L3_RESTPROXY_PKG_PATH = 'neutron.plugins.bigswitch.l3_router_plugin'
-NOTIFIER = 'neutron.plugins.bigswitch.plugin.AgentNotifierApi'
-CERTFETCH = 'neutron.plugins.bigswitch.servermanager.ServerPool._fetch_cert'
-SERVER_MANAGER = 'neutron.plugins.bigswitch.servermanager'
-HTTPCON = 'neutron.plugins.bigswitch.servermanager.httplib.HTTPConnection'
-SPAWN = 'neutron.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
+RESTPROXY_PKG_PATH = 'bsnstacklib.plugins.bigswitch.plugin'
+L3_RESTPROXY_PKG_PATH = 'bsnstacklib.plugins.bigswitch.l3_router_plugin'
+NOTIFIER = 'bsnstacklib.plugins.bigswitch.plugin.AgentNotifierApi'
+CERTFETCH = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool._fetch_cert'  # noqa
+SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
+HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
+SPAWN = 'bsnstacklib.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
 CWATCH = SERVER_MANAGER + '.ServerPool._consistency_watchdog'
 
 

@@ -14,7 +14,8 @@
 
 from neutron.openstack.common import jsonutils
 from neutron.openstack.common import log as logging
-from neutron.plugins.bigswitch import servermanager
+
+from bsnstacklib.plugins.bigswitch import servermanager
 
 LOG = logging.getLogger(__name__)
 
