@@ -26,9 +26,9 @@ CONTEXT = 'neutron.context'
 CONSUMERCREATE = 'neutron.agent.rpc.create_consumers'
 SGRPC = 'neutron.agent.securitygroups_rpc'
 SGAGENT = 'neutron.agent.securitygroups_rpc.SecurityGroupAgentRpc'
-AGENTMOD = 'neutron.plugins.bigswitch.agent.restproxy_agent'
+AGENTMOD = 'bsnstacklib.plugins.bigswitch.agent.restproxy_agent'
 NEUTRONCFG = 'neutron.common.config'
-PLCONFIG = 'neutron.plugins.bigswitch.config'
+PLCONFIG = 'bsnstacklib.plugins.bigswitch.config'
 
 
 class BaseAgentTestCase(base.BaseTestCase):

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from neutron.tests.unit.bigswitch import test_base
+from bsnstacklib.tests.unit.bigswitch import test_base
 from neutron.tests.unit.openvswitch import test_agent_scheduler
 
 

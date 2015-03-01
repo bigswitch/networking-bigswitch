@@ -32,11 +32,12 @@ from neutron.db import l3_db
 from neutron.extensions import l3
 from neutron.i18n import _LE
 from neutron.openstack.common import log as logging
-from neutron.plugins.bigswitch import extensions
-from neutron.plugins.bigswitch import plugin as cplugin
-from neutron.plugins.bigswitch import routerrule_db
-from neutron.plugins.bigswitch import servermanager
 from neutron.plugins.common import constants
+
+from bsnstacklib.plugins.bigswitch import extensions
+from bsnstacklib.plugins.bigswitch import plugin as cplugin
+from bsnstacklib.plugins.bigswitch import routerrule_db
+from bsnstacklib.plugins.bigswitch import servermanager
 
 # number of fields in a router rule string
 ROUTER_RULE_COMPONENT_COUNT = 5

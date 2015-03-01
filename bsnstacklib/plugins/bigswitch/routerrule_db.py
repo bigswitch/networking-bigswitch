@@ -14,35 +14,17 @@
 #    under the License.
 
 from oslo_config import cfg
-import sqlalchemy as sa
-from sqlalchemy import orm
 
 from neutron.db import l3_db
-from neutron.db import model_base
 from neutron.openstack.common import log as logging
-from neutron.plugins.bigswitch.extensions import routerrule
+from neutron.plugins.bigswitch import routerrule_db
+
+from bsnstacklib.plugins.bigswitch.extensions import routerrule
 
 
 LOG = logging.getLogger(__name__)
-
-
-class RouterRule(model_base.BASEV2):
-    id = sa.Column(sa.Integer, primary_key=True)
-    source = sa.Column(sa.String(64), nullable=False)
-    destination = sa.Column(sa.String(64), nullable=False)
-    nexthops = orm.relationship('NextHop', cascade='all,delete')
-    action = sa.Column(sa.String(10), nullable=False)
-    router_id = sa.Column(sa.String(36),
-                          sa.ForeignKey('routers.id',
-                                        ondelete="CASCADE"))
-
-
-class NextHop(model_base.BASEV2):
-    rule_id = sa.Column(sa.Integer,
-                        sa.ForeignKey('routerrules.id',
-                                      ondelete="CASCADE"),
-                        primary_key=True)
-    nexthop = sa.Column(sa.String(64), nullable=False, primary_key=True)
+RouterRule = routerrule_db.RouterRule
+NextHop = routerrule_db.NextHop
 
 
 class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):

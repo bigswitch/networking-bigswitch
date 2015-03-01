@@ -14,9 +14,10 @@
 #    under the License.
 
 from neutron import manager
-from neutron.tests.unit.bigswitch import test_base
 from neutron.tests.unit import test_extension_security_group as test_sg
 from neutron.tests.unit import test_security_groups_rpc as test_sg_rpc
+
+from bsnstacklib.tests.unit.bigswitch import test_base
 
 
 class RestProxySecurityGroupsTestCase(test_sg.SecurityGroupDBTestCase,

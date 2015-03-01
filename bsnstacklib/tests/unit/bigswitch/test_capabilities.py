@@ -17,9 +17,9 @@
 import contextlib
 import mock
 
-from neutron.tests.unit.bigswitch import test_router_db
+from bsnstacklib.tests.unit.bigswitch import test_router_db
 
-PLUGIN = 'neutron.plugins.bigswitch.plugin'
+PLUGIN = 'bsnstacklib.plugins.bigswitch.plugin'
 SERVERMANAGER = PLUGIN + '.servermanager'
 SERVERPOOL = SERVERMANAGER + '.ServerPool'
 SERVERRESTCALL = SERVERMANAGER + '.ServerProxy.rest_call'

@@ -43,7 +43,8 @@ from oslo_utils import excutils
 from neutron.common import exceptions
 from neutron.i18n import _LE, _LI, _LW
 from neutron.openstack.common import log as logging
-from neutron.plugins.bigswitch.db import consistency_db as cdb
+
+from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
 
 LOG = logging.getLogger(__name__)
 

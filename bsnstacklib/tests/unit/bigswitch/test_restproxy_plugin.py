@@ -24,14 +24,15 @@ from neutron import context
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
-from neutron.tests.unit.bigswitch import fake_server
-from neutron.tests.unit.bigswitch import test_base
 from neutron.tests.unit import test_api_v2
 import neutron.tests.unit.test_db_plugin as test_plugin
 import neutron.tests.unit.test_extension_allowedaddresspairs as test_addr_pair
 
+from bsnstacklib.tests.unit.bigswitch import fake_server
+from bsnstacklib.tests.unit.bigswitch import test_base
+
 patch = mock.patch
-HTTPCON = 'neutron.plugins.bigswitch.servermanager.httplib.HTTPConnection'
+HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 
 
 class BigSwitchProxyPluginV2TestCase(test_base.BigSwitchTestBase,
@@ -172,7 +173,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
                 raise Exception('expecting tenant_id SHARED. got %s' % ten_id)
         with self.network(tenant_id='SHARED', shared=True) as net:
             with self.subnet(network=net) as sub:
-                pref = 'neutron.plugins.bigswitch.servermanager.ServerPool.%s'
+                pref = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool.%s'  # noqa
                 tomock = [pref % 'rest_create_port',
                           pref % 'rest_update_port',
                           pref % 'rest_delete_port']

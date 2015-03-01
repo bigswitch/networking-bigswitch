@@ -17,7 +17,7 @@
 """Determine version of NeutronRestProxy plugin"""
 from __future__ import print_function
 
-from neutron.plugins.bigswitch import vcsversion
+from bsnstacklib.plugins.bigswitch import vcsversion
 
 
 YEAR, COUNT, REVISION = vcsversion.NEUTRONRESTPROXY_VERSION
