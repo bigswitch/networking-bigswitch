@@ -82,7 +82,7 @@ router_opts = [
                help=_("Maximum number of router rules")),
 ]
 nova_opts = [
-    cfg.StrOpt('vif_type', default='ovs',
+    cfg.StrOpt('vif_type', default='ivs',
                help=_("Virtual interface type to configure on "
                       "Nova compute nodes")),
 ]
