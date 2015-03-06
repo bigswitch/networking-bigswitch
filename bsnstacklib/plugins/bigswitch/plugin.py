@@ -74,6 +74,7 @@ from neutron.db import securitygroups_rpc_base as sg_db_rpc
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
+from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.openstack.common import importutils
@@ -160,6 +161,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return manager.NeutronManager.get_service_plugins().get(
             pconst.L3_ROUTER_NAT)
 
+    @property
+    def l3_bsn_plugin(self):
+        return hasattr(self.l3_plugin, "bsn")
+
+    def _get_all_data_auto(self):
+        return self._get_all_data(
+                get_floating_ips=self.l3_bsn_plugin,
+                get_routers=self.l3_bsn_plugin)
+
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True):
         admin_context = qcontext.get_admin_context()
@@ -181,6 +191,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 net_ports = plugin.get_ports(admin_context,
                                              filters=net_filter) or []
                 for port in net_ports:
+                    # skip L3 router ports since the backend
+                    # implements the router
+                    if (self.l3_bsn_plugin and
+                        port.get('device_owner') in
+                        [const.DEVICE_OWNER_ROUTER_INTF,
+                         const.DEVICE_OWNER_ROUTER_GW,
+                         const.DEVICE_OWNER_ROUTER_HA_INTF]):
+                        continue
                     mapped_port = self._map_state_and_status(port)
                     mapped_port['attachment'] = {
                         'id': port.get('device_id'),
@@ -200,6 +218,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             routers = []
             all_routers = self.l3_plugin.get_routers(admin_context) or []
             for router in all_routers:
+                # Add tenant_id of the external gateway network
+                if router.get(l3.EXTERNAL_GW_INFO):
+                    ext_net_id = router[l3.EXTERNAL_GW_INFO].get('network_id')
+                    ext_net = self.get_network(admin_context, ext_net_id)
+                    ext_tenant_id = ext_net.get('tenant_id')
+                    if ext_tenant_id:
+                        router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                            ext_tenant_id)
+
                 interfaces = []
                 mapped_router = self._map_state_and_status(router)
                 router_filter = {
