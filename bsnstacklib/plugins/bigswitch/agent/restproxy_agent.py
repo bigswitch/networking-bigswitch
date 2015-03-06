@@ -49,7 +49,8 @@ class IVSBridge(ovs_lib.OVSBridge):
     def run_vsctl(self, args, check_error=False):
         full_args = ["ivs-ctl"] + args
         try:
-            return utils.execute(full_args, root_helper=self.root_helper)
+            return utils.execute(full_args, root_helper=self.root_helper,
+                                 return_stderr=True)[1]
         except Exception as e:
             with excutils.save_and_reraise_exception() as ctxt:
                 LOG.error(_("Unable to execute %(cmd)s. "
@@ -69,6 +70,22 @@ class IVSBridge(ovs_lib.OVSBridge):
         if name in self.get_vif_port_set():
             return name
         return False
+
+    def get_port_name_list(self):
+        # Try native list-ports command first and then fallback to show
+        # command.
+        try:
+            resp = self.run_vsctl(['list-ports'], True).strip().splitlines()
+            port_names = map(lambda x: x.strip(), resp)
+        except RuntimeError:
+            resp = self.run_vsctl(['show'], True)
+            # get rid of stats and blank lines
+            ports = filter(
+                lambda x: 'packets=' not in x and x.strip(),
+                resp.split('ivs:')[1].split('ports:')[1].splitlines())
+            port_names = map(lambda x: x.strip().split(' ')[1], ports)
+        LOG.debug("Ports on IVS: %s", port_names)
+        return port_names
 
 
 class PluginApi(agent_rpc.PluginApi,
