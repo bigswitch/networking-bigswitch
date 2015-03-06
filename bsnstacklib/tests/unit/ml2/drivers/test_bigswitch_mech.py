@@ -158,8 +158,9 @@ class TestBigSwitchMechDriverPortsV2(test_db_plugin.TestPortsV2,
             bigdriver.evpool.waitall()
             mock_send_all.assert_has_calls([
                 mock.call(
-                    send_routers=False, send_ports=True,
-                    send_floating_ips=False,
+                    send_routers=True,
+                    send_floating_ips=True,
+                    timeout=None,
                     triggered_by_tenant=p['port']['tenant_id']
                 )
             ])
@@ -178,10 +179,12 @@ class TestBigSwitchMechDriverPortsV2(test_db_plugin.TestPortsV2,
             plugin.update_port(context, p['port']['id'],
                                {'port': {'device_id': 'devid',
                                          'binding:host_id': 'host'}})
+            # BSN L3 plugin is loaded.
             mock_send_all.assert_has_calls([
                 mock.call(
-                    send_routers=False, send_ports=True,
-                    send_floating_ips=False,
+                    send_routers=True,
+                    send_floating_ips=True,
+                    timeout=None,
                     triggered_by_tenant=p['port']['tenant_id']
                 )
             ])

@@ -49,6 +49,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                   routerrule_db.RouterRule_db_mixin):
 
     supported_extension_aliases = ["router", "router_rules"]
+    # This is a flag to tell that L3 plugin is BSN.
+    bsn = True
 
     @staticmethod
     def get_plugin_type():
@@ -95,6 +97,13 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         with context.session.begin(subtransactions=True):
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
+            if new_router.get(l3.EXTERNAL_GW_INFO):
+                ext_net_id = new_router[l3.EXTERNAL_GW_INFO].get('network_id')
+                ext_net = self.get_network(context, ext_net_id)
+                ext_tenant_id = ext_net.get('tenant_id')
+                if ext_tenant_id:
+                    new_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                        ext_tenant_id)
             router = self._map_state_and_status(new_router)
             # look up the network on this side to save an expensive query on
             # the backend controller.
