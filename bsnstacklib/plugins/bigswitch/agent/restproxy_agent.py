@@ -54,9 +54,13 @@ class IVSBridge(ovs_lib.OVSBridge):
                                  log_fail_as_error=log_fail_as_error)[1]
         except Exception as e:
             with excutils.save_and_reraise_exception() as ctxt:
-                LOG.error(_("Unable to execute %(cmd)s. "
-                            "Exception: %(exception)s"),
-                          {'cmd': full_args, 'exception': e})
+                if log_fail_as_error:
+                    logfunc = LOG.error
+                else:
+                    logfunc = LOG.debug
+                logfunc(_("Unable to execute %(cmd)s. "
+                          "Exception: %(exception)s"),
+                        {'cmd': full_args, 'exception': e})
                 if not check_error:
                     ctxt.reraise = False
 
