@@ -46,11 +46,12 @@ class IVSBridge(ovs_lib.OVSBridge):
     This class does not provide parity with OVS using IVS.
     It's only the bare minimum necessary to use IVS with this agent.
     '''
-    def run_vsctl(self, args, check_error=False):
+    def run_vsctl(self, args, check_error=False, log_fail_as_error=True):
         full_args = ["ivs-ctl"] + args
         try:
             return utils.execute(full_args, root_helper=self.root_helper,
-                                 return_stderr=True)[1]
+                                 return_stderr=True,
+                                 log_fail_as_error=log_fail_as_error)[1]
         except Exception as e:
             with excutils.save_and_reraise_exception() as ctxt:
                 LOG.error(_("Unable to execute %(cmd)s. "
@@ -75,7 +76,8 @@ class IVSBridge(ovs_lib.OVSBridge):
         # Try native list-ports command first and then fallback to show
         # command.
         try:
-            resp = self.run_vsctl(['list-ports'], True).strip().splitlines()
+            resp = self.run_vsctl(['list-ports'], True,
+                                  log_fail_as_error=False).strip().splitlines()
             port_names = map(lambda x: x.strip(), resp)
         except RuntimeError:
             resp = self.run_vsctl(['show'], True)

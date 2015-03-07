@@ -251,7 +251,8 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
         self.runvsctl.return_value = "port1\nport2\nport3\n"
         self.assertEqual(['port1', 'port2', 'port3'],
                          agent.int_br.get_port_name_list())
-        expected_calls = [mock.call(['list-ports'], True)]
+        expected_calls = [mock.call(['list-ports'], True,
+                                    log_fail_as_error=False)]
         self.assertEqual(expected_calls, self.runvsctl.mock_calls)
 
     def test_port_list_fallback_to_show(self):
@@ -261,7 +262,8 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
         self.assertEqual(['ivs', 'p1p1', 'p1p2', 'os-mgmt',
                           'tapa40e6816-82', 'inband'],
                          agent.int_br.get_port_name_list())
-        expected_calls = [mock.call(['list-ports'], True),
+        expected_calls = [mock.call(['list-ports'], True,
+                                    log_fail_as_error=False),
                           mock.call(['show'], True)]
         self.assertEqual(expected_calls, self.runvsctl.mock_calls)
 
