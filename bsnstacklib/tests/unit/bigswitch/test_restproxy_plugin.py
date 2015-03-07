@@ -204,7 +204,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
                 plugin = manager.NeutronManager.get_plugin()
                 plugin.evpool.waitall()
         call = mock.call(
-            send_routers=True, send_ports=True, send_floating_ips=True,
+            send_routers=True, send_floating_ips=True, timeout=None,
             triggered_by_tenant=p['port']['tenant_id']
         )
         mock_send_all.assert_has_calls([call])

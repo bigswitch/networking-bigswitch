@@ -58,10 +58,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
-        self.servers.get_topo_function = self._get_all_data
-        self.servers.get_topo_function_args = {'get_ports': True,
-                                               'get_floating_ips': False,
-                                               'get_routers': False}
+        self.servers.get_topo_function = self._get_all_data_auto
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
@@ -107,11 +104,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                         ctxt.reraise = False
                         LOG.error(_LE("Inconsistency with backend controller "
                                       "triggering full synchronization."))
-                        topoargs = self.servers.get_topo_function_args
-                        self._send_all_data(
-                            send_ports=topoargs['get_ports'],
-                            send_floating_ips=topoargs['get_floating_ips'],
-                            send_routers=topoargs['get_routers'],
+                        self._send_all_data_auto(
                             triggered_by_tenant=port["network"]["tenant_id"]
                         )
 
