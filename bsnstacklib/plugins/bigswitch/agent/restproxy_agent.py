@@ -31,11 +31,14 @@ from neutron.agent.linux import utils
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.common import config
+from neutron.common import constants as q_const
+from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
 from neutron.i18n import _LE
 from neutron.openstack.common import log
+from neutron.openstack.common import loopingcall
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 
@@ -110,6 +113,25 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
             self.int_br = IVSBridge(integ_br)
         else:
             self.int_br = ovs_lib.OVSBridge(integ_br)
+        self.use_call = True
+        self.agent_state = {
+            'binary': 'neutron-bsn-agent',
+            'host': cfg.CONF.host,
+            'topic': q_const.L2_AGENT_TOPIC,
+            'configurations': {},
+            'agent_type': "BSN IVS Agent",
+            'start_flag': True}
+
+    def _report_state(self):
+        # How many devices are likely used by a VM
+        try:
+            self.state_rpc.report_state(self.context,
+                                        self.agent_state,
+                                        self.use_call)
+            self.use_call = False
+            self.agent_state.pop('start_flag', None)
+        except Exception:
+            LOG.exception(_("Failed reporting state!"))
 
     def _setup_rpc(self):
         self.topic = topics.AGENT
@@ -122,6 +144,12 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
         self.connection = agent_rpc.create_consumers(self.endpoints,
                                                      self.topic,
                                                      consumers)
+        self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
+        report_interval = cfg.CONF.AGENT.report_interval
+        if report_interval:
+            heartbeat = loopingcall.FixedIntervalLoopingCall(
+                self._report_state)
+            heartbeat.start(interval=report_interval)
 
     def port_update(self, context, **kwargs):
         LOG.debug("Port update received")
