@@ -47,6 +47,7 @@ import re
 
 import eventlet
 from oslo_config import cfg
+from oslo_log import log as logging
 import oslo_messaging
 from oslo_utils import importutils
 from sqlalchemy.orm import exc as sqlexc
@@ -81,7 +82,6 @@ from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.i18n import _LE, _LI, _LW
-from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants as pconst
 
 from bsnstacklib.plugins.bigswitch import config as pl_config

@@ -18,6 +18,7 @@ import httplib
 
 import eventlet
 from oslo_config import cfg
+from oslo_log import log
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
@@ -25,7 +26,6 @@ from neutron import context as ctx
 from neutron.extensions import portbindings
 from neutron.i18n import _LE, _LW
 from neutron import manager
-from neutron.openstack.common import log
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
 

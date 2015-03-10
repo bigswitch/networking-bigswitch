@@ -20,10 +20,10 @@ import time
 from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import session
+from oslo_log import log as logging
 import sqlalchemy as sa
 
 from neutron.i18n import _LI, _LW
-from neutron.openstack.common import log as logging
 from neutron.plugins.bigswitch.db import consistency_db
 
 LOG = logging.getLogger(__name__)

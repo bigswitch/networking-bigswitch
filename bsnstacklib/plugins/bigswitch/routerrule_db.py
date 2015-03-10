@@ -14,9 +14,9 @@
 #    under the License.
 
 from oslo_config import cfg
+from oslo_log import log as logging
 
 from neutron.db import l3_db
-from neutron.openstack.common import log as logging
 from neutron.plugins.bigswitch import routerrule_db
 
 from bsnstacklib.plugins.bigswitch.extensions import routerrule

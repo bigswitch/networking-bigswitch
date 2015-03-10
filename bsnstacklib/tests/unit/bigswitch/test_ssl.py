@@ -17,9 +17,9 @@ import ssl
 
 import mock
 from oslo_config import cfg
+from oslo_log import log as logging
 import webob.exc
 
-from neutron.openstack.common import log as logging
 from neutron.tests.unit import test_api_v2
 from neutron.tests.unit import test_db_plugin as test_plugin
 
