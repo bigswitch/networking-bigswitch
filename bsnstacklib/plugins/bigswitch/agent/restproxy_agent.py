@@ -35,7 +35,7 @@ from neutron.common import constants as q_const
 from neutron.common import topics
 from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
-from neutron.i18n import _LE
+from neutron.i18n import _LE, _LI
 from neutron.openstack.common import log
 from neutron.openstack.common import loopingcall
 
@@ -98,6 +98,36 @@ class IVSBridge(ovs_lib.OVSBridge):
         return port_names
 
 
+class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
+
+    def prepare_devices_filter(self, device_ids):
+        if not device_ids:
+            return
+        # use tap as a prefix because ml2 is hard-coded to expect that
+        device_ids = [d.replace('qvo', 'tap') for d in device_ids]
+        LOG.info(_LI("Preparing filters for devices %s"), device_ids)
+        if self.use_enhanced_rpc:
+            devices_info = self.plugin_rpc.security_group_info_for_devices(
+                self.context, list(device_ids))
+            devices = devices_info['devices']
+            security_groups = devices_info['security_groups']
+            security_group_member_ips = devices_info['sg_member_ips']
+        else:
+            devices = self.plugin_rpc.security_group_rules_for_devices(
+                self.context, list(device_ids))
+
+        with self.firewall.defer_apply():
+            for device in devices.values():
+                # strip tap back off since prepare_port_filter will apply it
+                device['device'] = device['device'].replace('tap', '')
+                self.firewall.prepare_port_filter(device)
+            if self.use_enhanced_rpc:
+                LOG.debug("Update security group information for ports %s",
+                          devices.keys())
+                self._update_security_group_info(
+                    security_groups, security_group_member_ips)
+
+
 class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
 
     target = oslo_messaging.Target(version='1.1')
@@ -106,8 +136,7 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
         super(RestProxyAgent, self).__init__()
         self.polling_interval = polling_interval
         self._setup_rpc()
-        self.sg_agent = sg_rpc.SecurityGroupAgentRpc(self.context,
-                                                     self.sg_plugin_rpc)
+        self.sg_agent = FilterDeviceIDMixin(self.context, self.sg_plugin_rpc)
         if vs == 'ivs':
             self.int_br = IVSBridge(integ_br)
         else:
