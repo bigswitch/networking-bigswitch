@@ -165,7 +165,8 @@ class TestRestProxyAgent(BaseAgentTestCase):
         cfg_attrs = {'CONF.RESTPROXYAGENT.integration_bridge': 'integ_br',
                      'CONF.RESTPROXYAGENT.polling_interval': 5,
                      'CONF.RESTPROXYAGENT.virtual_switch_type': 'ovs',
-                     'CONF.AGENT.root_helper': 'helper'}
+                     'CONF.AGENT.root_helper': 'helper',
+                     'CONF.AGENT.report_interval': 60}
         with contextlib.nested(
             mock.patch(AGENTMOD + '.cfg', **cfg_attrs),
             mock.patch(AGENTMOD + '.config.init'),
