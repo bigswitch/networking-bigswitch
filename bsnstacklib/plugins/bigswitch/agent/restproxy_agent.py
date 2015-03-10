@@ -99,7 +99,17 @@ class IVSBridge(ovs_lib.OVSBridge):
 
 class PluginApi(agent_rpc.PluginApi,
                 sg_rpc.SecurityGroupServerRpcApiMixin):
-    pass
+    def security_group_rules_for_devices(self, context, device_ids):
+        device_ids = [d.replace('qvo', 'tap') for d in device_ids]
+        resp = super(PluginApi, self).security_group_rules_for_devices(
+            context, device_ids)
+        if not resp:
+            return resp
+        new_dict = {}
+        for key, device in resp:
+            device['device'] = device['device'].replace('tap','')
+            new_dict[key] = device
+        return new_dict
 
 
 class SecurityGroupAgent(sg_rpc.SecurityGroupAgentRpcMixin):
