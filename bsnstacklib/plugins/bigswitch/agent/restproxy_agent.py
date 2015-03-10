@@ -109,6 +109,30 @@ class SecurityGroupAgent(sg_rpc.SecurityGroupAgentRpcMixin):
         self.root_helper = root_helper
         self.init_firewall()
 
+    def prepare_devices_filter(self, device_ids):
+        if not device_ids:
+            return
+        device_ids = [d.replace('qvo', 'tap') for d in device_ids]
+        LOG.info(("Preparing filters for devices %s"), device_ids)
+        if self.use_enhanced_rpc:
+            devices_info = self.plugin_rpc.security_group_info_for_devices(
+                self.context, list(device_ids))
+            devices = devices_info['devices']
+            security_groups = devices_info['security_groups']
+            security_group_member_ips = devices_info['sg_member_ips']
+        else:
+            devices = self.plugin_rpc.security_group_rules_for_devices(
+                self.context, list(device_ids))
+
+        with self.firewall.defer_apply():
+            for device in devices.values():
+                device['device'] = device['device'].replace('tap','')
+                self.firewall.prepare_port_filter(device)
+            if self.use_enhanced_rpc:
+                LOG.debug("Update security group information for ports %s",
+                          devices.keys())
+                self._update_security_group_info(
+                    security_groups, security_group_member_ips)
 
 class RestProxyAgent(n_rpc.RpcCallback,
                      sg_rpc.SecurityGroupAgentRpcCallbackMixin):
