@@ -96,6 +96,22 @@ class IVSBridge(ovs_lib.OVSBridge):
         return port_names
 
 
+
+class FilterSecurityGroupServerRpcApi(sg_rpc.SecurityGroupServerRpcApi):
+    def security_group_rules_for_devices(self, context, device_ids):
+        device_ids = [d.replace('qvo', 'tap') for d in device_ids]
+        resp = super(FilterSecurityGroupServerRpcApi,
+                     self).security_group_rules_for_devices(
+            context, device_ids)
+        if not resp:
+            return resp
+        new_dict = {}
+        for key, device in resp:
+            device['device'] = device['device'].replace('tap','')
+            new_dict[key] = device
+        return new_dict
+
+
 class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
 
     target = oslo_messaging.Target(version='1.1')
@@ -114,7 +130,7 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
     def _setup_rpc(self):
         self.topic = topics.AGENT
         self.plugin_rpc = agent_rpc.PluginApi(topics.PLUGIN)
-        self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
+        self.sg_plugin_rpc = FilterSecurityGroupServerRpcApi(topics.PLUGIN)
         self.context = q_context.get_admin_context_without_session()
         self.endpoints = [self]
         consumers = [[topics.PORT, topics.UPDATE],
