@@ -289,6 +289,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertEqual(resp, (0, None, None, None))
 
     def test_reconnect_cached_connection(self):
+        self.skipTest("cached connections are currently disabled because "
+                      "their assignment to the servermanager object is not "
+                      "thread-safe")
         sp = servermanager.ServerPool()
         with mock.patch(HTTPCON) as conmock:
             rv = conmock.return_value
@@ -309,6 +312,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         self.assertEqual(uris, expected)
 
     def test_no_reconnect_recurse_to_infinity(self):
+        self.skipTest("cached connections are currently disabled because "
+                      "their assignment to the servermanager object is not "
+                      "thread-safe")
         # retry uses recursion when a reconnect is necessary
         # this test makes sure it stops after 1 recursive call
         sp = servermanager.ServerPool()
