@@ -50,9 +50,10 @@ class IVSBridge(ovs_lib.OVSBridge):
     def run_vsctl(self, args, check_error=False, log_fail_as_error=True):
         full_args = ["ivs-ctl"] + args
         try:
-            return utils.execute(full_args, run_as_root=True,
+            resp = utils.execute(full_args, run_as_root=True,
                                  return_stderr=True,
-                                 log_fail_as_error=log_fail_as_error)[1]
+                                 log_fail_as_error=log_fail_as_error)
+            return resp[0] or resp[1]
         except Exception as e:
             with excutils.save_and_reraise_exception() as ctxt:
                 if log_fail_as_error:
