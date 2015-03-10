@@ -21,6 +21,7 @@ from oslo.config import cfg
 
 from neutron import context as ctx
 from neutron.extensions import portbindings
+from neutron import manager
 from neutron.openstack.common import excutils
 from neutron.openstack.common import log
 from neutron.openstack.common import timeutils
@@ -75,6 +76,23 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def update_network_postcommit(self, context):
         # update network on the network controller
         self._send_update_network(context.current)
+
+    @put_context_in_serverpool
+    def update_subnet_postcommit(self, context):
+        self._trigger_network_update_from_subnet_transaction(context)
+
+    @put_context_in_serverpool
+    def create_subnet_postcommit(self, context):
+        self._trigger_network_update_from_subnet_transaction(context)
+
+    @put_context_in_serverpool
+    def delete_subnet_postcommit(self, context):
+        self._trigger_network_update_from_subnet_transaction(context)
+
+    def _trigger_network_update_from_subnet_transaction(self, context):
+        net = manager.NeutronManager.get_plugin().get_network(
+            ctx.get_admin_context(), context.current['network_id'])
+        self._send_update_network(net)
 
     @put_context_in_serverpool
     def delete_network_postcommit(self, context):
