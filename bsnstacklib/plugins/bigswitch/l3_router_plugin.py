@@ -31,6 +31,7 @@ from neutron.common import log
 from neutron.db import l3_db
 from neutron.extensions import l3
 from neutron.i18n import _LE
+from neutron import manager
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants
 
@@ -168,7 +169,9 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # create interface on the network controller
             self.servers.rest_add_router_interface(tenant_id, router_id,
                                                    intf_details)
-            return new_intf_info
+        manager.NeutronManager.get_plugin()._set_port_status(
+            port['id'], 'ACTIVE')
+        return new_intf_info
 
     @put_context_in_serverpool
     @log.log
