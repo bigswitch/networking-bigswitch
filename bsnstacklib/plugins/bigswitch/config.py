@@ -105,7 +105,7 @@ agent_opts = [
                       'nodes used for security group insertion.')),
     cfg.IntOpt('polling_interval', default=5,
                help=_('Seconds between agent checks for port changes')),
-    cfg.StrOpt('virtual_switch_type', default='ovs',
+    cfg.StrOpt('virtual_switch_type', default='ivs',
                help=_('Virtual switch type.'))
 ]
 
@@ -115,4 +115,6 @@ def register_config():
     cfg.CONF.register_opts(router_opts, "ROUTER")
     cfg.CONF.register_opts(nova_opts, "NOVA")
     cfg.CONF.register_opts(agent_opts, "RESTPROXYAGENT")
+    # include for report_interval
+    cfg.CONF.register_opts(agconfig.AGENT_STATE_OPTS, "AGENT")
     agconfig.register_root_helper(cfg.CONF)
