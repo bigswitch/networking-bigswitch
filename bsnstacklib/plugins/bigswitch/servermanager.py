@@ -138,7 +138,10 @@ class ServerProxy(object):
             headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
         else:
             hash_handler = cdb.HashHandler()
-        if 'keep-alive' in self.capabilities:
+        # TODO(kevinbenton): Re-enable keep-alive in a thread-safe fashion.
+        # When multiple workers are enabled the saved connection gets mangled
+        # by multiple threads so we always reconnect.
+        if 'keep-alive' in self.capabilities and False:
             headers['Connection'] = 'keep-alive'
         else:
             reconnect = True
@@ -166,24 +169,24 @@ class ServerProxy(object):
             if self.currentconn:
                 self.currentconn.close()
             if self.ssl:
-                self.currentconn = HTTPSConnectionWithValidation(
+                currentconn = HTTPSConnectionWithValidation(
                     self.server, self.port, timeout=timeout)
-                if self.currentconn is None:
+                if currentconn is None:
                     LOG.error(_('ServerProxy: Could not establish HTTPS '
                                 'connection'))
                     return 0, None, None, None
-                self.currentconn.combined_cert = self.combined_cert
+                currentconn.combined_cert = self.combined_cert
             else:
-                self.currentconn = httplib.HTTPConnection(
+                currentconn = httplib.HTTPConnection(
                     self.server, self.port, timeout=timeout)
-                if self.currentconn is None:
+                if currentconn is None:
                     LOG.error(_('ServerProxy: Could not establish HTTP '
                                 'connection'))
                     return 0, None, None, None
 
         try:
-            self.currentconn.request(action, uri, body, headers)
-            response = self.currentconn.getresponse()
+            currentconn.request(action, uri, body, headers)
+            response = currentconn.getresponse()
             respstr = response.read()
             respdata = respstr
             if response.status in self.success_codes:
@@ -206,7 +209,7 @@ class ServerProxy(object):
         except httplib.HTTPException:
             # If we were using a cached connection, try again with a new one.
             with excutils.save_and_reraise_exception() as ctxt:
-                self.currentconn.close()
+                currentconn.close()
                 if reconnect:
                     # if reconnect is true, this was on a fresh connection so
                     # reraise since this server seems to be broken
@@ -218,7 +221,7 @@ class ServerProxy(object):
             return self.rest_call(action, resource, data, headers,
                                   timeout=timeout, reconnect=True)
         except (socket.timeout, socket.error) as e:
-            self.currentconn.close()
+            currentconn.close()
             LOG.error(_('ServerProxy: %(action)s failure, %(e)r'),
                       {'action': action, 'e': e})
             ret = 0, None, None, None

@@ -63,6 +63,9 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
             self.assertIn(fip['floatingip']['floating_ip_address'], all_floats)
 
     def test_keep_alive_capability(self):
+        self.skipTest("cached connections are currently disabled because "
+                      "their assignment to the servermanager object is not "
+                      "thread-safe")
         with mock.patch(
             SERVERRESTCALL, return_value=(200, None, '["keep-alive"]', None)
         ):
