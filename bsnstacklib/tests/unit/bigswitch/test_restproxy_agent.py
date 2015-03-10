@@ -49,6 +49,8 @@ class TestRestProxyAgentOVS(BaseAgentTestCase):
         self.rpc = mock.patch(CONSUMERCREATE).start()
         self.sg_rpc = mock.patch(SGRPC).start()
         self.sg_agent = mock.patch(SGAGENT).start()
+        self.setup_rpc_p = mock.patch(AGENTMOD + '.RestProxyAgent._setup_rpc')
+        self.setup_rpc = self.setup_rpc_p.start()
 
     def mock_agent(self):
         mock_context = mock.Mock(return_value='abc')
@@ -165,7 +167,8 @@ class TestRestProxyAgent(BaseAgentTestCase):
         cfg_attrs = {'CONF.RESTPROXYAGENT.integration_bridge': 'integ_br',
                      'CONF.RESTPROXYAGENT.polling_interval': 5,
                      'CONF.RESTPROXYAGENT.virtual_switch_type': 'ovs',
-                     'CONF.AGENT.root_helper': 'helper'}
+                     'CONF.AGENT.root_helper': 'helper',
+                     'CONF.AGENT.report_interval': 60}
         with contextlib.nested(
             mock.patch(AGENTMOD + '.cfg', **cfg_attrs),
             mock.patch(AGENTMOD + '.config.init'),
