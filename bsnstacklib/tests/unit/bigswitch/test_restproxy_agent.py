@@ -20,6 +20,8 @@ from oslo_utils import importutils
 
 from neutron.tests import base
 
+from bsnstacklib.plugins.bigswitch import config as pl_config
+
 OVSBRIDGE = 'neutron.agent.linux.ovs_lib.OVSBridge'
 PLUGINAPI = 'neutron.agent.rpc.PluginApi'
 CONTEXT = 'neutron.context'
@@ -35,6 +37,7 @@ PLCONFIG = 'bsnstacklib.plugins.bigswitch.config'
 class BaseAgentTestCase(base.BaseTestCase):
 
     def setUp(self):
+        pl_config.register_config()
         super(BaseAgentTestCase, self).setUp()
         self.mod_agent = importutils.import_module(AGENTMOD)
 
@@ -164,7 +167,9 @@ class TestRestProxyAgent(BaseAgentTestCase):
     def mock_main(self):
         cfg_attrs = {'CONF.RESTPROXYAGENT.integration_bridge': 'integ_br',
                      'CONF.RESTPROXYAGENT.polling_interval': 5,
-                     'CONF.RESTPROXYAGENT.virtual_switch_type': 'ovs'}
+                     'CONF.RESTPROXYAGENT.virtual_switch_type': 'ovs',
+                     'CONF.AGENT.root_helper': 'helper',
+                     'CONF.AGENT.report_interval': 60}
         with contextlib.nested(
             mock.patch(AGENTMOD + '.cfg', **cfg_attrs),
             mock.patch(AGENTMOD + '.config.init'),
