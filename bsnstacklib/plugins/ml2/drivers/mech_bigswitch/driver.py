@@ -159,7 +159,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                     context.set_binding(
                         segment[api.ID], portbindings.VIF_TYPE_IVS,
                         {portbindings.CAP_PORT_FILTER: True,
-                        portbindings.OVS_HYBRID_PLUG: False})
+                        portbindings.OVS_HYBRID_PLUG: True})
 
     def does_vswitch_exist(self, host):
         """Check if Indigo vswitch exists with the given hostname.
