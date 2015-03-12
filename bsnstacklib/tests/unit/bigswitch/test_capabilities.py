@@ -17,6 +17,10 @@
 import contextlib
 import mock
 
+from neutron import context
+from neutron import manager
+from neutron.plugins.common import constants
+
 from bsnstacklib.tests.unit.bigswitch import test_router_db
 
 PLUGIN = 'bsnstacklib.plugins.bigswitch.plugin'
@@ -38,13 +42,18 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
                        return_value=(200, None, None, None))
         ) as (mock_rest, mock_create, mock_delete):
             with self.floatingip_with_assoc() as fip:
-                pass
+                # we have to grab the floating ip object from the service
+                # plugin since we send extra information not returned to the
+                # API caller
+                l3_plugin = manager.NeutronManager.get_service_plugins()[
+                    constants.L3_ROUTER_NAT]
+                fip = l3_plugin.get_floatingip(context.get_admin_context(),
+                                               fip['floatingip']['id'])
             mock_create.assert_has_calls(
-                [mock.call(fip['floatingip']['tenant_id'], fip['floatingip'])]
+                [mock.call(fip['tenant_id'], fip)]
             )
             mock_delete.assert_has_calls(
-                [mock.call(fip['floatingip']['tenant_id'],
-                           fip['floatingip']['id'])]
+                [mock.call(fip['tenant_id'], fip['id'])]
             )
 
     def test_floating_ip_capability_neg(self):
