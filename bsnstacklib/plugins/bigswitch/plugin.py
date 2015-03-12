@@ -276,6 +276,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if self.l3_plugin:
             fl_ips = self.l3_plugin.get_floatingips(context,
                                                     filters=net_filter) or []
+            for flip in fl_ips:
+                if flip.get('floating_port_id'):
+                    fport = self.get_port(context, flip['floating_port_id'])
+                    flip['floating_mac_address'] = fport.get('mac_address')
             network['floatingips'] = fl_ips
 
         return network
