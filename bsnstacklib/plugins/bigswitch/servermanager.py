@@ -309,13 +309,30 @@ class ServerPool(object):
         try:
             return self.capabilities
         except AttributeError:
-            # each server should return a list of capabilities it supports
-            # e.g. ['floatingip']
-            capabilities = [set(server.get_capabilities())
-                            for server in self.servers]
-            # Pool only supports what all of the servers support
-            self.capabilities = set.intersection(*capabilities)
-            return self.capabilities
+            # this exception is hit when the capabilities haven't been
+            # looked up yet
+            pass
+        # each server should return a list of capabilities it supports
+        # e.g. ['floatingip']
+        capabilities = [set(server.get_capabilities())
+                        for server in self.servers]
+        # Pool only supports what all of the servers support
+        self.capabilities = set.intersection(*capabilities)
+        # With multiple workers enabled, the fork may occur after the
+        # connections to the DB have been established. We need to clear the
+        # connections after the first attempt to call the backend to ensure
+        # that the established connections will all be local to the thread and
+        # not shared. Placing it here in the capabilities call is the easiest
+        # way to ensure that its done after everything is initialized and the
+        # first call to the backend is made.
+        # This is necessary in our plugin and not others because we have a
+        # completely separate DB connection for the consistency records. The
+        # main connection is made thread-safe in the neutron service init.
+        # https://github.com/openstack/neutron/blob/
+        # ec716b9e68b8b66a88218913ae4c9aa3a26b025a/neutron/wsgi.py#L104
+        if cdb.HashHandler._FACADE:
+            cdb.HashHandler._FACADE.get_engine().pool.dispose()
+        return self.capabilities
 
     def server_proxy_for(self, server, port):
         combined_cert = self._get_combined_cert_for_server(server, port)
