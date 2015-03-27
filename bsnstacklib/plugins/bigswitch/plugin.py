@@ -696,7 +696,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             # after the async rest call completes. router ports are synchronous
             if port['port']['device_owner'] == l3_db.DEVICE_OWNER_ROUTER_INTF:
                 port['port']['status'] = const.PORT_STATUS_ACTIVE
-            else:
+            elif not port['port'].get('status'):
                 port['port']['status'] = const.PORT_STATUS_BUILD
             dhcp_opts = port['port'].get(edo_ext.EXTRADHCPOPTS, [])
             new_port = super(NeutronRestProxyV2, self).create_port(context,
