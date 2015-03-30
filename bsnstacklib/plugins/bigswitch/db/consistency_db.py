@@ -99,8 +99,14 @@ class HashHandler(object):
         query = sa.update(ConsistencyHash.__table__).values(hash=new_hash)
         query = query.where(ConsistencyHash.hash_id == old_record.hash_id)
         query = query.where(ConsistencyHash.hash == old_record.hash)
-        with self._FACADE.get_engine().begin() as conn:
-            result = conn.execute(query)
+        try:
+            with self._FACADE.get_engine().begin() as conn:
+                result = conn.execute(query)
+        except db_exc.DBDeadlock:
+            # mysql can encounter internal deadlocks servicing a query with
+            # multiple where criteria. treat it the same as not being able
+            # to update the record so it will be tried again
+            return False
         # We need to check update row count in case another server is
         # doing this at the same time. Only one will succeed, the other will
         # not update any rows.
