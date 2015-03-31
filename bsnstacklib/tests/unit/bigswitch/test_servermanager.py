@@ -442,7 +442,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             srestmock.assert_has_calls([
                 mock.call('GET', '/', '', None, False, reconnect=True,
                           hash_handler=mock.ANY),
-                mock.call('PUT', '/topology',
+                mock.call('POST', '/topology',
                           {'routers': [], 'networks': []},
                           timeout=None)
             ])
