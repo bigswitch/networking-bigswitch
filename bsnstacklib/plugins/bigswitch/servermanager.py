@@ -475,7 +475,7 @@ class ServerPool(object):
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
                 data = self.get_topo_function(**self.get_topo_function_args)
-                active_server.rest_call('PUT', TOPOLOGY_PATH, data,
+                active_server.rest_call('POST', TOPOLOGY_PATH, data,
                                         timeout=None)
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
