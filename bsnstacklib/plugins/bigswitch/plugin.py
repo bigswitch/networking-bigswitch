@@ -264,7 +264,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         data = self._get_all_data(send_ports, send_floating_ips, send_routers)
         data['triggered_by_tenant'] = triggered_by_tenant
         errstr = _("Unable to update remote topology: %s")
-        return self.servers.rest_action('PUT', servermanager.TOPOLOGY_PATH,
+        return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
                                         data, errstr, timeout=timeout)
 
     def _get_network_with_floatingips(self, network, context=None):
