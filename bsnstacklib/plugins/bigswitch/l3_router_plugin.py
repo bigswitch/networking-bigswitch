@@ -241,6 +241,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # update floatingip in DB
             new_fl_ip = super(L3RestProxy,
                               self).update_floatingip(context, id, floatingip)
+            # add mac address for the port
+            if new_fl_ip.get('floating_port_id'):
+                fport = self.get_port(context, new_fl_ip['floating_port_id'])
+                new_fl_ip['floating_mac_address'] = fport.get('mac_address')
 
             # update network on network controller
             if 'floatingip' in self.servers.get_capabilities():
