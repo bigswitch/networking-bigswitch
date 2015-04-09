@@ -15,7 +15,7 @@
 
 
 from bsnstacklib.tests.unit.bigswitch import test_base
-from neutron.tests.unit.openvswitch import test_agent_scheduler
+from neutron.tests.unit.plugins.openvswitch import test_agent_scheduler
 
 
 class BigSwitchDhcpAgentNotifierTestCase(

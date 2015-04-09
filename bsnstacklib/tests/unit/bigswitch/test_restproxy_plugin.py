@@ -24,18 +24,18 @@ from neutron import context
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
-from neutron.tests.unit import test_api_v2
-import neutron.tests.unit.test_db_plugin as test_plugin
-import neutron.tests.unit.test_extension_allowedaddresspairs as test_addr_pair
+from neutron.tests.unit.api.v2 import test_base
+from neutron.tests.unit.db import test_allowedaddresspairs_db as test_addr_pair
+from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 
 from bsnstacklib.tests.unit.bigswitch import fake_server
-from bsnstacklib.tests.unit.bigswitch import test_base
+from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
 patch = mock.patch
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 
 
-class BigSwitchProxyPluginV2TestCase(test_base.BigSwitchTestBase,
+class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
                                      test_plugin.NeutronDbPluginV2TestCase):
 
     def setUp(self, plugin_name=None):
@@ -196,7 +196,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
             self.subnet(),
             patch(HTTPCON, create=True,
                   new=fake_server.HTTPConnectionMock404),
-            patch(test_base.RESTPROXY_PKG_PATH
+            patch(bsn_test_base.RESTPROXY_PKG_PATH
                   + '.NeutronRestProxyV2._send_all_data')
         ) as (s, mock_http, mock_send_all):
             with self.port(subnet=s, device_id='somedevid') as p:
@@ -262,7 +262,7 @@ class TestBigSwitchProxyNetworksV2(test_plugin.TestNetworksV2,
         return manager.NeutronManager.get_plugin().get_networks(ctx)
 
     def test_rollback_on_network_create(self):
-        tid = test_api_v2._uuid()
+        tid = test_base._uuid()
         kwargs = {'tenant_id': tid}
         self.httpPatch.stop()
         with patch(HTTPCON, new=fake_server.HTTPConnectionMock500):

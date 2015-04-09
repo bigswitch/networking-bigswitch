@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# Adapted from neutron.tests.unit.test_l3_plugin
+# Adapted from neutron.tests.unit.extensions,test_l3
 
 import contextlib
 import copy
@@ -24,15 +24,15 @@ from webob import exc
 
 from bsnstacklib.plugins.bigswitch.extensions import routerrule
 from bsnstacklib.tests.unit.bigswitch import fake_server
-from bsnstacklib.tests.unit.bigswitch import test_base
+from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 from neutron.common import test_lib
 from neutron import context
 from neutron.extensions import l3
 from neutron import manager
 from neutron.openstack.common import uuidutils
-from neutron.tests.unit import test_api_v2
-from neutron.tests.unit import test_extension_extradhcpopts as test_extradhcp
-from neutron.tests.unit import test_l3_plugin
+from neutron.tests.unit.api.v2 import test_base
+from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
+from neutron.tests.unit.extensions import test_l3 as test_l3
 
 
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
@@ -53,21 +53,21 @@ class RouterRulesTestExtensionManager(object):
         return []
 
 
-class DHCPOptsTestCase(test_base.BigSwitchTestBase,
-                       test_extradhcp.TestExtraDhcpOpt):
+class DHCPOptsTestCase(bsn_test_base.BigSwitchTestBase,
+                       test_dhcpopts.TestExtraDhcpOpt):
 
     def setUp(self, plugin=None):
         self.setup_patches()
         self.setup_config_files()
-        super(test_extradhcp.ExtraDhcpOptDBTestCase,
+        super(test_dhcpopts.ExtraDhcpOptDBTestCase,
               self).setUp(plugin=self._plugin_name)
         self.setup_db()
         self.startHttpPatch()
 
 
-class RouterDBTestBase(test_base.BigSwitchTestBase,
-                       test_l3_plugin.L3BaseForIntTests,
-                       test_l3_plugin.L3NatTestCaseMixin):
+class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
+                       test_l3.L3BaseForIntTests,
+                       test_l3.L3NatTestCaseMixin):
 
     mock_rescheduling = False
 
@@ -91,7 +91,7 @@ class RouterDBTestBase(test_base.BigSwitchTestBase,
 
 
 class RouterDBTestCase(RouterDBTestBase,
-                       test_l3_plugin.L3NatDBIntTestCase):
+                       test_l3.L3NatDBIntTestCase):
 
     def test_router_create_with_gwinfo_ext_ip_non_admin(self):
         # TODO(kevinbenton): figure out why UTs aren't getting the default
@@ -540,7 +540,7 @@ class RouterDBTestCase(RouterDBTestBase,
                          expected_code=exc.HTTPBadRequest.code)
 
     def test_rollback_on_router_create(self):
-        tid = test_api_v2._uuid()
+        tid = test_base._uuid()
         self.httpPatch.stop()
         with mock.patch(HTTPCON, new=fake_server.HTTPConnectionMock500):
             self._create_router('json', tid)

@@ -25,8 +25,8 @@ from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
-from neutron.tests.unit.ml2 import test_ml2_plugin
-from neutron.tests.unit import test_db_plugin
+from neutron.tests.unit.db import test_db_base_plugin_v2
+from neutron.tests.unit.plugins.ml2 import test_plugin
 
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.plugins.ml2.drivers.mech_bigswitch import driver as bsn_driver
@@ -67,15 +67,15 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
                                           [phys_vrange],
                                           'ml2_type_vlan')
         super(TestBigSwitchMechDriverBase,
-              self).setUp(test_ml2_plugin.PLUGIN_NAME)
+              self).setUp(test_plugin.PLUGIN_NAME)
 
 
-class TestBigSwitchMechDriverNetworksV2(test_db_plugin.TestNetworksV2,
+class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                                         TestBigSwitchMechDriverBase):
     pass
 
 
-class TestBigSwitchMechDriverPortsV2(test_db_plugin.TestPortsV2,
+class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                                      TestBigSwitchMechDriverBase):
 
     VIF_TYPE = portbindings.VIF_TYPE_OVS

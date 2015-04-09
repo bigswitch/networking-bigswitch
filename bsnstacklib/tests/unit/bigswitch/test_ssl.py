@@ -20,11 +20,11 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import webob.exc
 
-from neutron.tests.unit import test_api_v2
-from neutron.tests.unit import test_db_plugin as test_plugin
+from neutron.tests.unit.api.v2 import test_base
+from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 
 from bsnstacklib.tests.unit.bigswitch import fake_server
-from bsnstacklib.tests.unit.bigswitch import test_base
+from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
 LOG = logging.getLogger(__name__)
 
@@ -39,15 +39,15 @@ FAKECERTGET = 'bsnstacklib.tests.unit.bigswitch.fake_server.get_cert_contents'
 
 
 class test_ssl_certificate_base(test_plugin.NeutronDbPluginV2TestCase,
-                                test_base.BigSwitchTestBase):
+                                bsn_test_base.BigSwitchTestBase):
 
     plugin_str = ('%s.NeutronRestProxyV2' %
-                  test_base.RESTPROXY_PKG_PATH)
+                  bsn_test_base.RESTPROXY_PKG_PATH)
     servername = None
     cert_base = None
 
     def _setUp(self):
-        self.servername = test_api_v2._uuid()
+        self.servername = test_base._uuid()
         self.cert_base = cfg.CONF.RESTPROXY.ssl_cert_directory
         self.host_cert_val = 'DUMMYCERTFORHOST%s' % self.servername
         self.host_cert_path = os.path.join(
@@ -209,7 +209,7 @@ class TestSslWrongHostCert(test_ssl_certificate_base):
         # since there will already be a host cert, sticky should not take
         # effect and there will be an error because the host cert's contents
         # will be incorrect
-        tid = test_api_v2._uuid()
+        tid = test_base._uuid()
         data = {}
         data['network'] = {'tenant_id': tid, 'name': 'name',
                            'admin_state_up': True}
