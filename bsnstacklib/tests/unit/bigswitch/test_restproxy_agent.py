@@ -22,7 +22,7 @@ from neutron.tests import base
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 
-OVSBRIDGE = 'neutron.agent.linux.ovs_lib.OVSBridge'
+OVSBRIDGE = 'neutron.agent.common.ovs_lib.OVSBridge'
 PLUGINAPI = 'neutron.agent.rpc.PluginApi'
 CONTEXT = 'neutron.context'
 CONSUMERCREATE = 'neutron.agent.rpc.create_consumers'

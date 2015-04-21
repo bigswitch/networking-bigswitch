@@ -27,7 +27,7 @@ from oslo_log import log
 import oslo_messaging
 from oslo_utils import excutils
 
-from neutron.agent.linux import ovs_lib
+from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
