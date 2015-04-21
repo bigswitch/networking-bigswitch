@@ -19,9 +19,12 @@ import httplib
 import eventlet
 from oslo_config import cfg
 from oslo_log import log
+import oslo_messaging
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
+from neutron.agent import rpc as agent_rpc
+from neutron.common import topics
 from neutron import context as ctx
 from neutron.extensions import portbindings
 from neutron.i18n import _LE, _LW
@@ -49,6 +52,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     This driver relays the network create, update, delete
     operations to the Big Switch Controller.
     """
+    target = oslo_messaging.Target(version='1.1')
 
     def initialize(self):
         LOG.debug('Initializing driver')
@@ -64,7 +68,25 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
 
+        # we pretend to be an agent to listen for security group updates
+        self.connection = agent_rpc.create_consumers(
+            [self], topics.AGENT, [[topics.SECURITY_GROUP, topics.UPDATE]])
         LOG.debug("Initialization done")
+
+    def security_groups_rule_updated(self, context, **kwargs):
+        # this will get called whenever a security group rule updated message
+        # goes onto the RPC bus
+        LOG.debug("security_groups_rule_updated: %s", kwargs)
+
+    def security_groups_member_updated(self, context, **kwargs):
+        # this will get called whenever a security group membership changes
+        # this can probably be ignored since that would already be represented
+        # in a port creation or deletion from the member
+        LOG.debug("security_groups_member_updated: %s", kwargs)
+
+    def security_groups_provider_updated(self, context, **kwargs):
+        # not sure when this one is called, need to look into code more
+        LOG.debug("security_groups_provider_updated: %s", kwargs)
 
     @put_context_in_serverpool
     def create_network_postcommit(self, context):
