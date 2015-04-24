@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Kanzhe Jiang <kanzhe@gmail.com>
+Workflow+1: Kanzhe Jiang <kanzhe@gmail.com>
+Submitted-by: Jenkins
+Submitted-at: Fri, 24 Apr 2015 21:37:06 +0000
+Reviewed-on: https://review.openstack.org/177097
+Project: stackforge/networking-bigswitch
+Branch: refs/heads/stable/juno
