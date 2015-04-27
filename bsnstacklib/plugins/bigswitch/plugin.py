@@ -171,7 +171,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 get_routers=self.l3_bsn_plugin)
 
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
-                      get_routers=True):
+                      get_routers=True, get_sgs=True):
         admin_context = qcontext.get_admin_context()
         networks = []
         # this method is used by the ML2 driver so it can't directly invoke
@@ -247,6 +247,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 routers.append(mapped_router)
 
             data.update({'routers': routers})
+
+        if get_sgs:
+            sgs = plugin.get_security_groups(admin_context) or []
+            data.update({'security-groups': sgs})
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
@@ -255,14 +259,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                        triggered_by_tenant=triggered_by_tenant)
 
     def _send_all_data(self, send_ports=True, send_floating_ips=True,
-                       send_routers=True, timeout=None,
+                       send_routers=True, send_sgs=True, timeout=None,
                        triggered_by_tenant=None):
         """Pushes all data to network ctrl (networks/ports, ports/attachments).
 
         This gives the controller an option to re-sync it's persistent store
         with neutron's current view of that data.
         """
-        data = self._get_all_data(send_ports, send_floating_ips, send_routers)
+        data = self._get_all_data(
+            send_ports, send_floating_ips, send_routers, send_sgs)
         data['triggered_by_tenant'] = triggered_by_tenant
         errstr = _("Unable to update remote topology: %s")
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
@@ -520,7 +525,8 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self.servers.get_topo_function = self._get_all_data
         self.servers.get_topo_function_args = {'get_ports': True,
                                                'get_floating_ips': True,
-                                               'get_routers': True}
+                                               'get_routers': True,
+                                               'get_sgs': True}
 
         self.network_scheduler = importutils.import_object(
             cfg.CONF.network_scheduler_driver

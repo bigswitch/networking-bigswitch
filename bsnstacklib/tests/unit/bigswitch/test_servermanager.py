@@ -443,8 +443,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 mock.call('GET', '/', '', None, False, reconnect=True,
                           hash_handler=mock.ANY),
                 mock.call('POST', '/topology',
-                          {'routers': [], 'networks': []},
-                          timeout=None)
+                          {'routers': [], 'security-groups': [],
+                           'networks': []}, timeout=None)
             ])
 
     def test_conflict_sync_raises_error_without_topology(self):
