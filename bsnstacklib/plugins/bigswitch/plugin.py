@@ -150,7 +150,8 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
 
 
 class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
-                             external_net_db.External_net_db_mixin):
+                             external_net_db.External_net_db_mixin,
+                             SecurityGroupServerRpcMixin):
 
     supported_extension_aliases = ["binding"]
     servers = None
@@ -304,6 +305,19 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 subnets_details.append(mapped_subnet)
 
         return subnets_details
+
+    def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
+        if sg_id:
+            # overwrite sg if both sg and sg_id are given
+            sg = self.get_security_group(context, sg_id)
+
+        if sg:
+            self.servers.rest_create_securitygroup(sg)
+        else:
+            LOG.warning(_LW("No scurity group is provided for creation."))
+
+    def bsn_delete_security_group(self, sg_id, context=None):
+        self.servers.rest_delete_securitygroup(sg_id)
 
     def _get_mapped_network_with_subnets(self, network, context=None):
         # if context is not provided, admin context is used
@@ -491,8 +505,7 @@ def put_context_in_serverpool(f):
 class NeutronRestProxyV2(NeutronRestProxyV2Base,
                          addr_pair_db.AllowedAddressPairsMixin,
                          extradhcpopt_db.ExtraDhcpOptMixin,
-                         agentschedulers_db.DhcpAgentSchedulerDbMixin,
-                         SecurityGroupServerRpcMixin):
+                         agentschedulers_db.DhcpAgentSchedulerDbMixin):
 
     _supported_extension_aliases = ["external-net", "binding",
                                     "extra_dhcp_opt", "quotas",

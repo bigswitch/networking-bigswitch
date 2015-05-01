@@ -24,6 +24,7 @@ from oslo_utils import excutils
 from oslo_utils import timeutils
 
 from neutron.agent import rpc as agent_rpc
+from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as ctx
 from neutron.extensions import portbindings
@@ -67,26 +68,51 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
+        self.setup_sg_rpc_callbacks()
+        LOG.debug(_("Initialization done"))
 
-        # we pretend to be an agent to listen for security group updates
+    def setup_sg_rpc_callbacks(self):
+        # this will listen for the same notifications that the l2 agent uses.
+        # This is triggered whenever security group rules change or members
+        # of a security group change.
+        # The functions that will be called directly correspond to the names
+        # defined in the cast calls in
+        # neutron/api/rpc/handlers/securitygroups_rpc.py
         self.connection = agent_rpc.create_consumers(
             [self], topics.AGENT, [[topics.SECURITY_GROUP, topics.UPDATE]])
-        LOG.debug("Initialization done")
 
+        # the above does not cover the cases where security groups are
+        # initially created or when they are deleted since those actions
+        # aren't needed by the L2 agent. In order to receive those, we
+        # subscribe to the notifications topic that receives all of the
+        # API create/update/delete events.
+        # Notifications are published at the 'info' level so they will result
+        # in a call to the 'info' function below. From there we can check
+        # the event type and determine what to do from there.
+        target = oslo_messaging.Target(topic='notifications',
+                                       server=cfg.CONF.host)
+        self.listener = oslo_messaging.get_notification_listener(
+            n_rpc.TRANSPORT, [target], [self], executor='eventlet',
+            allow_requeue=False)
+        self.listener.start()
+
+    def info(self, ctxt, publisher_id, event_type, payload, metadata):
+        """This is called on each notification to the neutron topic """
+        if event_type == 'security_group.create.end':
+            LOG.debug(_("Security group created: %s") % payload)
+            self.bsn_create_security_group(sg=payload['security_group'])
+        elif event_type == 'security_group.delete.end':
+            LOG.debug(_("Security group deleted: %s") % payload)
+            self.bsn_delete_security_group(payload['security_group_id'])
+
+    @put_context_in_serverpool
     def security_groups_rule_updated(self, context, **kwargs):
         # this will get called whenever a security group rule updated message
         # goes onto the RPC bus
-        LOG.debug("security_groups_rule_updated: %s", kwargs)
-
-    def security_groups_member_updated(self, context, **kwargs):
-        # this will get called whenever a security group membership changes
-        # this can probably be ignored since that would already be represented
-        # in a port creation or deletion from the member
-        LOG.debug("security_groups_member_updated: %s", kwargs)
-
-    def security_groups_provider_updated(self, context, **kwargs):
-        # not sure when this one is called, need to look into code more
-        LOG.debug("security_groups_provider_updated: %s", kwargs)
+        LOG.debug(_("security_groups_rule_updated: %s") % kwargs)
+        if kwargs.get('security_groups'):
+            for sg_id in kwargs.get('security_groups'):
+                self.bsn_create_security_group(sg_id, context=context)
 
     @put_context_in_serverpool
     def create_network_postcommit(self, context):
