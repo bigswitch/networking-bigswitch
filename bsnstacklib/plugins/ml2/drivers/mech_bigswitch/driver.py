@@ -188,9 +188,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         net = context.network.current
         port['network'] = net
         port['bound_segment'] = context.bound_segment
-        actx = ctx.get_admin_context()
-        prepped_port = self._extend_port_dict_binding(actx, port)
-        prepped_port = self._map_state_and_status(prepped_port)
+        prepped_port = self._map_state_and_status(port)
         if (portbindings.HOST_ID not in prepped_port or
             prepped_port[portbindings.HOST_ID] == ''):
             LOG.warning(_("Ignoring port notification to controller because "

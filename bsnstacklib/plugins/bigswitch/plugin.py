@@ -205,8 +205,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         'id': port.get('device_id'),
                         'mac': port.get('mac_address'),
                     }
-                    mapped_port = self._extend_port_dict_binding(admin_context,
-                                                                 mapped_port)
                     ports.append(mapped_port)
                 flips_n_ports['ports'] = ports
 
