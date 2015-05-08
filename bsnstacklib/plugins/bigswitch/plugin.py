@@ -112,18 +112,18 @@ class AgentNotifierApi(sg_rpc.SecurityGroupAgentRpcApiMixin):
 
 class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
 
-    def get_port_from_device(self, device):
+    def get_port_from_device(self, context, device):
         port_id = re.sub(r"^%s" % const.TAP_DEVICE_PREFIX, "", device)
-        port = self.get_port_and_sgs(port_id)
+        port = self.get_port_and_sgs(context, port_id)
         if port:
             port['device'] = device
         return port
 
-    def get_port_and_sgs(self, port_id):
+    def get_port_and_sgs(self, context, port_id):
         """Get port from database with security group info."""
 
         LOG.debug("get_port_and_sgs() called for port_id %s", port_id)
-        session = db.get_session()
+        session = context.session
         sg_binding_port = sg_db.SecurityGroupPortBinding.port_id
 
         with session.begin(subtransactions=True):
