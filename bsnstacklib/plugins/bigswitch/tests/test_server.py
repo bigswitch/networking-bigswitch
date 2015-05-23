@@ -89,7 +89,7 @@ class TestNetworkCtrl(object):
     def request_handler(self, method, uri, body):
         retstatus = self.default_status
         retbody = self.default_response
-        for i in moves.xrange(len(self.matches)):
+        for i in moves.range(len(self.matches)):
             (unused_prior, method_regexp, uri_regexp, handler, data,
              multi) = self.matches[i]
             if re.match(method_regexp, method) and re.match(uri_regexp, uri):

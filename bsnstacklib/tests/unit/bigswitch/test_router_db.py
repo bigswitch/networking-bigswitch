@@ -530,7 +530,7 @@ class RouterDBTestCase(RouterDBTestBase,
         cfg.CONF.set_override('max_router_rules', 10, 'ROUTER')
         with self.router() as r:
             rules = []
-            for i in moves.xrange(1, 12):
+            for i in moves.range(1, 12):
                 rule = {'source': 'any', 'nexthops': [],
                         'destination': '1.1.1.' + str(i) + '/32',
                         'action': 'permit'}
