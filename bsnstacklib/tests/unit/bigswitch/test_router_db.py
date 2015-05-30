@@ -408,7 +408,10 @@ class RouterDBTestCase(RouterDBTestBase,
             body = self._show('routers', r['router']['id'])
             self.assertIn('router_rules', body['router'])
             rules = body['router']['router_rules']
-            self.assertEqual(_strip_rule_ids(rules), router_rules)
+            res_router_rules = copy.deepcopy(router_rules)
+            for attr in ['source', 'destination']:
+                res_router_rules[0][attr] = {'cidr': router_rules[0][attr]}
+            self.assertEqual(_strip_rule_ids(rules), res_router_rules)
             # Try after adding another rule
             router_rules.append({'source': 'external',
                                  'destination': '8.8.8.8/32',
@@ -419,7 +422,12 @@ class RouterDBTestCase(RouterDBTestBase,
             body = self._show('routers', r['router']['id'])
             self.assertIn('router_rules', body['router'])
             rules = body['router']['router_rules']
-            self.assertEqual(_strip_rule_ids(rules), router_rules)
+            res_router_rules = copy.deepcopy(router_rules)
+            for rule in res_router_rules:
+                for attr in ['source', 'destination']:
+                    rule[attr] = ('any' if rule[attr] in ['any', 'external']
+                                  else {'cidr': rule[attr]})
+            self.assertEqual(_strip_rule_ids(rules), res_router_rules)
 
     def test_router_rules_separation(self):
         with self.router() as r1:
@@ -445,6 +453,11 @@ class RouterDBTestCase(RouterDBTestBase,
                 body2 = self._show('routers', r2_id)
                 rules1 = body1['router']['router_rules']
                 rules2 = body2['router']['router_rules']
+                for attr in ['source', 'destination']:
+                    router1_rules[0][attr] = {
+                        'cidr': router1_rules[0][attr]}
+                    router2_rules[0][attr] = {
+                        'cidr': router2_rules[0][attr]}
                 self.assertEqual(_strip_rule_ids(rules1), router1_rules)
                 self.assertEqual(_strip_rule_ids(rules2), router2_rules)
 
@@ -460,7 +473,11 @@ class RouterDBTestCase(RouterDBTestBase,
                                 {'router': {'router_rules': good_rules}})
             body = self._show('routers', r_id)
             self.assertIn('router_rules', body['router'])
-            self.assertEqual(good_rules,
+            light_rules = copy.deepcopy(good_rules)
+            for attr in ['source', 'destination']:
+                light_rules[0][attr] = {
+                    'cidr': light_rules[0][attr]}
+            self.assertEqual(light_rules,
                              _strip_rule_ids(body['router']['router_rules']))
 
             # Missing nexthops should be populated with an empty list
@@ -471,6 +488,9 @@ class RouterDBTestCase(RouterDBTestBase,
             body = self._show('routers', r_id)
             self.assertIn('router_rules', body['router'])
             light_rules[0]['nexthops'] = []
+            for attr in ['source', 'destination']:
+                light_rules[0][attr] = {
+                    'cidr': light_rules[0][attr]}
             self.assertEqual(light_rules,
                              _strip_rule_ids(body['router']['router_rules']))
             # bad CIDR
@@ -521,7 +541,8 @@ class RouterDBTestCase(RouterDBTestBase,
             body = self._show('routers', r['router']['id'])
             expected_rules = [{'source': 'any', 'destination': 'any',
                                'nexthops': [], 'action': 'deny'},
-                              {'source': '8.8.8.8/32', 'destination': 'any',
+                              {'source': {'cidr': '8.8.8.8/32'},
+                               'destination': 'any',
                                'nexthops': ['1.2.3.4'], 'action': 'permit'}]
             self.assertEqual(expected_rules,
                              _strip_rule_ids(body['router']['router_rules']))

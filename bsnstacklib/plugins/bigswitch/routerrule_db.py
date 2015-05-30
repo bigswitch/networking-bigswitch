@@ -84,11 +84,15 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         ruleslist = []
         for rule in router_rules:
             hops = [hop['nexthop'] for hop in rule['nexthops']]
-            ruleslist.append({'id': rule['id'],
-                              'destination': rule['destination'],
-                              'source': rule['source'],
-                              'action': rule['action'],
-                              'nexthops': hops})
+            ruleslist.append(
+                {'id': rule['id'],
+                 'destination': ('any'
+                                 if rule['destination'] in ['any', 'external']
+                                 else {'cidr': rule['destination']}),
+                 'source': ('any' if rule['source'] in ['any', 'external']
+                            else {'cidr': rule['source']}),
+                 'action': rule['action'],
+                 'nexthops': hops})
         return ruleslist
 
     def _get_router_rules_by_router_id(self, context, id):
