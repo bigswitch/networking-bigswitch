@@ -35,6 +35,10 @@ from neutron.i18n import _LE
 from neutron import manager
 from neutron.plugins.common import constants
 
+from neutron.db import models_v2
+from neutron.common import constants as const
+from sqlalchemy.orm import exc as sqlexc
+
 from bsnstacklib.plugins.bigswitch import extensions
 from bsnstacklib.plugins.bigswitch import plugin as cplugin
 from bsnstacklib.plugins.bigswitch import routerrule_db
@@ -106,6 +110,17 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                     new_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
                         ext_tenant_id)
             router = self._map_state_and_status(new_router)
+
+            # reset router port status according to admin_state
+            try:
+                port = (context.session.query(models_v2.Port)
+                    .filter_by(device_owner="network:router_gateway")
+                    .filter_by(device_id=router_id).one())
+                if port['admin_state_up']:
+                    port['status'] = const.PORT_STATUS_ACTIVE
+            except sqlexc.NoResultFound:
+                pass
+
             # look up the network on this side to save an expensive query on
             # the backend controller.
             if router and router.get('external_gateway_info'):
