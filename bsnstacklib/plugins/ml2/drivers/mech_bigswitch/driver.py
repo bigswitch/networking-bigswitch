@@ -24,6 +24,7 @@ from oslo_utils import excutils
 from oslo_utils import timeutils
 
 from neutron.agent import rpc as agent_rpc
+from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron import context as ctx
@@ -38,6 +39,7 @@ from bsnstacklib.plugins.bigswitch import plugin
 from bsnstacklib.plugins.bigswitch import servermanager
 
 EXTERNAL_PORT_OWNER = 'neutron:external_port'
+ROUTER_GATEWAY_PORT_OWNER = 'network:router_gateway'
 LOG = log.getLogger(__name__)
 put_context_in_serverpool = plugin.put_context_in_serverpool
 
@@ -148,6 +150,13 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port_postcommit(self, context):
+        # If bsn_l3 plugin and it is a gateway port, bind to ivs.
+        if (self.l3_bsn_plugin and
+            context.current['device_owner'] == ROUTER_GATEWAY_PORT_OWNER):
+            manager.NeutronManager.get_plugin().update_port_status(
+                context._plugin_context, context.current['id'],
+                const.PORT_STATUS_ACTIVE)
+
         # create port on the network controller
         port = self._prepare_port_for_controller(context)
         if port:
