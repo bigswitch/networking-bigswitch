@@ -129,7 +129,7 @@ class TestNetworkCtrl(object):
                 print('\n')
                 if self.debug_env:
                     print('environ:')
-                    for (key, value) in sorted(environ.iteritems()):
+                    for (key, value) in sorted(environ.items()):
                         print('  %16s : %s' % (key, value))
 
                 print('%s %s' % (method, uri))
