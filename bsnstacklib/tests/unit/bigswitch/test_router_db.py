@@ -19,17 +19,16 @@ import copy
 
 import mock
 from oslo_config import cfg
+from oslo_utils import uuidutils
 from six import moves
 from webob import exc
 
 from bsnstacklib.plugins.bigswitch.extensions import routerrule
 from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
-from neutron.common import test_lib
 from neutron import context
 from neutron.extensions import l3
 from neutron import manager
-from neutron.openstack.common import uuidutils
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3
@@ -84,10 +83,6 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
         self.plugin_obj = manager.NeutronManager.get_service_plugins().get(
             'L3_ROUTER_NAT')
         self.startHttpPatch()
-
-    def tearDown(self):
-        super(RouterDBTestBase, self).tearDown()
-        del test_lib.test_config['config_files']
 
 
 class RouterDBTestCase(RouterDBTestBase,

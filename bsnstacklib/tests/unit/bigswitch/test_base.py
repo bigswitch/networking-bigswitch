@@ -17,9 +17,8 @@
 import os
 
 import mock
+from neutron.tests import base
 from oslo_config import cfg
-
-import neutron.common.test_lib as test_lib
 
 from bsnstacklib.plugins.bigswitch import config
 from bsnstacklib.plugins.bigswitch.db import consistency_db
@@ -41,15 +40,20 @@ class BigSwitchTestBase(object):
     _plugin_name = ('%s.NeutronRestProxyV2' % RESTPROXY_PKG_PATH)
     _l3_plugin_name = ('%s.L3RestProxy' % L3_RESTPROXY_PKG_PATH)
 
-    def setup_config_files(self):
+    def setup_config(self):
+        args = ['--config-file', base.etcdir('neutron.conf')]
         etc_path = os.path.join(os.path.dirname(__file__), 'etc')
-        test_lib.test_config['config_files'] = [os.path.join(etc_path,
-                                                'restproxy.ini.test')]
+        args.extend(['--config-file', os.path.join(etc_path,
+                                                   'restproxy.ini.test')])
+        super(BigSwitchTestBase, self).setup_config(args=args)
+
+    def setup_config_files(self):
         self.addCleanup(cfg.CONF.reset)
         self.addCleanup(consistency_db.clear_db)
         config.register_config()
         # Only try SSL on SSL tests
         cfg.CONF.set_override('server_ssl', False, 'RESTPROXY')
+        etc_path = os.path.join(os.path.dirname(__file__), 'etc')
         cfg.CONF.set_override('ssl_cert_directory',
                               os.path.join(etc_path, 'ssl'), 'RESTPROXY')
         # The mock interferes with HTTP(S) connection caching
@@ -58,10 +62,6 @@ class BigSwitchTestBase(object):
         cfg.CONF.set_override('add_meta_server_route', False, 'RESTPROXY')
 
     def setup_patches(self):
-        self.dhcp_periodic_p = mock.patch(
-            'neutron.db.agentschedulers_db.DhcpAgentSchedulerDbMixin.'
-            'start_periodic_dhcp_agent_status_check')
-        self.patched_dhcp_periodic = self.dhcp_periodic_p.start()
         self.plugin_notifier_p = mock.patch(NOTIFIER)
         # prevent any greenthreads from spawning
         self.spawn_p = mock.patch(SPAWN, new=lambda *args, **kwargs: None)
