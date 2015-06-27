@@ -44,6 +44,9 @@ from bsnstacklib.plugins.bigswitch import servermanager
 ROUTER_RULE_COMPONENT_COUNT = 5
 LOG = logging.getLogger(__name__)
 put_context_in_serverpool = cplugin.put_context_in_serverpool
+BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
+    "not have floatingip capability, should not "
+    "deploy BSN l3 router plugin")
 
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
@@ -227,7 +230,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                     self.servers.rest_create_floatingip(
                         new_fl_ip['tenant_id'], new_fl_ip)
                 else:
-                    self._send_floatingip_update(context)
+                    LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception():
                     LOG.error(
@@ -253,7 +256,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 self.servers.rest_update_floatingip(new_fl_ip['tenant_id'],
                                                     new_fl_ip, id)
             else:
-                self._send_floatingip_update(context)
+                LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
             return new_fl_ip
 
     @put_context_in_serverpool
@@ -268,7 +271,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             if 'floatingip' in self.servers.get_capabilities():
                 self.servers.rest_delete_floatingip(old_fip['tenant_id'], id)
             else:
-                self._send_floatingip_update(context)
+                LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
 
     @put_context_in_serverpool
     @log.log
