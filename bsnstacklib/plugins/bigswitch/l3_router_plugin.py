@@ -231,6 +231,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                         new_fl_ip['tenant_id'], new_fl_ip)
                 else:
                     LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
+                    self._send_floatingip_update(context)
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception():
                     LOG.error(
@@ -257,6 +258,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                                                     new_fl_ip, id)
             else:
                 LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
+                self._send_floatingip_update(context)
             return new_fl_ip
 
     @put_context_in_serverpool
@@ -272,6 +274,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 self.servers.rest_delete_floatingip(old_fip['tenant_id'], id)
             else:
                 LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
+                self._send_floatingip_update(context)
 
     @put_context_in_serverpool
     @log.log
