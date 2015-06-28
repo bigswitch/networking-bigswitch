@@ -101,9 +101,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # the event type and determine what to do from there.
         target = oslo_messaging.Target(topic='notifications',
                                        server=cfg.CONF.host)
+        keystone_target = oslo_messaging.Target(
+             topic='notifications', exchange='keystone', server=cfg.CONF.host)
         self.listener = oslo_messaging.get_notification_listener(
-            n_rpc.TRANSPORT, [target], [self], executor='eventlet',
-            allow_requeue=False)
+            n_rpc.TRANSPORT, [target, keystone_target], [self],
+            executor='eventlet', allow_requeue=False)
         self.listener.start()
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
@@ -114,6 +116,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         elif event_type == 'security_group.delete.end':
             LOG.debug(_("Security group deleted: %s") % payload)
             self.bsn_delete_security_group(payload['security_group_id'])
+        elif event_type == 'identity.project.deleted':
+            LOG.debug("Project deleted: %s" % payload)
+            self.bsn_delete_tenant(payload['resource_info'])
+        elif event_type == 'identity.project.created':
+            LOG.debug("Project created: %s" % payload)
+            self.bsn_create_tenant(payload['resource_info'])
+        else:
+            LOG.debug("Else events: %s payload: %s" % (event_type, payload))
 
     @put_context_in_serverpool
     def security_groups_rule_updated(self, context, **kwargs):

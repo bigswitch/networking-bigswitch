@@ -317,6 +317,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def bsn_delete_security_group(self, sg_id, context=None):
         self.servers.rest_delete_securitygroup(sg_id)
 
+    def bsn_create_tenant(self, tenant_id, context=None):
+        self.servers.rest_create_tenant(tenant_id)
+
+    def bsn_delete_tenant(self, tenant_id, context=None):
+        self.servers.rest_delete_tenant(tenant_id)
+
     def _get_mapped_network_with_subnets(self, network, context=None):
         # if context is not provided, admin context is used
         if context is None:
@@ -340,6 +346,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _send_create_network(self, network, context=None):
         tenant_id = network['tenant_id']
+        if context is None:
+            context = qcontext.get_admin_context()
+        filters = {'name': ['default'], 'tenant_id': [tenant_id]}
+        default_group = self.get_security_groups(
+            context, filters, default_sg=True)
+        self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
         self.servers.rest_create_network(tenant_id, mapped_network)

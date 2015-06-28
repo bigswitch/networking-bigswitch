@@ -55,6 +55,7 @@ PORT_RESOURCE_PATH = "/tenants/%s/networks/%s/ports"
 ROUTER_RESOURCE_PATH = "/tenants/%s/routers"
 ROUTER_INTF_OP_PATH = "/tenants/%s/routers/%s/interfaces"
 SECURITY_GROUP_RESOURCE_PATH = "/securitygroups"
+TENANT_RESOURCE_PATH = "/tenants"
 NETWORKS_PATH = "/tenants/%s/networks/%s"
 FLOATINGIPS_PATH = "/tenants/%s/floatingips/%s"
 PORTS_PATH = "/tenants/%s/networks/%s/ports/%s"
@@ -62,6 +63,7 @@ ATTACHMENT_PATH = "/tenants/%s/networks/%s/ports/%s/attachment"
 ROUTERS_PATH = "/tenants/%s/routers/%s"
 ROUTER_INTF_PATH = "/tenants/%s/routers/%s/interfaces/%s"
 SECURITY_GROUP_PATH = "/securitygroups/%s"
+TENANT_PATH = "/tenants/%s"
 TOPOLOGY_PATH = "/topology"
 HEALTH_PATH = "/health"
 SWITCHES_PATH = "/switches/%s"
@@ -541,6 +543,17 @@ class ServerPool(object):
                       'resource': resource})
         return resp
 
+    def rest_create_tenant(self, tenant_id):
+        resource = TENANT_RESOURCE_PATH
+        data = {"tenant_id": tenant_id}
+        errstr = _("Unable to create tenant: %s")
+        self.rest_action('POST', resource, data, errstr)
+
+    def rest_delete_tenant(self, tenant_id):
+        resource = TENANT_PATH % tenant_id
+        errstr = _("Unable to delete tenant: %s")
+        self.rest_action('DELETE', resource, errstr=errstr)
+
     def rest_create_router(self, tenant_id, router):
         resource = ROUTER_RESOURCE_PATH % tenant_id
         data = {"router": router}
@@ -583,7 +596,7 @@ class ServerPool(object):
 
     def rest_delete_network(self, tenant_id, net_id):
         resource = NETWORKS_PATH % (tenant_id, net_id)
-        errstr = _("Unable to update remote network: %s")
+        errstr = _("Unable to delete remote network: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_securitygroup(self, sg):
@@ -594,7 +607,7 @@ class ServerPool(object):
 
     def rest_delete_securitygroup(self, sg_id):
         resource = SECURITY_GROUP_PATH % sg_id
-        errstr = _("Unable to update security group: %s")
+        errstr = _("Unable to delete security group: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_port(self, tenant_id, net_id, port):
