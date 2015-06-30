@@ -17,8 +17,9 @@
 import os
 
 import mock
-from neutron.tests import base
 from oslo_config import cfg
+
+import neutron.common.test_lib as test_lib
 
 from bsnstacklib.plugins.bigswitch import config
 from bsnstacklib.plugins.bigswitch.db import consistency_db
@@ -40,14 +41,10 @@ class BigSwitchTestBase(object):
     _plugin_name = ('%s.NeutronRestProxyV2' % RESTPROXY_PKG_PATH)
     _l3_plugin_name = ('%s.L3RestProxy' % L3_RESTPROXY_PKG_PATH)
 
-    def setup_config(self):
-        args = ['--config-file', base.etcdir('neutron.conf')]
-        etc_path = os.path.join(os.path.dirname(__file__), 'etc')
-        args.extend(['--config-file', os.path.join(etc_path,
-                                                   'restproxy.ini.test')])
-        super(BigSwitchTestBase, self).setup_config(args=args)
-
     def setup_config_files(self):
+        etc_path = os.path.join(os.path.dirname(__file__), 'etc')
+        test_lib.test_config['config_files'] = [os.path.join(etc_path,
+                                                'restproxy.ini.test')]
         self.addCleanup(cfg.CONF.reset)
         self.addCleanup(consistency_db.clear_db)
         config.register_config()
