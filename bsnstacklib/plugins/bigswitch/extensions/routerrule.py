@@ -36,7 +36,8 @@ def convert_to_valid_router_rules(data):
     Validates and converts router rules to the appropriate data structure
     Example argument = [{'source': 'any', 'destination': 'any',
                          'action':'deny'},
-                        {'source': '1.1.1.1/32', 'destination': 'external',
+                        {'source': {'cidr': '1.1.1.1/32'},
+                         'destination': 'external',
                          'action':'permit',
                          'nexthops': ['1.1.1.254', '1.1.1.253']}
                        ]
@@ -55,8 +56,19 @@ def convert_to_valid_router_rules(data):
         if not isinstance(rule['nexthops'], list):
             rule['nexthops'] = rule['nexthops'].split('+')
 
-        src = V4ANY if rule['source'] in CIDRALL else rule['source']
-        dst = V4ANY if rule['destination'] in CIDRALL else rule['destination']
+        if rule.get('source') in CIDRALL:
+            src = V4ANY
+        elif 'cidr' in rule['source']:
+            src = rule['source']['cidr']
+        else:
+            src = rule['source']
+
+        if rule.get('destination') in CIDRALL:
+            dst = V4ANY
+        elif 'cidr' in rule['destination']:
+            dst = rule['destination']['cidr']
+        else:
+            dst = rule['destination']
 
         errors = [attr._verify_dict_keys(expected_keys, rule, False),
                   attr._validate_subnet(dst),
@@ -93,7 +105,7 @@ def _validate_uniquerules(rules):
     for r in rules:
         if 'source' not in r or 'destination' not in r:
             continue
-        pairs.append((r['source'], r['destination']))
+        pairs.append((str(r['source']), str(r['destination'])))
 
     if len(set(pairs)) != len(pairs):
         error = _("Duplicate router rules (src,dst)  found '%s'") % pairs
