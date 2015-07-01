@@ -70,10 +70,14 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         context.session.expunge_all()
         LOG.debug('Updating router rules to %s', rules)
         for rule in rules:
+            src = (rule['source']['cidr'] if 'cidr' in rule['source']
+                   else rule['source'])
+            dst = (rule['destination']['cidr'] if 'cidr' in rule['destination']
+                   else rule['destination'])
             router_rule = RouterRule(
                 router_id=router['id'],
-                destination=rule['destination'],
-                source=rule['source'],
+                destination=dst,
+                source=src,
                 action=rule['action'])
             router_rule.nexthops = [NextHop(nexthop=hop)
                                     for hop in rule['nexthops']]
