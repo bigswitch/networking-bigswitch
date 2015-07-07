@@ -70,14 +70,10 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         context.session.expunge_all()
         LOG.debug('Updating router rules to %s', rules)
         for rule in rules:
-            src = (rule['source']['cidr'] if 'cidr' in rule['source']
-                   else rule['source'])
-            dst = (rule['destination']['cidr'] if 'cidr' in rule['destination']
-                   else rule['destination'])
             router_rule = RouterRule(
                 router_id=router['id'],
-                destination=dst,
-                source=src,
+                destination=rule['destination'],
+                source=rule['source'],
                 action=rule['action'])
             router_rule.nexthops = [NextHop(nexthop=hop)
                                     for hop in rule['nexthops']]
@@ -88,15 +84,11 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         ruleslist = []
         for rule in router_rules:
             hops = [hop['nexthop'] for hop in rule['nexthops']]
-            ruleslist.append(
-                {'id': rule['id'],
-                 'destination': ('any'
-                                 if rule['destination'] in ['any', 'external']
-                                 else {'cidr': rule['destination']}),
-                 'source': ('any' if rule['source'] in ['any', 'external']
-                            else {'cidr': rule['source']}),
-                 'action': rule['action'],
-                 'nexthops': hops})
+            ruleslist.append({'id': rule['id'],
+                              'destination': rule['destination'],
+                              'source': rule['source'],
+                              'action': rule['action'],
+                              'nexthops': hops})
         return ruleslist
 
     def _get_router_rules_by_router_id(self, context, id):
