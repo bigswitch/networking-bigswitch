@@ -100,10 +100,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Notifications are published at the 'info' level so they will result
         # in a call to the 'info' function below. From there we can check
         # the event type and determine what to do from there.
-        target = oslo.messaging.Target(topic='notifications',
+        target = oslo.messaging.Target(topic='#',
                                        server=cfg.CONF.host)
         keystone_target = oslo.messaging.Target(
-             topic='notifications', exchange='keystone', server=cfg.CONF.host)
+             topic='#', exchange='keystone', server=cfg.CONF.host)
         self.listener = oslo.messaging.get_notification_listener(
             n_rpc.TRANSPORT, [target, keystone_target], [self],
             executor='eventlet', allow_requeue=False)
