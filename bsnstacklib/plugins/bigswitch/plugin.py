@@ -298,7 +298,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         subnets_details = []
         if subnets:
             for subnet in subnets:
-                subnet_dict = self._make_subnet_dict(subnet)
+                subnet_dict = self._make_subnet_dict(subnet, context=context)
                 mapped_subnet = self._map_state_and_status(subnet_dict)
                 subnets_details.append(mapped_subnet)
 
@@ -883,7 +883,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             port = super(NeutronRestProxyV2, self).get_port(context, port_id)
             # Tenant ID must come from network in case the network is shared
             tenid = self._get_port_net_tenantid(context, port)
-            self._delete_port(context, port_id)
+            self.ipam.delete_port(context, port_id)
             self.servers.rest_delete_port(tenid, port['network_id'], port_id)
 
         if self.l3_plugin:
