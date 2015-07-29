@@ -24,6 +24,7 @@ from oslo_utils import excutils
 from oslo_utils import timeutils
 
 from neutron.agent import rpc as agent_rpc
+from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -308,3 +309,15 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             self.ivs_host_cache.pop(host)
             raise ValueError(_('Expired cache entry for host %s') % host)
         return entry['exists']
+
+# monkey-patch dhcp port update handler to handle missing host_id logic
+orig_update_dhcp_port = dhcp_rpc.DhcpRpcCallback.update_dhcp_port
+
+
+def _corrected_update_dhcp_port(*args, **kwargs):
+    host = kwargs.get('host')
+    port = kwargs.get('port')
+    # inject the host into the port update in case it has changed
+    port['port'][portbindings.HOST_ID] = host
+    return orig_update_dhcp_port(*args, **kwargs)
+dhcp_rpc.DhcpRpcCallback.update_dhcp_port = _corrected_update_dhcp_port
