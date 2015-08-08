@@ -310,24 +310,27 @@ dhcp_rpc.DhcpRpcCallback.update_dhcp_port = _corrected_update_dhcp_port
 
 
 # monkey-patch to deal with bug 1464612
-from neutron.api.v2 import base as v2apibase
-from neutron.db import api as db_api
-from neutron.plugins.ml2 import plugin as ml2_plugin
+try:
+    from neutron.api.v2 import base as v2apibase
+    from neutron.db import api as db_api
+    from neutron.plugins.ml2 import plugin as ml2_plugin
 
+    dead_retry = db_api.wrap_db_retry(max_retries=10, retry_on_deadlock=True)
+    orig_create = v2apibase.Controller.create
 
-dead_retry = db_api.wrap_db_retry(max_retries=10, retry_on_deadlock=True)
-orig_create = v2apibase.Controller.create
+    @dead_retry
+    def create_with_body_copy(*args, **kwargs):
+        # handles bug 1470615
+        if 'body' in kwargs:
+            kwargs['body'] = copy.deepcopy(kwargs['body'])
+        return orig_create(*args, **kwargs)
 
-
-@dead_retry
-def create_with_body_copy(*args, **kwargs):
-    # handles bug 1470615
-    if 'body' in kwargs:
-        kwargs['body'] = copy.deepcopy(kwargs['body'])
-    return orig_create(*args, **kwargs)
-
-v2apibase.Controller.create = create_with_body_copy
-v2apibase.Controller.update = dead_retry(v2apibase.Controller.update)
-v2apibase.Controller.delete = dead_retry(v2apibase.Controller.delete)
-ml2_plugin.Ml2Plugin.update_port_status = dead_retry(
-    ml2_plugin.Ml2Plugin.update_port_status)
+    v2apibase.Controller.create = create_with_body_copy
+    v2apibase.Controller.update = dead_retry(v2apibase.Controller.update)
+    v2apibase.Controller.delete = dead_retry(v2apibase.Controller.delete)
+    ml2_plugin.Ml2Plugin.update_port_status = dead_retry(
+        ml2_plugin.Ml2Plugin.update_port_status)
+except ImportError:
+    # this wrapper is a workaround for packstack.
+    # packstack is not using the stable/juno code
+    pass
