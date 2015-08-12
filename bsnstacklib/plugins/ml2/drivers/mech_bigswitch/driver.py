@@ -330,7 +330,7 @@ try:
     v2apibase.Controller.delete = dead_retry(v2apibase.Controller.delete)
     ml2_plugin.Ml2Plugin.update_port_status = dead_retry(
         ml2_plugin.Ml2Plugin.update_port_status)
-except ImportError:
+except (ImportError, AttributeError):
     # this wrapper is a workaround for packstack.
     # packstack is not using the stable/juno code
     pass
