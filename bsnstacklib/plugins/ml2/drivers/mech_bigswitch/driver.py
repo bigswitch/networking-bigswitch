@@ -248,7 +248,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             for segment in context.segments_to_bind:
                 if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
                     context.set_binding(
-                        segment[api.ID], portbindings.VIF_TYPE_IVS,
+                        segment[api.ID], pl_config.VIF_TYPE_IVS,
                         {portbindings.CAP_PORT_FILTER: True,
                         portbindings.OVS_HYBRID_PLUG: True})
 
