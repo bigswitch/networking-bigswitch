@@ -25,7 +25,6 @@ eventlet.monkey_patch()
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
-from oslo_service import loopingcall
 from oslo_utils import excutils
 
 from neutron.agent.common import ovs_lib
@@ -38,6 +37,7 @@ from neutron.common import topics
 from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
 from neutron.i18n import _LE, _LI
+from neutron.openstack.common import loopingcall
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 
