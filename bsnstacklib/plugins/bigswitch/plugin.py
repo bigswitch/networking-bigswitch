@@ -112,18 +112,18 @@ class AgentNotifierApi(sg_rpc.SecurityGroupAgentRpcApiMixin):
 
 class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
 
-    def get_port_from_device(self, context, device):
+    def get_port_from_device(self, device):
         port_id = re.sub(r"^%s" % const.TAP_DEVICE_PREFIX, "", device)
-        port = self.get_port_and_sgs(context, port_id)
+        port = self.get_port_and_sgs(port_id)
         if port:
             port['device'] = device
         return port
 
-    def get_port_and_sgs(self, context, port_id):
+    def get_port_and_sgs(self, port_id):
         """Get port from database with security group info."""
 
         LOG.debug("get_port_and_sgs() called for port_id %s", port_id)
-        session = context.session
+        session = db.get_session()
         sg_binding_port = sg_db.SecurityGroupPortBinding.port_id
 
         with session.begin(subtransactions=True):
@@ -298,7 +298,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         subnets_details = []
         if subnets:
             for subnet in subnets:
-                subnet_dict = self._make_subnet_dict(subnet, context=context)
+                subnet_dict = self._make_subnet_dict(subnet)
                 mapped_subnet = self._map_state_and_status(subnet_dict)
                 subnets_details.append(mapped_subnet)
 
@@ -883,7 +883,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             port = super(NeutronRestProxyV2, self).get_port(context, port_id)
             # Tenant ID must come from network in case the network is shared
             tenid = self._get_port_net_tenantid(context, port)
-            self.ipam.delete_port(context, port_id)
+            self._delete_port(context, port_id)
             self.servers.rest_delete_port(tenid, port['network_id'], port_id)
 
         if self.l3_plugin:
