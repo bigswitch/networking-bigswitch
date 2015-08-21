@@ -87,19 +87,6 @@ nova_opts = [
                       "Nova compute nodes")),
 ]
 
-VIF_TYPE_IVS = 'ivs'
-VIF_TYPES = [
-    portbindings.VIF_TYPE_UNBOUND,
-    portbindings.VIF_TYPE_BINDING_FAILED,
-    portbindings.VIF_TYPE_DISTRIBUTED,
-    portbindings.VIF_TYPE_OVS,
-    portbindings.VIF_TYPE_BRIDGE,
-    portbindings.VIF_TYPE_OTHER,
-    VIF_TYPE_IVS,
-    'iovisor', 'vhostuser', 'dvs', '802.1qbg', '802.1qbh', 'hyperv',
-    'midonet', 'ib_hostdev', 'hw_web', 'vrouter',
-]
-
 # Each VIF Type can have a list of nova host IDs that are fixed to that type
 for i in portbindings.VIF_TYPES:
     opt = cfg.ListOpt('node_override_vif_' + i, default=[],
@@ -109,7 +96,7 @@ for i in portbindings.VIF_TYPES:
 
 # Add the vif types for reference later
 nova_opts.append(cfg.ListOpt('vif_types',
-                             default=VIF_TYPES,
+                             default=portbindings.VIF_TYPES,
                              help=_('List of allowed vif_type values.')))
 
 agent_opts = [
