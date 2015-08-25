@@ -94,6 +94,7 @@ LOG = logging.getLogger(__name__)
 
 SYNTAX_ERROR_MESSAGE = _('Syntax error in server config file, aborting plugin')
 METADATA_SERVER_IP = '169.254.169.254'
+SERVICE_TENANT = 'VRRP_Service'
 
 
 class AgentNotifierApi(sg_rpc.SecurityGroupAgentRpcApiMixin):
@@ -249,6 +250,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if get_sgs:
             sgs = plugin.get_security_groups(admin_context) or []
             data.update({'security-groups': sgs})
+
+        self._assign_network_to_service_tenant(data)
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
@@ -270,6 +273,18 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         errstr = _("Unable to update remote topology: %s")
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
                                         data, errstr, timeout=timeout)
+
+    def _format_network_name(self, net_name):
+        return net_name.replace(' ', '-')
+
+    def _assign_network_to_service_tenant(self, data):
+        for sg in data.get('security-groups'):
+            sg['tenant_id'] = sg['tenant_id'] or SERVICE_TENANT
+
+        for network in data.get('networks'):
+            if not network['tenant_id']:
+                network['tenant_id'] = SERVICE_TENANT
+                network['name'] = self._format_network_name(network['name'])
 
     def _get_network_with_floatingips(self, network, context=None):
         if context is None:
@@ -304,12 +319,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         return subnets_details
 
+    def _tenant_check_for_security_group(self, sg):
+        sg['tenant_id'] = sg['tenant_id'] or SERVICE_TENANT
+
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
             # overwrite sg if both sg and sg_id are given
             sg = self.get_security_group(context, sg_id)
 
         if sg:
+            self._tenant_check_for_security_group(sg)
             self.servers.rest_create_securitygroup(sg)
         else:
             LOG.warning(_LW("No scurity group is provided for creation."))
@@ -354,6 +373,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
+        if not mapped_network['tenant_id']:
+            tenant_id = SERVICE_TENANT
+            mapped_network['tenant_id'] = SERVICE_TENANT
+            mapped_network['name'] = self._format_network_name(
+                mapped_network['name'])
         self.servers.rest_create_network(tenant_id, mapped_network)
 
     def _send_update_network(self, network, context=None):
@@ -363,11 +387,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                                                context)
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
                                                         context)
+        if not net_fl_ips['tenant_id']:
+            tenant_id = SERVICE_TENANT
+            net_fl_ips['tenant_id'] = SERVICE_TENANT
+            net_fl_ips['name'] = self._format_network_name(
+                net_fl_ips['name'])
         self.servers.rest_update_network(tenant_id, net_id, net_fl_ips)
 
     def _send_delete_network(self, network, context=None):
         net_id = network['id']
-        tenant_id = network['tenant_id']
+        tenant_id = network['tenant_id'] or SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
 
     def _map_state_and_status(self, resource):
@@ -450,9 +479,19 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     self).get_network(context, port["network_id"])
         return net['tenant_id']
 
+    def _add_service_tenant_to_port(self, port):
+        port['tenant_id'] = port['tenant_id'] or SERVICE_TENANT
+
+        if 'network' in port:
+            port['network']['tenant_id'] = (
+                port['network']['tenant_id'] or SERVICE_TENANT)
+
     def async_port_create(self, tenant_id, net_id, port):
         try:
-            self.servers.rest_create_port(tenant_id, net_id, port)
+            tenant_id = tenant_id or SERVICE_TENANT
+            rest_port = copy.deepcopy(port)
+            self._add_service_tenant_to_port(rest_port)
+            self.servers.rest_create_port(tenant_id, net_id, rest_port)
         except servermanager.RemoteRestError as e:
             # 404 should never be received on a port create unless
             # there are inconsistencies between the data in neutron
@@ -488,6 +527,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # This port was deleted before the create made it to the controller
             # so it now needs to be deleted since the normal delete request
             # would have deleted an non-existent port.
+            tenant_id = tenant_id or SERVICE_TENANT
             self.servers.rest_delete_port(tenant_id, net_id, port['id'])
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
@@ -884,6 +924,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             # Tenant ID must come from network in case the network is shared
             tenid = self._get_port_net_tenantid(context, port)
             self._delete_port(context, port_id)
+            tenid = tenid or SERVICE_TENANT
             self.servers.rest_delete_port(tenid, port['network_id'], port_id)
 
         if self.l3_plugin:
