@@ -28,6 +28,7 @@ from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.db import test_allowedaddresspairs_db as test_addr_pair
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 
+from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
@@ -226,7 +227,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
                   'arg_list': ('binding:host_id',)}
         with self.port(**kwargs) as port:
             self.assertEqual(port['port']['binding:vif_type'],
-                             portbindings.VIF_TYPE_IVS)
+                             pl_config.VIF_TYPE_IVS)
         self._delete('ports', port['port']['id'])
         self._delete('networks', port['port']['network_id'])
         kwargs = {'name': 'name2', 'binding:host_id': 'someotherhost',

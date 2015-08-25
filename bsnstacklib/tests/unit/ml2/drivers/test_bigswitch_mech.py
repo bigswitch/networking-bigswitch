@@ -28,6 +28,7 @@ from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.db import test_db_base_plugin_v2
 from neutron.tests.unit.plugins.ml2 import test_plugin
 
+from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.plugins.ml2.drivers.mech_bigswitch import driver as bsn_driver
 import bsnstacklib.tests.unit.bigswitch.test_restproxy_plugin as trp
@@ -55,7 +56,7 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
     def setUp(self):
         # Configure the ML2 mechanism drivers and network types
         ml2_opts = {
-            'mechanism_drivers': ['bigswitch'],
+            'mechanism_drivers': ['bsn_ml2'],
             'tenant_network_types': ['vlan'],
         }
         for opt, val in ml2_opts.items():
@@ -99,7 +100,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
             self.assertEqual('hostname', p[portbindings.HOST_ID])
-            self.assertEqual(portbindings.VIF_TYPE_IVS,
+            self.assertEqual(pl_config.VIF_TYPE_IVS,
                              p[portbindings.VIF_TYPE])
 
     def test_dont_bind_non_ivs_port(self):
@@ -112,7 +113,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
         ) as (rmock, port):
             rmock.assert_called_once_with('hostname')
             p = port['port']
-            self.assertNotEqual(portbindings.VIF_TYPE_IVS,
+            self.assertNotEqual(pl_config.VIF_TYPE_IVS,
                                 p[portbindings.VIF_TYPE])
 
     def test_bind_port_cache(self):
@@ -129,7 +130,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                 # response from first should be cached
                 rmock.assert_called_once_with('hostname')
                 for port in ports:
-                    self.assertEqual(portbindings.VIF_TYPE_IVS,
+                    self.assertEqual(pl_config.VIF_TYPE_IVS,
                                      port['port'][portbindings.VIF_TYPE])
             rmock.reset_mock()
             # expired cache should result in new calls
@@ -138,7 +139,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                                    makeport()) as ports:
                 self.assertEqual(3, rmock.call_count)
                 for port in ports:
-                    self.assertEqual(portbindings.VIF_TYPE_IVS,
+                    self.assertEqual(pl_config.VIF_TYPE_IVS,
                                      port['port'][portbindings.VIF_TYPE])
 
     def test_create404_triggers_background_sync(self):
@@ -154,7 +155,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
         ) as (mock_http, mock_send_all, p):
             # wait for thread to finish
             mm = manager.NeutronManager.get_plugin().mechanism_manager
-            bigdriver = mm.mech_drivers['bigswitch'].obj
+            bigdriver = mm.mech_drivers['bsn_ml2'].obj
             bigdriver.evpool.waitall()
             mock_send_all.assert_has_calls([
                 mock.call(

@@ -440,7 +440,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _extend_port_dict_binding(self, context, port):
         cfg_vif_type = cfg.CONF.NOVA.vif_type.lower()
         if cfg_vif_type not in (portbindings.VIF_TYPE_OVS,
-                                portbindings.VIF_TYPE_IVS):
+                                pl_config.VIF_TYPE_IVS):
             LOG.warning(_LW("Unrecognized vif_type in configuration "
                             "[%s]. Defaulting to ovs."),
                         cfg_vif_type)
