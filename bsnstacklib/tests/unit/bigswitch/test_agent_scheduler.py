@@ -15,12 +15,11 @@
 
 
 from bsnstacklib.tests.unit.bigswitch import test_base
-from neutron.tests.unit.plugins.ml2.drivers.openvswitch.agent \
-    import test_agent_scheduler
+from neutron.tests.unit.db import test_agentschedulers_db
 
 
 class BigSwitchDhcpAgentNotifierTestCase(
-    test_agent_scheduler.OvsDhcpAgentNotifierTestCase,
+    test_agentschedulers_db.OvsDhcpAgentNotifierTestCase,
     test_base.BigSwitchTestBase):
 
     plugin_str = ('%s.NeutronRestProxyV2' %
@@ -32,3 +31,4 @@ class BigSwitchDhcpAgentNotifierTestCase(
         super(BigSwitchDhcpAgentNotifierTestCase, self).setUp()
         self.setup_db()
         self.startHttpPatch()
+        self.dhcp_notifier_p.stop()

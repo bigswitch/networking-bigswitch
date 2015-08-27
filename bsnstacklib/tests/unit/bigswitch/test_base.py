@@ -29,6 +29,8 @@ from bsnstacklib.tests.unit.bigswitch import fake_server
 RESTPROXY_PKG_PATH = 'bsnstacklib.plugins.bigswitch.plugin'
 L3_RESTPROXY_PKG_PATH = 'bsnstacklib.plugins.bigswitch.l3_router_plugin'
 NOTIFIER = 'bsnstacklib.plugins.bigswitch.plugin.AgentNotifierApi'
+DHCP_NOTIFIER = ('neutron.api.rpc.agentnotifiers.dhcp_rpc_agent_api.'
+                 'DhcpAgentNotifyAPI.notify')
 CERTFETCH = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool._fetch_cert'  # noqa
 SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
@@ -60,6 +62,7 @@ class BigSwitchTestBase(object):
 
     def setup_patches(self):
         self.plugin_notifier_p = mock.patch(NOTIFIER)
+        self.dhcp_notifier_p = mock.patch(DHCP_NOTIFIER)
         # prevent any greenthreads from spawning
         self.spawn_p = mock.patch(SPAWN, new=lambda *args, **kwargs: None)
         # prevent the consistency watchdog from starting
@@ -71,6 +74,7 @@ class BigSwitchTestBase(object):
         self.plugin_notifier_p.start()
         self.spawn_p.start()
         self.watch_p.start()
+        self.dhcp_notifier_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
