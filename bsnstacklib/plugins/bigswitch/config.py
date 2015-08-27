@@ -101,7 +101,7 @@ VIF_TYPES = [
 ]
 
 # Each VIF Type can have a list of nova host IDs that are fixed to that type
-for i in portbindings.VIF_TYPES:
+for i in VIF_TYPES:
     opt = cfg.ListOpt('node_override_vif_' + i, default=[],
                       help=_("Nova compute nodes to manually set VIF "
                              "type to %s") % i)
