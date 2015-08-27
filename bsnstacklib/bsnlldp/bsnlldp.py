@@ -290,6 +290,10 @@ def get_phy_interfaces():
         if ni.addresses.get(AF_INET):
             continue
         try:
+            cmd_out = check_output("sudo ovs-vsctl show | grep " +
+                                   ni.name, shell=True)
+            if ni.name not in cmd_out:
+                continue
             cmd_out = check_output("ethtool " + ni.name +
                                    " | grep 'Supported ports'",
                                    shell=True)
@@ -304,14 +308,12 @@ def get_phy_interfaces():
 
 def main():
     args = parse_args()
-
     if args.daemonize:
         daemonize()
 
-    def _generate_senders_frames():
+    def _generate_senders_frames(intfs):
         senders = []
         frames = []
-        intfs = get_phy_interfaces()
         for intf in intfs:
             interface = intf.strip()
             frame = lldp_frame_of(chassis_id=CHASSIS_ID,
@@ -326,8 +328,11 @@ def main():
             senders.append(s)
         return senders, frames
 
+    intfs = []
     while True:
-        senders, frames = _generate_senders_frames()
+        if len(intfs) == 0:
+            intfs = get_phy_interfaces()
+        senders, frames = _generate_senders_frames(intfs)
         for idx, s in enumerate(senders):
             s.send(frames[idx])
         time.sleep(INTERVAL)
