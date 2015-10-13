@@ -139,6 +139,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pass
 
     @put_context_in_serverpool
+    def start_rpc_listeners(self):
+        pass
+
+    @put_context_in_serverpool
     def create_network_postcommit(self, context):
         # create network on the network controller
         self._send_create_network(context.current)
