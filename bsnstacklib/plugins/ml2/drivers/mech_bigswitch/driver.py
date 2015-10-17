@@ -138,9 +138,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def security_groups_provider_updated(self, context, **kwargs):
         pass
 
-    @put_context_in_serverpool
     def start_rpc_listeners(self):
-        pass
+        return []
 
     @put_context_in_serverpool
     def create_network_postcommit(self, context):
