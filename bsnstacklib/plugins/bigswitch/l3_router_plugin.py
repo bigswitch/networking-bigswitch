@@ -70,6 +70,9 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         super(L3RestProxy, self).__init__()
         self.servers = servermanager.ServerPool.get_instance()
 
+    def start_rpc_listeners(self):
+        return []
+
     @put_context_in_serverpool
     @log.log
     def create_router(self, context, router):
