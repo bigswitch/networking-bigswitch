@@ -1,7 +1,11 @@
-This project is no longer maintained.
+Welcome!
+========
 
-The contents of this repository are still available in the Git source code
-management system. To see the contents of this repository before it reached
-its end of life, please check out the previous commit with 
-"git checkout HEAD^1".
+This library contains the components required to integrate an
+OpenStack deployment with a Big Switch Networks fabric.
 
+
+External Resources:
+===================
+
+Big Switch Networks Website: http://www.bigswitch.com
