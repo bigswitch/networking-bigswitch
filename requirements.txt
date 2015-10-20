@@ -1,0 +1,8 @@
+# This library shares all of the same requirements as Neutron
+# and doesn't work without Neutron so we depend on Neutron to
+# setup the requirements. If any packages are added that are
+# specific to bsnstack lib, put them here.
+
+# NOTE: remove once neutron log import merges
+# https://review.openstack.org/#/c/163207/
+oslo.log>=0.4.0 # Apache-2.0
