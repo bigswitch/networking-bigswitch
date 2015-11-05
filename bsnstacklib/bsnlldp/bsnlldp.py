@@ -29,22 +29,30 @@ from ctypes import POINTER
 from ctypes import Structure
 from ctypes import Union
 import ctypes.util
+import glob
 import os
+import os.path
+from oslo_serialization import jsonutils
+import platform
+import re
 import socket
 from socket import AF_INET
 from socket import AF_INET6
 from socket import inet_ntop
-from subprocess import check_output
 import time
 
 LLDP_DST_MAC = "01:80:c2:00:00:0e"
 SYSTEM_DESC = "5c:16:c7:00:00:04"
 LLDP_ETHERTYPE = 0x88cc
-CHASSIS_ID = "Big Cloud Fabric"
+CHASSIS_ID = "00:00:00:00:00:00"
 TTL = 120
 INTERVAL = 10
 CHASSIS_ID_LOCALLY_ASSIGNED = 7
 PORT_ID_INTERFACE_ALIAS = 1
+
+# constants for RHOSP
+NET_CONF_PATH = "/etc/os-net-config/config.json"
+SYS_CLASS_NET = "/sys/class/net"
 
 
 class struct_sockaddr(Structure):
@@ -223,6 +231,10 @@ def ttl_tlv_of(ttl_seconds):
     return tlv_of(3, raw_bytes_of_int(ttl_seconds, 2, "TTL (seconds)"))
 
 
+def port_desc_tlv_of(port_desc):
+    return tlv_of(4, port_desc)
+
+
 def system_name_tlv_of(system_name):
     return tlv_of(5, system_name)
 
@@ -240,16 +252,18 @@ def lldp_frame_of(chassis_id,
                   ttl,
                   system_name=None,
                   system_desc=None):
+    port_mac_str = get_mac_str(network_interface)
     contents = [
         # Ethernet header
         raw_bytes_of_mac_str(LLDP_DST_MAC),
-        raw_bytes_of_mac_str(get_mac_str(network_interface)),
+        raw_bytes_of_mac_str(port_mac_str),
         lldp_ethertype(),
 
         # Required LLDP TLVs
         chassis_id_tlv_of(chassis_id),
         port_id_tlv_of(network_interface),
-        ttl_tlv_of(ttl)]
+        ttl_tlv_of(ttl),
+        port_desc_tlv_of(port_mac_str)]
 
     # Optional LLDP TLVs
     if system_name is not None:
@@ -283,27 +297,91 @@ def get_hostname():
     return socket.gethostname()
 
 
-def get_phy_interfaces():
-    intf_list = []
-    nics = get_network_interfaces()
-    for ni in nics:
-        if ni.addresses.get(AF_INET):
-            continue
-        try:
-            cmd_out = check_output("sudo ovs-vsctl show | grep " +
-                                   ni.name, shell=True)
-            if ni.name not in cmd_out:
+def is_active_nic(interface_name):
+    try:
+        if interface_name == 'lo':
+            return False
+
+        addr_assign_type = None
+        with open(SYS_CLASS_NET + '/%s/addr_assign_type' % interface_name,
+                  'r') as f:
+            addr_assign_type = int(f.read().rstrip())
+
+        carrier = None
+        with open(SYS_CLASS_NET + '/%s/carrier' % interface_name, 'r') as f:
+            carrier = int(f.read().rstrip())
+
+        address = None
+        with open(SYS_CLASS_NET + '/%s/address' % interface_name, 'r') as f:
+            address = f.read().rstrip()
+
+        if addr_assign_type == 0 and carrier == 1 and address:
+            return True
+        else:
+            return False
+    except IOError:
+        return False
+
+
+def ordered_active_nics():
+    embedded_nics = []
+    nics = []
+    for name in glob.iglob(SYS_CLASS_NET + '/*'):
+        nic = name[(len(SYS_CLASS_NET) + 1):]
+        if is_active_nic(nic):
+            if nic.startswith('em') or nic.startswith('eth') or \
+                    nic.startswith('eno'):
+                embedded_nics.append(nic)
+            else:
+                nics.append(nic)
+    return sorted(embedded_nics) + sorted(nics)
+
+
+def get_redhat_phy_interfaces():
+    # parse /etc/os-net-config/config.json
+    intf_indexes = []
+    platform_os = platform.linux_distribution()[0]
+    if "red hat" in platform_os.strip().lower():
+        while True:
+            if not os.path.isfile(NET_CONF_PATH):
+                time.sleep(1)
                 continue
-            cmd_out = check_output("ethtool " + ni.name +
-                                   " | grep 'Supported ports'",
-                                   shell=True)
-            if "[ ]" not in cmd_out:
-                # value is present in [ TP ], its not empty list
-                intf_list.append(ni.name)
-        except Exception:
-            # interface doesn't have supported ports list
-            pass
-    return intf_list
+            try:
+                json_data = open(NET_CONF_PATH).read()
+                data = jsonutils.loads(json_data)
+            except ValueError:
+                time.sleep(1)
+                continue
+            network_config = data.get('network_config')
+            for config in network_config:
+                if config.get('type') != 'ovs_bridge':
+                    continue
+                members = config.get('members')
+                for member in members:
+                    if member.get('type') != 'ovs_bond':
+                        continue
+                    nics = member.get('members')
+                    for nic in nics:
+                        if nic.get('type') != 'interface':
+                            continue
+                        nic_name = nic.get('name')
+                        indexes = map(int, re.findall(r'\d+', nic_name))
+                        if len(indexes) == 1:
+                            intf_indexes.append(indexes[0] - 1)
+                    break
+                break
+            break
+
+    active_intfs = ordered_active_nics()
+    if len(active_intfs) != 0:
+        global CHASSIS_ID
+        CHASSIS_ID = get_mac_str(active_intfs[0])
+    intf_len = len(active_intfs)
+    intfs = []
+    for index in intf_indexes:
+        if index < intf_len:
+            intfs.append(active_intfs[index])
+    return intfs
 
 
 def main():
@@ -322,17 +400,18 @@ def main():
                                   system_name=get_hostname(),
                                   system_desc=SYSTEM_DESC)
             frames.append(frame)
-            # Send the frame
             s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
             s.bind((interface, 0))
             senders.append(s)
         return senders, frames
 
     intfs = []
+    platform_os = platform.linux_distribution()[0]
+    if "red hat" in platform_os.strip().lower():
+        intfs = get_redhat_phy_interfaces()
+
+    senders, frames = _generate_senders_frames(intfs)
     while True:
-        if len(intfs) == 0:
-            intfs = get_phy_interfaces()
-        senders, frames = _generate_senders_frames(intfs)
         for idx, s in enumerate(senders):
             s.send(frames[idx])
         time.sleep(INTERVAL)
