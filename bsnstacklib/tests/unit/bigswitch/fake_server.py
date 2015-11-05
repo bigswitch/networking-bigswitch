@@ -146,8 +146,10 @@ class HTTPSMockBase(HTTPConnectionMock):
         self.host = host
         super(HTTPSMockBase, self).__init__(host, port, timeout)
 
-    def request(self, method, url, body=None, headers={}):
+    def request(self, method, url, body=None, headers=None):
         self.connect()
+        if headers is None:
+            headers = {}
         super(HTTPSMockBase, self).request(method, url, body, headers)
 
 
