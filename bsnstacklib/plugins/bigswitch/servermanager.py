@@ -435,12 +435,14 @@ class ServerPool(object):
         with open(path, 'w') as handle:
             handle.write(contents)
 
-    def server_failure(self, resp, ignore_codes=[]):
+    def server_failure(self, resp, ignore_codes=None):
         """Define failure codes as required.
 
         Note: We assume 301-303 is a failure, and try the next server in
         the server pool.
         """
+        if ignore_codes is None:
+            ignore_codes = []
         return (resp[0] in FAILURE_CODES and resp[0] not in ignore_codes)
 
     def action_success(self, resp):
