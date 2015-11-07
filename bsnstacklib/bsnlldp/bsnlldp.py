@@ -40,6 +40,10 @@ from socket import AF_INET
 from socket import AF_INET6
 from socket import inet_ntop
 import time
+try:
+    from os_net_config import utils
+except ImportError:
+    pass
 
 LLDP_DST_MAC = "01:80:c2:00:00:0e"
 SYSTEM_DESC = "5c:16:c7:00:00:04"
@@ -297,82 +301,41 @@ def get_hostname():
     return socket.gethostname()
 
 
-def is_active_nic(interface_name):
-    try:
-        if interface_name == 'lo':
-            return False
-
-        addr_assign_type = None
-        with open(SYS_CLASS_NET + '/%s/addr_assign_type' % interface_name,
-                  'r') as f:
-            addr_assign_type = int(f.read().rstrip())
-
-        carrier = None
-        with open(SYS_CLASS_NET + '/%s/carrier' % interface_name, 'r') as f:
-            carrier = int(f.read().rstrip())
-
-        address = None
-        with open(SYS_CLASS_NET + '/%s/address' % interface_name, 'r') as f:
-            address = f.read().rstrip()
-
-        if addr_assign_type == 0 and carrier == 1 and address:
-            return True
-        else:
-            return False
-    except IOError:
-        return False
-
-
-def ordered_active_nics():
-    embedded_nics = []
-    nics = []
-    for name in glob.iglob(SYS_CLASS_NET + '/*'):
-        nic = name[(len(SYS_CLASS_NET) + 1):]
-        if is_active_nic(nic):
-            if nic.startswith('em') or nic.startswith('eth') or \
-                    nic.startswith('eno'):
-                embedded_nics.append(nic)
-            else:
-                nics.append(nic)
-    return sorted(embedded_nics) + sorted(nics)
-
-
 def get_redhat_phy_interfaces():
     # parse /etc/os-net-config/config.json
     intf_indexes = []
     platform_os = platform.linux_distribution()[0]
-    if "red hat" in platform_os.strip().lower():
-        while True:
-            if not os.path.isfile(NET_CONF_PATH):
-                time.sleep(1)
+    while True:
+        if not os.path.isfile(NET_CONF_PATH):
+            time.sleep(1)
+            continue
+        try:
+            json_data = open(NET_CONF_PATH).read()
+            data = jsonutils.loads(json_data)
+        except ValueError:
+            time.sleep(1)
+            continue
+        network_config = data.get('network_config')
+        for config in network_config:
+            if config.get('type') != 'ovs_bridge':
                 continue
-            try:
-                json_data = open(NET_CONF_PATH).read()
-                data = jsonutils.loads(json_data)
-            except ValueError:
-                time.sleep(1)
-                continue
-            network_config = data.get('network_config')
-            for config in network_config:
-                if config.get('type') != 'ovs_bridge':
+            members = config.get('members')
+            for member in members:
+                if member.get('type') != 'ovs_bond':
                     continue
-                members = config.get('members')
-                for member in members:
-                    if member.get('type') != 'ovs_bond':
+                nics = member.get('members')
+                for nic in nics:
+                    if nic.get('type') != 'interface':
                         continue
-                    nics = member.get('members')
-                    for nic in nics:
-                        if nic.get('type') != 'interface':
-                            continue
-                        nic_name = nic.get('name')
-                        indexes = map(int, re.findall(r'\d+', nic_name))
-                        if len(indexes) == 1:
-                            intf_indexes.append(indexes[0] - 1)
-                    break
+                    nic_name = nic.get('name')
+                    indexes = map(int, re.findall(r'\d+', nic_name))
+                    if len(indexes) == 1:
+                        intf_indexes.append(indexes[0] - 1)
                 break
             break
+        break
 
-    active_intfs = ordered_active_nics()
+    active_intfs = utils.ordered_active_nics()
     if len(active_intfs) != 0:
         global CHASSIS_ID
         CHASSIS_ID = get_mac_str(active_intfs[0])
@@ -419,3 +382,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
