@@ -342,6 +342,13 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def bsn_delete_tenant(self, tenant_id, context=None):
         self.servers.rest_delete_tenant(tenant_id)
 
+    def _verify_network_precommit(self, network, context=None):
+        if context is None:
+            context = qcontext.get_admin_context()
+        old_network = self.get_network(context, network['id'])
+        if old_network and old_network['name'] != network['name']:
+            raise servermanager.NetworkNameChangeError()
+
     def _get_mapped_network_with_subnets(self, network, context=None):
         # if context is not provided, admin context is used
         if context is None:
