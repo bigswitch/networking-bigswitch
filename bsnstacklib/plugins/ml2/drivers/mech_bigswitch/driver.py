@@ -147,6 +147,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self._send_create_network(context.current)
 
     @put_context_in_serverpool
+    def update_network_precommit(self, context):
+        self._verify_network_precommit(context)
+
+    @put_context_in_serverpool
     def update_network_postcommit(self, context):
         # update network on the network controller
         self._send_update_network(context.current)
