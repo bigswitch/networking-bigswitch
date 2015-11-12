@@ -80,6 +80,11 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 
+class NetworkNameChangeError(exceptions.NeutronException):
+    message = _("network name is not allowed to be changed.")
+    status = None
+
+
 class RemoteRestError(exceptions.NeutronException):
     message = _("Error in REST call to remote network "
                 "controller: %(reason)s")
