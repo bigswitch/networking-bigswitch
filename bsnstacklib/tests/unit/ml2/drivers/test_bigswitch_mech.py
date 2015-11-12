@@ -72,7 +72,16 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 
 class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                                         TestBigSwitchMechDriverBase):
-    pass
+    def test_update_network(self):
+        with self.network() as network:
+            data = {'network': {'name': 'a_brand_new_name'}}
+            req = self.new_update_request('networks',
+                                          data,
+                                          network['network']['id'])
+            res = self.deserialize(self.fmt, req.get_response(self.api))
+            self.assertTrue('NeutronError' in res)
+            self.assertEqual('MechanismDriverError',
+                             res['NeutronError']['type'])
 
 
 class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
