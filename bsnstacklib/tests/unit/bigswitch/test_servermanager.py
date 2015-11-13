@@ -132,7 +132,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
             # create again should now use header received from prev delete
             with self.network():
-                callheaders = rv.request.mock_calls[3][1][3]
+                callheaders = rv.request.mock_calls[2][1][3]
                 self.assertIn('X-BSN-BVS-HASH-MATCH', callheaders)
                 self.assertEqual(callheaders['X-BSN-BVS-HASH-MATCH'],
                                  'HASH2')
