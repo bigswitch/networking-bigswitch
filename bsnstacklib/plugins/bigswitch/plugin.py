@@ -94,7 +94,6 @@ LOG = logging.getLogger(__name__)
 
 SYNTAX_ERROR_MESSAGE = _('Syntax error in server config file, aborting plugin')
 METADATA_SERVER_IP = '169.254.169.254'
-SERVICE_TENANT = 'VRRP_Service'
 
 
 class AgentNotifierApi(sg_rpc.SecurityGroupAgentRpcApiMixin):
@@ -173,6 +172,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True, get_sgs=True):
+        # sync tenant cache with keystone
+        self.servers._update_tenant_cache()
+
         admin_context = qcontext.get_admin_context()
         networks = []
         # this method is used by the ML2 driver so it can't directly invoke
@@ -200,7 +202,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                          const.DEVICE_OWNER_ROUTER_GW,
                          const.DEVICE_OWNER_ROUTER_HA_INTF]):
                         continue
-                    mapped_port = self._map_state_and_status(port)
+                    mapped_port = self._map_tenant_name(port)
+                    mapped_port = self._map_state_and_status(mapped_port)
                     mapped_port['attachment'] = {
                         'id': port.get('device_id'),
                         'mac': port.get('mac_address'),
@@ -227,7 +230,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                             ext_tenant_id)
 
                 interfaces = []
-                mapped_router = self._map_state_and_status(router)
+                mapped_router = self._map_tenant_name(router)
+                mapped_router = self._map_state_and_status(mapped_router)
                 router_filter = {
                     'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
                     'device_id': [router.get('id')]
@@ -249,9 +253,17 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         if get_sgs:
             sgs = plugin.get_security_groups(admin_context) or []
-            data.update({'security-groups': sgs})
+            for sg in sgs:
+                tenant_name = self.servers.keystone_tenants.get(
+                    sg['tenant_id'])
+                if tenant_name:
+                    sg['tenant_name'] = tenant_name
+                else:
+                    # If tenant is not known to keystone,
+                    # then skip the security greoup
+                    continue
 
-        self._assign_network_to_service_tenant(data)
+            data.update({'security-groups': sgs})
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
@@ -277,14 +289,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _format_network_name(self, net_name):
         return net_name.replace(' ', '-')
 
-    def _assign_network_to_service_tenant(self, data):
-        for sg in data.get('security-groups'):
-            sg['tenant_id'] = sg['tenant_id'] or SERVICE_TENANT
-
-        for network in data.get('networks'):
-            if not network['tenant_id']:
-                network['tenant_id'] = SERVICE_TENANT
-                network['name'] = self._format_network_name(network['name'])
+    def _assign_resource_to_service_tenant(self, resource):
+        resource['tenant_id'] = (resource['tenant_id'] or
+                                 servermanager.SERVICE_TENANT)
+        # network name may contain space. Replace space with -
+        resource['name'] = self._format_network_name(resource['name'])
 
     def _get_network_with_floatingips(self, network, context=None):
         if context is None:
@@ -314,13 +323,18 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if subnets:
             for subnet in subnets:
                 subnet_dict = self._make_subnet_dict(subnet, context=context)
-                mapped_subnet = self._map_state_and_status(subnet_dict)
+                mapped_subnet = self._map_tenant_name(subnet_dict)
+                mapped_subnet = self._map_state_and_status(mapped_subnet)
                 subnets_details.append(mapped_subnet)
 
         return subnets_details
 
     def _tenant_check_for_security_group(self, sg):
-        sg['tenant_id'] = sg['tenant_id'] or SERVICE_TENANT
+        """Router VRRP creates a hidden network for router heart-beats.
+        This network is not associated with any tenant
+        """
+        sg['tenant_id'] = sg['tenant_id'] or servermanager.SERVICE_TENANT
+        sg['tenant_name'] = self.servers.keystone_tenants.get(sg['tenant_id'])
 
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
@@ -329,7 +343,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         if sg:
             self._tenant_check_for_security_group(sg)
-            self.servers.rest_create_securitygroup(sg)
+            # skip the security group if its tenant is unknown
+            if sg['tenant_name']:
+                if sg['tenant_name'] == servermanager.SERVICE_TENANT:
+                    self.bsn_create_tenant(servermanager.SERVICE_TENANT,
+                                           context=context)
+                self.servers.rest_create_securitygroup(sg)
         else:
             LOG.warning(_LW("No scurity group is provided for creation."))
 
@@ -350,6 +369,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         # if context is not provided, admin context is used
         if context is None:
             context = qcontext.get_admin_context()
+        network = self._map_tenant_name(network)
         network = self._map_state_and_status(network)
         subnets = self._get_all_subnets_json_for_network(network['id'],
                                                          context)
@@ -378,10 +398,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
         if not mapped_network['tenant_id']:
-            tenant_id = SERVICE_TENANT
-            mapped_network['tenant_id'] = SERVICE_TENANT
+            tenant_id = servermanager.SERVICE_TENANT
+            mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
             mapped_network['name'] = self._format_network_name(
                 mapped_network['name'])
+            self.bsn_create_tenant(servermanager.SERVICE_TENANT,
+                                   context=context)
         self.servers.rest_create_network(tenant_id, mapped_network)
 
     def _send_update_network(self, network, context=None):
@@ -392,20 +414,37 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
                                                         context)
         if not net_fl_ips['tenant_id']:
-            tenant_id = SERVICE_TENANT
-            net_fl_ips['tenant_id'] = SERVICE_TENANT
+            tenant_id = servermanager.SERVICE_TENANT
+            net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
             net_fl_ips['name'] = self._format_network_name(
                 net_fl_ips['name'])
         self.servers.rest_update_network(tenant_id, net_id, net_fl_ips)
 
     def _send_delete_network(self, network, context=None):
         net_id = network['id']
-        tenant_id = network['tenant_id'] or SERVICE_TENANT
+        tenant_id = network['tenant_id'] or servermanager.SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
+
+    def _map_tenant_name(self, resource):
+        resource = copy.copy(resource)
+        self._assign_resource_to_service_tenant(resource)
+        tenant_name = self.servers.keystone_tenants.get(resource['tenant_id'])
+        if tenant_name:
+            resource['tenant_name'] = tenant_name
+        else:
+            self.servers._update_tenant_cache()
+            tenant_name = self.servers.keystone_tenants.get(
+                resource['tenant_id'])
+            if tenant_name:
+                resource['tenant_name'] = tenant_name
+            else:
+                raise servermanager.TenantIDNotFound(
+                    tenant=resource['tenant_id'])
+
+        return resource
 
     def _map_state_and_status(self, resource):
         resource = copy.copy(resource)
-
         resource['state'] = ('UP' if resource.pop('admin_state_up',
                                                   True) else 'DOWN')
         resource.pop('status', None)
@@ -431,7 +470,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         network = self.get_network(context, net_id)
         subnet = self.get_subnet(context, subnet_id)
         mapped_network = self._get_mapped_network_with_subnets(network)
-        mapped_subnet = self._map_state_and_status(subnet)
+        mapped_subnet = self._map_tenant_name(subnet)
+        mapped_subnet = self._map_state_and_status(mapped_subnet)
 
         data = {
             'id': intf_id,
@@ -484,15 +524,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return net['tenant_id']
 
     def _add_service_tenant_to_port(self, port):
-        port['tenant_id'] = port['tenant_id'] or SERVICE_TENANT
+        port['tenant_id'] = port['tenant_id'] or servermanager.SERVICE_TENANT
 
         if 'network' in port:
             port['network']['tenant_id'] = (
-                port['network']['tenant_id'] or SERVICE_TENANT)
+                port['network']['tenant_id'] or servermanager.SERVICE_TENANT)
 
     def async_port_create(self, tenant_id, net_id, port):
         try:
-            tenant_id = tenant_id or SERVICE_TENANT
+            tenant_id = tenant_id or servermanager.SERVICE_TENANT
             rest_port = copy.deepcopy(port)
             self._add_service_tenant_to_port(rest_port)
             self.servers.rest_create_port(tenant_id, net_id, rest_port)
@@ -531,7 +571,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # This port was deleted before the create made it to the controller
             # so it now needs to be deleted since the normal delete request
             # would have deleted an non-existent port.
-            tenant_id = tenant_id or SERVICE_TENANT
+            tenant_id = tenant_id or servermanager.SERVICE_TENANT
             self.servers.rest_delete_port(tenant_id, net_id, port['id'])
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
@@ -795,7 +835,8 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 self._add_host_route(context, destination, new_port)
 
         # create on network ctrl
-        mapped_port = self._map_state_and_status(new_port)
+        mapped_port = self._map_tenant_name(new_port)
+        mapped_port = self._map_state_and_status(mapped_port)
         # ports have to be created synchronously when creating a router
         # port since adding router interfaces is a multi-call process
         if mapped_port['device_owner'] == l3_db.DEVICE_OWNER_ROUTER_INTF:
@@ -886,7 +927,8 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 # tenant_id must come from network in case network is shared
                 net_tenant_id = self._get_port_net_tenantid(context, new_port)
                 new_port = self._extend_port_dict_binding(context, new_port)
-                mapped_port = self._map_state_and_status(new_port)
+                mapped_port = self._map_tenant_name(new_port)
+                mapped_port = self._map_state_and_status(mapped_port)
                 self.servers.rest_update_port(net_tenant_id,
                                               new_port["network_id"],
                                               mapped_port)
@@ -928,7 +970,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             # Tenant ID must come from network in case the network is shared
             tenid = self._get_port_net_tenantid(context, port)
             self.ipam.delete_port(context, port_id)
-            tenid = tenid or SERVICE_TENANT
+            tenid = tenid or servermanager.SERVICE_TENANT
             self.servers.rest_delete_port(tenid, port['network_id'], port_id)
 
         if self.l3_plugin:
