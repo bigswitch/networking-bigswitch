@@ -45,6 +45,8 @@ from neutron.common import exceptions
 from neutron.i18n import _LE, _LI, _LW
 
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from keystoneclient.v2_0 import client as ksclient
+
 
 LOG = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ SWITCHES_PATH = "/switches/%s"
 SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
-BASE_URI = '/networkService/v1.1'
+BASE_URI = '/networkService/v2.0'
 ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
@@ -264,6 +266,10 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
+        self.auth_url = cfg.CONF.RESTPROXY.auth_url
+        self.auth_user = cfg.CONF.RESTPROXY.auth_user
+        self.auth_password = cfg.CONF.RESTPROXY.auth_password
+        self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
@@ -551,6 +557,17 @@ class ServerPool(object):
         return resp
 
     def rest_create_tenant(self, tenant_id):
+        keystone = ksclient.Client(auth_url=self.auth_url,
+                                   username=self.auth_user,
+                                   password=self.auth_password,
+                                   tenant_name=self.auth_tenant)
+        tenants = {tenant.id: tenant.name
+                   for tenant in keystone.tenants.list()}
+
+        tenant_name = tenants.get(tenant_id)
+        if not tenant_name:
+            raise RemoteRestError(reason='%s does not have name' % tenant_id)
+
         resource = TENANT_RESOURCE_PATH
         data = {"tenant_id": tenant_id}
         errstr = _("Unable to create tenant: %s")

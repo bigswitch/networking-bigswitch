@@ -85,7 +85,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # create router in DB
             new_router = super(L3RestProxy, self).create_router(context,
                                                                 router)
-            mapped_router = self._map_state_and_status(new_router)
+            mapped_router = self._map_state_and_status_and_tenant_name(
+                new_router)
             self.servers.rest_create_router(tenant_id, mapped_router)
 
             # return created router
@@ -108,7 +109,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 if ext_tenant_id:
                     new_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
                         ext_tenant_id)
-            router = self._map_state_and_status(new_router)
+            router = self._map_state_and_status_and_tenant_name(new_router)
             # look up the network on this side to save an expensive query on
             # the backend controller.
             if router and router.get('external_gateway_info'):

@@ -26,6 +26,10 @@ retry_interval = 2
 servers=localhost:9000,localhost:8899
 serverssl=False
 #serverauth=username:password
+auth_url=http://127.0.0.1:35357
+auth_user=admin
+auth_password=password
+auth_tenant=admin
 
 [nova]
 # Specify the VIF_TYPE that will be controlled on the Nova compute instances

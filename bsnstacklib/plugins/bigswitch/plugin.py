@@ -46,6 +46,7 @@ import httplib
 import re
 
 import eventlet
+from keystoneclient.v2_0 import client as ksclient
 from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
@@ -200,7 +201,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                          const.DEVICE_OWNER_ROUTER_GW,
                          const.DEVICE_OWNER_ROUTER_HA_INTF]):
                         continue
-                    mapped_port = self._map_state_and_status(port)
+                    mapped_port = self._map_state_and_status_and_tenant_name(
+                        port)
                     mapped_port['attachment'] = {
                         'id': port.get('device_id'),
                         'mac': port.get('mac_address'),
@@ -227,7 +229,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                             ext_tenant_id)
 
                 interfaces = []
-                mapped_router = self._map_state_and_status(router)
+                mapped_router = self._map_state_and_status_and_tenant_name(
+                    router)
                 router_filter = {
                     'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
                     'device_id': [router.get('id')]
@@ -249,6 +252,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         if get_sgs:
             sgs = plugin.get_security_groups(admin_context) or []
+            self._get_tenants_id_and_name()
+            for sg in sgs:
+                tenant_name = self.tenants.get(sg['tenant_id'])
+                if tenant_name:
+                    sg['tenant_name'] = tenant_name
+                else:
+                    sg['tenant_name'] = sg['tenant_id']
+
             data.update({'security-groups': sgs})
 
         self._assign_network_to_service_tenant(data)
@@ -314,7 +325,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if subnets:
             for subnet in subnets:
                 subnet_dict = self._make_subnet_dict(subnet, context=context)
-                mapped_subnet = self._map_state_and_status(subnet_dict)
+                mapped_subnet = self._map_state_and_status_and_tenant_name(
+                    subnet_dict)
                 subnets_details.append(mapped_subnet)
 
         return subnets_details
@@ -350,7 +362,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         # if context is not provided, admin context is used
         if context is None:
             context = qcontext.get_admin_context()
-        network = self._map_state_and_status(network)
+        network = self._map_state_and_status_and_tenant_name(network)
         subnets = self._get_all_subnets_json_for_network(network['id'],
                                                          context)
         network['subnets'] = subnets
@@ -403,8 +415,25 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         tenant_id = network['tenant_id'] or SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
 
-    def _map_state_and_status(self, resource):
+    def _get_tenants_id_and_name(self):
+        keystone = ksclient.Client(
+            auth_url="%s/v2.0" % cfg.CONF.RESTPROXY.auth_url,
+            username=cfg.CONF.RESTPROXY.auth_user,
+            password=cfg.CONF.RESTPROXY.auth_password,
+            tenant_name=cfg.CONF.RESTPROXY.auth_tenant)
+
+        self.tenants = {tenant.id: tenant.name
+                        for tenant in keystone.tenants.list()}
+
+    def _map_state_and_status_and_tenant_name(self, resource):
+        self._get_tenants_id_and_name()
         resource = copy.copy(resource)
+
+        tenant_name = self.tenants.get(resource['tenant_id'])
+        if tenant_name:
+            resource['tenant_name'] = tenant_name
+        else:
+            resource['tenant_name'] = resource['tenant_id']
 
         resource['state'] = ('UP' if resource.pop('admin_state_up',
                                                   True) else 'DOWN')
@@ -431,7 +460,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         network = self.get_network(context, net_id)
         subnet = self.get_subnet(context, subnet_id)
         mapped_network = self._get_mapped_network_with_subnets(network)
-        mapped_subnet = self._map_state_and_status(subnet)
+        mapped_subnet = self._map_state_and_status_and_tenant_name(subnet)
 
         data = {
             'id': intf_id,
@@ -795,7 +824,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 self._add_host_route(context, destination, new_port)
 
         # create on network ctrl
-        mapped_port = self._map_state_and_status(new_port)
+        mapped_port = self._map_state_and_status_and_tenant_name(new_port)
         # ports have to be created synchronously when creating a router
         # port since adding router interfaces is a multi-call process
         if mapped_port['device_owner'] == l3_db.DEVICE_OWNER_ROUTER_INTF:
@@ -886,7 +915,8 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 # tenant_id must come from network in case network is shared
                 net_tenant_id = self._get_port_net_tenantid(context, new_port)
                 new_port = self._extend_port_dict_binding(context, new_port)
-                mapped_port = self._map_state_and_status(new_port)
+                mapped_port = self._map_state_and_status_and_tenant_name(
+                    new_port)
                 self.servers.rest_update_port(net_tenant_id,
                                               new_port["network_id"],
                                               mapped_port)

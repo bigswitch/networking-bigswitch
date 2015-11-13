@@ -35,6 +35,7 @@ CERTFETCH = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool._fetch_cert'
 SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 SPAWN = 'bsnstacklib.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
+KSCLIENT = 'keystoneclient.v2_0.client.Client'
 CWATCH = SERVER_MANAGER + '.ServerPool._consistency_watchdog'
 
 
@@ -70,11 +71,13 @@ class BigSwitchTestBase(object):
         # disable exception log to prevent json parse error from showing
         self.log_exc_p = mock.patch(SERVER_MANAGER + ".LOG.exception",
                                     new=lambda *args, **kwargs: None)
+        self.ksclient_p = mock.patch(KSCLIENT)
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
         self.spawn_p.start()
         self.watch_p.start()
         self.dhcp_notifier_p.start()
+        self.ksclient_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,

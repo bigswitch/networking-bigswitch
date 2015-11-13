@@ -71,6 +71,10 @@ restproxy_opts = [
     cfg.BoolOpt('add_meta_server_route', default=True,
                 help=_("Flag to decide if a route to the metadata server "
                        "should be injected into the VM")),
+    cfg.StrOpt('auth_url', help=_("Authentication URL")),
+    cfg.StrOpt('auth_user', help=_("Admin username")),
+    cfg.StrOpt('auth_password', help=_("Admin password")),
+    cfg.StrOpt('auth_tenant', help=_("Admin tenant name")),
 ]
 router_opts = [
     cfg.MultiStrOpt('tenant_default_router_rule', default=['*:any:any:permit'],
