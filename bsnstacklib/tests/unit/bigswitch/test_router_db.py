@@ -16,6 +16,7 @@
 
 import contextlib
 import copy
+import json
 
 import mock
 from oslo_config import cfg
@@ -87,6 +88,23 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
 
 class RouterDBTestCase(RouterDBTestBase,
                        test_l3.L3NatDBIntTestCase):
+
+    def test_router_create(self):
+        name = 'router1'
+        tenant_id = _uuid()
+        expected_value = [('name', name), ('tenant_id', tenant_id),
+                          ('admin_state_up', True), ('status', 'ACTIVE'),
+                          ('external_gateway_info', None)]
+        with mock.patch(HTTPCON) as conmock:
+            with self.router(name='router1', admin_state_up=True,
+                             tenant_id=tenant_id) as router:
+                rv = conmock.return_value
+                rv.getresponse.return_value.status = 200
+                http_router = json.loads(rv.request.mock_calls[0][1][2])
+                self.assertEqual('tenant_name',
+                                 http_router['router'].get('tenant_name'))
+                for k, v in expected_value:
+                    self.assertEqual(router['router'][k], v)
 
     def test_router_create_with_external_net_no_tenant_id(self):
         with self.subnet() as s:

@@ -16,6 +16,7 @@
 
 import contextlib
 import functools
+import json
 
 import mock
 from oslo_serialization import jsonutils
@@ -40,6 +41,7 @@ SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 SERVER_POOL = SERVER_MANAGER + '.ServerPool'
 DRIVER_MOD = 'bsnstacklib.plugins.ml2.drivers.mech_bigswitch.driver'
 DRIVER = DRIVER_MOD + '.BigSwitchMechanismDriver'
+HTTPCON = SERVER_MANAGER + '.httplib.HTTPConnection'
 
 # NOTE: this won't be necessary once the upstream neutron driver
 # imports bsnstacklib
@@ -73,6 +75,22 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 
 class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                                         TestBigSwitchMechDriverBase):
+    def test_create_network(self):
+        name = 'net1'
+        keys = [('subnets', []), ('name', name), ('admin_state_up', True),
+                ('status', self.net_create_status), ('shared', False)]
+
+        with mock.patch(HTTPCON) as conmock:
+            with self.network(name=name) as net:
+                rv = conmock.return_value
+                rv.getresponse.return_value.status = 200
+                network = json.loads(rv.request.mock_calls[0][1][2])
+                self.assertIn('tenant_name', network['network'])
+                self.assertEqual('tenant_name',
+                                 network['network']['tenant_name'])
+                for k, v in keys:
+                    self.assertEqual(net['network'][k], v)
+
     def test_update_network(self):
         with self.network() as network:
             data = {'network': {'name': 'a_brand_new_name'}}

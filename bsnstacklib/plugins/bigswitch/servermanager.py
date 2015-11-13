@@ -40,11 +40,14 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
+from threading import Lock
 
 from neutron.common import exceptions
 from neutron.i18n import _LE, _LI, _LW
 
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from keystoneclient.v2_0 import client as ksclient
+
 
 LOG = logging.getLogger(__name__)
 
@@ -70,14 +73,24 @@ SWITCHES_PATH = "/switches/%s"
 SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
-BASE_URI = '/networkService/v1.1'
+BASE_URI = '/networkService/v2.0'
 ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
+SERVICE_TENANT = 'VRRP_Service'
 # error messages
 NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
+
+
+class TenantIDNotFound(exceptions.NeutronException):
+    message = _("Tenant: %(tenant)s is not known by keystone.")
+    status = None
+
+    def __init__(self, **kwargs):
+        self.tenant = kwargs.get('tenant')
+        super(TenantIDNotFound, self).__init__(**kwargs)
 
 
 class NetworkNameChangeError(exceptions.NeutronException):
@@ -264,9 +277,19 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
+        self.auth_url = cfg.CONF.RESTPROXY.auth_url
+        self.auth_user = cfg.CONF.RESTPROXY.auth_user
+        self.auth_password = cfg.CONF.RESTPROXY.auth_password
+        self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
+        # Cache for Openstack projects
+        # The cache is maintained in a separate thread and sync'ed with
+        # Keystone periodically.
+        # Define a lock to protect the dictionary
+        self.tenants_mutex = Lock()
+        self.keystone_tenants = {}
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
         default_port = 8000
@@ -294,6 +317,8 @@ class ServerPool(object):
         ]
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
+        eventlet.spawn(self._keystone_sync,
+                       cfg.CONF.RESTPROXY.keystone_sync_interval)
         ServerPool._instance = self
         LOG.debug("ServerPool: initialization done")
 
@@ -551,8 +576,14 @@ class ServerPool(object):
         return resp
 
     def rest_create_tenant(self, tenant_id):
+        self._update_tenant_cache()
+
+        tenant_name = self.keystone_tenants.get(tenant_id)
+        if not tenant_name:
+            raise TenantIDNotFound(tenant=tenant_id)
+
         resource = TENANT_RESOURCE_PATH
-        data = {"tenant_id": tenant_id}
+        data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
         errstr = _("Unable to create tenant: %s")
         self.rest_action('POST', resource, data, errstr)
 
@@ -685,6 +716,29 @@ class ServerPool(object):
             except Exception:
                 LOG.exception(_LE("Encountered an error checking controller "
                                   "health."))
+
+    def _update_tenant_cache(self):
+        try:
+            self.tenants_mutex.acquire()
+            keystone_client = ksclient.Client(auth_url=self.auth_url,
+                                              username=self.auth_user,
+                                              password=self.auth_password,
+                                              tenant_name=self.auth_tenant)
+            tenants = keystone_client.tenants.list()
+            self.keystone_tenants = {tn.id: tn.name for tn in tenants}
+
+            # Add SERVICE_TENANT to handle hidden network for VRRP
+            self.keystone_tenants[SERVICE_TENANT] = SERVICE_TENANT
+        except Exception:
+            LOG.exception(_LE("Encountered an error syncing with "
+                              "keystone."))
+        finally:
+            self.tenants_mutex.release()
+
+    def _keystone_sync(self, polling_interval=60):
+        while True:
+            eventlet.sleep(polling_interval)
+            self._update_tenant_cache()
 
 
 class HTTPSConnectionWithValidation(httplib.HTTPSConnection):

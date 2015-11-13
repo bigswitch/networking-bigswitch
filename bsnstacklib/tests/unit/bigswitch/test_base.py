@@ -35,7 +35,10 @@ CERTFETCH = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool._fetch_cert'
 SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 SPAWN = 'bsnstacklib.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
+KSCLIENT = 'keystoneclient.v2_0.client.Client'
 CWATCH = SERVER_MANAGER + '.ServerPool._consistency_watchdog'
+MAP_TENANT_NAME = ('bsnstacklib.plugins.bigswitch.plugin.'
+                   'NeutronRestProxyV2Base._map_tenant_name')
 
 
 class BigSwitchTestBase(object):
@@ -60,6 +63,10 @@ class BigSwitchTestBase(object):
         cfg.CONF.set_override('service_plugins', ['bigswitch_l3'])
         cfg.CONF.set_override('add_meta_server_route', False, 'RESTPROXY')
 
+    def map_tenant_name_side_effect(self, value):
+        value['tenant_name'] = 'tenant_name'
+        return value
+
     def setup_patches(self):
         self.plugin_notifier_p = mock.patch(NOTIFIER)
         self.dhcp_notifier_p = mock.patch(DHCP_NOTIFIER)
@@ -70,11 +77,16 @@ class BigSwitchTestBase(object):
         # disable exception log to prevent json parse error from showing
         self.log_exc_p = mock.patch(SERVER_MANAGER + ".LOG.exception",
                                     new=lambda *args, **kwargs: None)
+        self.ksclient_p = mock.patch(KSCLIENT)
+        self.map_tenant_name_p = mock.patch(
+            MAP_TENANT_NAME, side_effect=self.map_tenant_name_side_effect)
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
         self.spawn_p.start()
         self.watch_p.start()
         self.dhcp_notifier_p.start()
+        self.ksclient_p.start()
+        self.map_tenant_name_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
