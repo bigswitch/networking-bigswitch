@@ -86,6 +86,17 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             new_router = super(L3RestProxy, self).create_router(context,
                                                                 router)
             mapped_router = self._map_state_and_status(new_router)
+            # populate external tenant_id if it is absent for external network,
+            # This is a new work flow in kilo that user can specify external
+            # network when creating a router
+            if (mapped_router and mapped_router.get('external_gateway_info')):
+                ext_net_id = mapped_router.get('external_gateway_info').get('network_id')
+                ext_tenant_id = mapped_router.get('external_gateway_info').get("tenant_id")
+                if ext_net_id and (not ext_tenant_id):
+                    ext_net = self.get_network(context, ext_net_id)
+                    if ext_net:
+                        mapped_router['external_gateway_info']['tenant_id'] = (
+                            ext_net.get('tenant_id'))
             self.servers.rest_create_router(tenant_id, mapped_router)
 
             # return created router
