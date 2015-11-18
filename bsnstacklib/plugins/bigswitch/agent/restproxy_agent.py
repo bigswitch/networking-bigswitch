@@ -120,6 +120,7 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
             for device in devices.values():
                 # strip tap back off since prepare_port_filter will apply it
                 device['device'] = device['device'].replace('tap', '')
+                self.set_local_zone(device)
                 self.firewall.prepare_port_filter(device)
             if self.use_enhanced_rpc:
                 LOG.debug("Update security group information for ports %s",
