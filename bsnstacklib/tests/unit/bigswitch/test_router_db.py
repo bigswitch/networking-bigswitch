@@ -88,6 +88,22 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
 class RouterDBTestCase(RouterDBTestBase,
                        test_l3.L3NatDBIntTestCase):
 
+    def test_router_create_with_external_net_no_tenant_id(self):
+        with self.subnet() as s:
+            self._set_net_external(s['subnet']['network_id'])
+            data = {'router': {'tenant_id': _uuid()}}
+            data['router']['name'] = 'router1'
+            data['router']['external_gateway_info'] = {
+                'network_id': s['subnet']['network_id']}
+            self.assertEqual(
+                data['router']['external_gateway_info'].get('tenant_id'), None)
+            router_req = self.new_create_request('routers', data, self.fmt)
+            res = router_req.get_response(self.ext_api)
+            router = self.deserialize(self.fmt, res)
+            self.assertEqual(
+                s['subnet']['tenant_id'],
+                router['router']['external_gateway_info']['tenant_id'])
+
     def test_router_create_with_gwinfo_ext_ip_non_admin(self):
         # TODO(kevinbenton): figure out why UTs aren't getting the default
         # policy.json files
