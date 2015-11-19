@@ -135,6 +135,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                 self.bsn_create_security_group(sg_id, context=context)
 
     @put_context_in_serverpool
+    def security_groups_member_updated(self, context, **kwargs):
+        pass
+
+    @put_context_in_serverpool
     def security_groups_provider_updated(self, context, **kwargs):
         pass
 
