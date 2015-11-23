@@ -25,6 +25,7 @@ from six import moves
 from webob import exc
 
 from bsnstacklib.plugins.bigswitch.extensions import routerrule
+from bsnstacklib.plugins.bigswitch import routerrule_db  # noqa
 from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 from neutron import context

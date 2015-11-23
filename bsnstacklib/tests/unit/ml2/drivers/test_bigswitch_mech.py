@@ -42,15 +42,6 @@ DRIVER_MOD = 'bsnstacklib.plugins.ml2.drivers.mech_bigswitch.driver'
 DRIVER = DRIVER_MOD + '.BigSwitchMechanismDriver'
 HTTPCON = SERVER_MANAGER + '.httplib.HTTPConnection'
 
-# NOTE: this won't be necessary once the upstream neutron driver
-# imports bsnstacklib
-from bsnstacklib.plugins.ml2 import drivers as stackdrivers
-from neutron.plugins.ml2 import drivers
-import neutron.plugins.ml2.drivers.mech_bigswitch.driver
-neutron.plugins.ml2.drivers.mech_bigswitch.driver.BigSwitchMechanismDriver = stackdrivers.mech_bigswitch.driver.BigSwitchMechanismDriver  # noqa
-drivers.mech_bigswitch.driver = stackdrivers.mech_bigswitch.driver
-drivers.mech_bigswitch = stackdrivers.mech_bigswitch
-
 
 class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 
