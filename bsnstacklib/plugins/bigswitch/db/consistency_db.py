@@ -23,15 +23,27 @@ from oslo_db.sqlalchemy import session
 from oslo_log import log as logging
 import sqlalchemy as sa
 
+from neutron.db import model_base               
 from neutron.i18n import _LI, _LW
-from neutron.plugins.bigswitch.db import consistency_db
 
 LOG = logging.getLogger(__name__)
 # Maximum time in seconds to wait for a single record lock to be released
 # NOTE: The total time waiting may exceed this if there are multiple servers
 # waiting for the same lock
 MAX_LOCK_WAIT_TIME = 15
-ConsistencyHash = consistency_db.ConsistencyHash
+
+
+class ConsistencyHash(model_base.BASEV2):               
+    '''         
+    A simple table to store the latest consistency hash         
+    received from a server.             
+    For now we only support one global state so the             
+    hash_id will always be '1'          
+    '''         
+    __tablename__ = 'consistencyhashes'         
+    hash_id = sa.Column(sa.String(255),         
+                        primary_key=True)               
+    hash = sa.Column(sa.String(255), nullable=False)
 
 
 def setup_db():
