@@ -182,37 +182,42 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         plugin = manager.NeutronManager.get_plugin()
         all_networks = plugin.get_networks(admin_context) or []
         for net in all_networks:
-            mapped_network = self._get_mapped_network_with_subnets(net)
-            flips_n_ports = mapped_network
-            if get_floating_ips:
-                flips_n_ports = self._get_network_with_floatingips(
-                    mapped_network)
+            try:
+                mapped_network = self._get_mapped_network_with_subnets(net)
 
-            if get_ports:
-                ports = []
-                net_filter = {'network_id': [net.get('id')]}
-                net_ports = plugin.get_ports(admin_context,
-                                             filters=net_filter) or []
-                for port in net_ports:
-                    # skip L3 router ports since the backend
-                    # implements the router
-                    if (self.l3_bsn_plugin and
-                        port.get('device_owner') in
-                        [const.DEVICE_OWNER_ROUTER_INTF,
-                         const.DEVICE_OWNER_ROUTER_GW,
-                         const.DEVICE_OWNER_ROUTER_HA_INTF]):
-                        continue
-                    mapped_port = self._map_tenant_name(port)
-                    mapped_port = self._map_state_and_status(mapped_port)
-                    mapped_port['attachment'] = {
-                        'id': port.get('device_id'),
-                        'mac': port.get('mac_address'),
-                    }
-                    ports.append(mapped_port)
-                flips_n_ports['ports'] = ports
+                flips_n_ports = mapped_network
+                if get_floating_ips:
+                    flips_n_ports = self._get_network_with_floatingips(
+                        mapped_network)
 
-            if flips_n_ports:
-                networks.append(flips_n_ports)
+                if get_ports:
+                    ports = []
+                    net_filter = {'network_id': [net.get('id')]}
+                    net_ports = plugin.get_ports(admin_context,
+                                                 filters=net_filter) or []
+                    for port in net_ports:
+                        # skip L3 router ports since the backend
+                        # implements the router
+                        if (self.l3_bsn_plugin and
+                            port.get('device_owner') in
+                            [const.DEVICE_OWNER_ROUTER_INTF,
+                             const.DEVICE_OWNER_ROUTER_GW,
+                             const.DEVICE_OWNER_ROUTER_HA_INTF]):
+                            continue
+                        mapped_port = self._map_tenant_name(port)
+                        mapped_port = self._map_state_and_status(mapped_port)
+                        mapped_port['attachment'] = {
+                            'id': port.get('device_id'),
+                            'mac': port.get('mac_address'),
+                        }
+                        ports.append(mapped_port)
+                    flips_n_ports['ports'] = ports
+
+                if flips_n_ports:
+                    networks.append(flips_n_ports)
+            except servermanager.TenantIDNotFound:
+                # if tenant name is not known to keystone, skip the network
+                continue
 
         data = {'networks': networks}
 
@@ -220,34 +225,38 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             routers = []
             all_routers = self.l3_plugin.get_routers(admin_context) or []
             for router in all_routers:
-                # Add tenant_id of the external gateway network
-                if router.get(l3.EXTERNAL_GW_INFO):
-                    ext_net_id = router[l3.EXTERNAL_GW_INFO].get('network_id')
-                    ext_net = self.get_network(admin_context, ext_net_id)
-                    ext_tenant_id = ext_net.get('tenant_id')
-                    if ext_tenant_id:
-                        router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
-                            ext_tenant_id)
+                try:
+                    # Add tenant_id of the external gateway network
+                    if router.get(l3.EXTERNAL_GW_INFO):
+                        ext_net_id = router[l3.EXTERNAL_GW_INFO].get(
+                            'network_id')
+                        ext_net = self.get_network(admin_context, ext_net_id)
+                        ext_tenant_id = ext_net.get('tenant_id')
+                        if ext_tenant_id:
+                            router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                                ext_tenant_id)
 
-                interfaces = []
-                mapped_router = self._map_tenant_name(router)
-                mapped_router = self._map_state_and_status(mapped_router)
-                router_filter = {
-                    'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
-                    'device_id': [router.get('id')]
-                }
-                router_ports = self.get_ports(admin_context,
-                                              filters=router_filter) or []
-                for port in router_ports:
-                    net_id = port.get('network_id')
-                    subnet_id = port['fixed_ips'][0]['subnet_id']
-                    intf_details = self._get_router_intf_details(admin_context,
-                                                                 net_id,
-                                                                 subnet_id)
-                    interfaces.append(intf_details)
-                mapped_router['interfaces'] = interfaces
+                    interfaces = []
+                    mapped_router = self._map_tenant_name(router)
+                    mapped_router = self._map_state_and_status(mapped_router)
+                    router_filter = {
+                        'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
+                        'device_id': [router.get('id')]
+                    }
+                    router_ports = self.get_ports(admin_context,
+                                                  filters=router_filter) or []
+                    for port in router_ports:
+                        net_id = port.get('network_id')
+                        subnet_id = port['fixed_ips'][0]['subnet_id']
+                        intf_details = self._get_router_intf_details(
+                            admin_context, net_id, subnet_id)
+                        interfaces.append(intf_details)
+                    mapped_router['interfaces'] = interfaces
 
-                routers.append(mapped_router)
+                    routers.append(mapped_router)
+                except servermanager.TenantIDNotFound:
+                    # if tenant name is not known to keystone, skip the network
+                    continue
 
             data.update({'routers': routers})
 
