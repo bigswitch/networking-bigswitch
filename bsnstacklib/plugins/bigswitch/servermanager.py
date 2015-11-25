@@ -108,6 +108,35 @@ class RemoteRestError(exceptions.NeutronException):
         super(RemoteRestError, self).__init__(**kwargs)
 
 
+class DictDiffer(object):
+    """
+    Calculate the difference between two dictionaries as:
+    (1) items added
+    (2) items removed
+    (3) keys same in both but changed values
+    (4) keys same in both and unchanged values
+    """
+    def __init__(self, current_dict, past_dict):
+        self.current_dict, self.past_dict = current_dict, past_dict
+        self.set_current, self.set_past = (set(current_dict.keys()),
+                                           set(past_dict.keys()))
+        self.intersect = self.set_current.intersection(self.set_past)
+
+    def added(self):
+        return self.set_current - self.intersect
+
+    def removed(self):
+        return self.set_past - self.intersect
+
+    def changed(self):
+        return set(o for o in self.intersect
+                   if self.past_dict[o] != self.current_dict[o])
+
+    def unchanged(self):
+        return set(o for o in self.intersect
+                   if self.past_dict[o] == self.current_dict[o])
+
+
 class ServerProxy(object):
     """REST server proxy to a network controller."""
 
@@ -577,7 +606,9 @@ class ServerPool(object):
 
     def rest_create_tenant(self, tenant_id):
         self._update_tenant_cache()
+        self._rest_create_tenant(tenant_id)
 
+    def _rest_create_tenant(self, tenant_id):
         tenant_name = self.keystone_tenants.get(tenant_id)
         if not tenant_name:
             raise TenantIDNotFound(tenant=tenant_id)
@@ -717,19 +748,34 @@ class ServerPool(object):
                 LOG.exception(_LE("Encountered an error checking controller "
                                   "health."))
 
-    def _update_tenant_cache(self):
+    def _update_tenant_cache(self, reconcile=True):
         try:
             keystone_client = ksclient.Client(auth_url=self.auth_url,
                                               username=self.auth_user,
                                               password=self.auth_password,
                                               tenant_name=self.auth_tenant)
             tenants = keystone_client.tenants.list()
-            new_tenants = {tn.id: tn.name for tn in tenants}
+            new_cached_tenants = {tn.id: tn.name for tn in tenants}
             # Add SERVICE_TENANT to handle hidden network for VRRP
-            new_tenants[SERVICE_TENANT] = SERVICE_TENANT
+            new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT
 
-            self.keystone_tenants = new_tenants
-
+            LOG.debug("New TENANTS: %s \nPrevious Tenants %s"
+                      % (new_cached_tenants, self.keystone_tenants))
+            diff = DictDiffer(new_cached_tenants, self.keystone_tenants)
+            self.keystone_tenants = new_cached_tenants
+            if reconcile:
+                for tenant_id in diff.added():
+                    LOG.debug("TENANT create: id %s name %s"
+                              % (tenant_id, self.keystone_tenants[tenant_id]))
+                    self._rest_create_tenant(tenant_id)
+                for tenant_id in diff.removed():
+                    LOG.debug("TENANT delete: id %s" % tenant_id)
+                    self.rest_delete_tenant(tenant_id)
+                if diff.changed():
+                    LOG.debug("TENANT changed: topo sync")
+                    data = self.get_topo_function(
+                        **self.get_topo_function_args)
+                    self.rest_action('POST', TOPOLOGY_PATH, data, timeout=None)
         except Exception:
             LOG.exception(_LE("Encountered an error syncing with "
                               "keystone."))
