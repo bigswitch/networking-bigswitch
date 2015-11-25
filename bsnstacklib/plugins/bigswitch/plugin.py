@@ -173,7 +173,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True, get_sgs=True):
         # sync tenant cache with keystone
-        self.servers._update_tenant_cache()
+        self.servers._update_tenant_cache(reconcile=False)
 
         admin_context = qcontext.get_admin_context()
         networks = []
@@ -262,17 +262,19 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         if get_sgs:
             sgs = plugin.get_security_groups(admin_context) or []
+            new_sgs = []
             for sg in sgs:
                 tenant_name = self.servers.keystone_tenants.get(
                     sg['tenant_id'])
                 if tenant_name:
                     sg['tenant_name'] = tenant_name
+                    new_sgs.append(sg)
                 else:
                     # If tenant is not known to keystone,
                     # then skip the security greoup
                     continue
 
-            data.update({'security-groups': sgs})
+            data.update({'security-groups': new_sgs})
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
