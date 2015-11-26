@@ -312,12 +312,15 @@ class ServerPool(object):
             self.server_proxy_for(server, int(port))
             for server, port in (s.rsplit(':', 1) for s in servers)
         ]
+        self.start_background_tasks()
+        ServerPool._instance = self
+        LOG.debug("ServerPool: initialization done")
+
+    def start_background_tasks(self):
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
         eventlet.spawn(self._keystone_sync,
                        cfg.CONF.RESTPROXY.keystone_sync_interval)
-        ServerPool._instance = self
-        LOG.debug("ServerPool: initialization done")
 
     def set_context(self, context):
         # this context needs to be local to the greenthread
