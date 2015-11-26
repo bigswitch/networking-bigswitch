@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Kanzhe Jiang <kanzhe@gmail.com>
+Workflow+1: Kanzhe Jiang <kanzhe@gmail.com>
+Submitted-by: Jenkins
+Submitted-at: Thu, 26 Nov 2015 15:10:44 +0000
+Reviewed-on: https://review.openstack.org/250415
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/kilo_v2
