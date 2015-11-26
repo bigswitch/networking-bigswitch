@@ -36,7 +36,7 @@ SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 SPAWN = 'bsnstacklib.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
 KSCLIENT = 'keystoneclient.v2_0.client.Client'
-CWATCH = SERVER_MANAGER + '.ServerPool._consistency_watchdog'
+BACKGROUND = SERVER_MANAGER + '.ServerPool.start_background_tasks'
 MAP_TENANT_NAME = ('bsnstacklib.plugins.bigswitch.plugin.'
                    'NeutronRestProxyV2Base._map_tenant_name')
 
@@ -72,8 +72,8 @@ class BigSwitchTestBase(object):
         self.dhcp_notifier_p = mock.patch(DHCP_NOTIFIER)
         # prevent any greenthreads from spawning
         self.spawn_p = mock.patch(SPAWN, new=lambda *args, **kwargs: None)
-        # prevent the consistency watchdog from starting
-        self.watch_p = mock.patch(CWATCH, new=lambda *args, **kwargs: None)
+        # prevent the consistency watchdog and keystone sync from starting
+        self.watch_p = mock.patch(BACKGROUND, new=lambda *args, **kwargs: None)
         # disable exception log to prevent json parse error from showing
         self.log_exc_p = mock.patch(SERVER_MANAGER + ".LOG.exception",
                                     new=lambda *args, **kwargs: None)
