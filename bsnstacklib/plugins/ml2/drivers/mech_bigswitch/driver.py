@@ -65,12 +65,12 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
-        LOG.debug(_("Force topology sync"))
+        LOG.debug("Force topology sync")
         hash_handler = cdb.HashHandler()
         cur_hash = hash_handler.read_for_update()
         if not cur_hash or True:
             hash_handler.put_hash('intial:hash,code')
-        LOG.debug(_("Force topology sync Done"))
+        LOG.debug("Force topology sync Done")
 
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
@@ -79,7 +79,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
         self.setup_sg_rpc_callbacks()
-        LOG.debug(_("Initialization done"))
+        LOG.debug("Initialization done")
 
     def setup_sg_rpc_callbacks(self):
         # this will listen for the same notifications that the l2 agent uses.
@@ -111,10 +111,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """
         if event_type == 'security_group.create.end':
-            LOG.debug(_("Security group created: %s") % payload)
+            LOG.debug("Security group created: %s" % payload)
             self.bsn_create_security_group(sg=payload['security_group'])
         elif event_type == 'security_group.delete.end':
-            LOG.debug(_("Security group deleted: %s") % payload)
+            LOG.debug("Security group deleted: %s" % payload)
             self.bsn_delete_security_group(payload['security_group_id'])
         elif event_type == 'identity.project.deleted':
             LOG.debug("Project deleted: %s" % payload)
@@ -129,7 +129,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def security_groups_rule_updated(self, context, **kwargs):
         # this will get called whenever a security group rule updated message
         # goes onto the RPC bus
-        LOG.debug(_("security_groups_rule_updated: %s") % kwargs)
+        LOG.debug("security_groups_rule_updated: %s" % kwargs)
         if kwargs.get('security_groups'):
             for sg_id in kwargs.get('security_groups'):
                 self.bsn_create_security_group(sg_id, context=context)
