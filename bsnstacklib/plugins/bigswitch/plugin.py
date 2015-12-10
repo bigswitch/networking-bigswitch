@@ -408,7 +408,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
-        if not mapped_network['tenant_id']:
+        if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
             mapped_network['name'] = self._format_network_name(
@@ -424,7 +424,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                                                context)
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
                                                         context)
-        if not net_fl_ips['tenant_id']:
+        if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
             net_fl_ips['name'] = self._format_network_name(
