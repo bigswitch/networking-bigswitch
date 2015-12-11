@@ -348,8 +348,13 @@ class ServerPool(object):
     def start_background_tasks(self):
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
-        eventlet.spawn(self._keystone_sync,
-                       cfg.CONF.RESTPROXY.keystone_sync_interval)
+        # Start keystone sync thread after 5 consistency sync
+        # to give enough time for topology to sync over when
+        # neutron-server starts.
+        eventlet.spawn_after(
+            5 * cfg.CONF.RESTPROXY.consistency_interval,
+            self._keystone_sync,
+            cfg.CONF.RESTPROXY.keystone_sync_interval)
 
     def set_context(self, context):
         # this context needs to be local to the greenthread
