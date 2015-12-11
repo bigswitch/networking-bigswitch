@@ -275,6 +275,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     continue
 
             data.update({'security-groups': new_sgs})
+            data.update({'tenants': self.servers.keystone_tenants})
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):

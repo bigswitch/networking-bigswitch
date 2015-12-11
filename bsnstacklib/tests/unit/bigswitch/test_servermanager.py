@@ -444,7 +444,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                           hash_handler=mock.ANY),
                 mock.call('POST', '/topology',
                           {'routers': [], 'security-groups': [],
-                           'networks': []}, timeout=None)
+                           'networks': [],
+                           'tenants': {'VRRP_Service': 'VRRP_Service'}},
+                          timeout=None)
             ])
 
     def test_conflict_sync_raises_error_without_topology(self):
