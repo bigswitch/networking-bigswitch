@@ -168,7 +168,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _get_all_data_auto(self):
         return self._get_all_data(
                 get_floating_ips=self.l3_bsn_plugin,
-                get_routers=self.l3_bsn_plugin)
+                get_routers=self.l3_bsn_plugin,
+                get_sgs=self.l3_bsn_plugin)
 
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True, get_sgs=True):
@@ -260,7 +261,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
             data.update({'routers': routers})
 
-        if get_sgs:
+        if get_sgs and self.l3_plugin:
             sgs = plugin.get_security_groups(admin_context) or []
             new_sgs = []
             for sg in sgs:
