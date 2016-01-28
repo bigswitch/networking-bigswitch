@@ -305,7 +305,9 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
-        self.auth_url = "%s/v2.0" % cfg.CONF.RESTPROXY.auth_url
+        self.auth_url = cfg.CONF.RESTPROXY.auth_url
+        if "v2.0" not in self.auth_url:
+            self.auth_url = "%s/v2.0" % cfg.CONF.RESTPROXY.auth_url
         self.auth_user = cfg.CONF.RESTPROXY.auth_user
         self.auth_password = cfg.CONF.RESTPROXY.auth_password
         self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
