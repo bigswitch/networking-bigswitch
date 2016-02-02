@@ -312,11 +312,11 @@ class ServerPool(object):
             self.auth_tenant = cfg.CONF.keystone_authtoken.admin_tenant_name
         else:
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
-            if "v2.0" not in self.auth_url:
-                self.auth_url = "%s/v2.0" % cfg.CONF.RESTPROXY.auth_url
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
             self.auth_password = cfg.CONF.RESTPROXY.auth_password
             self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
+        if "v2.0" not in self.auth_url:
+            self.auth_url = "%s/v2.0" % self.auth_url
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
