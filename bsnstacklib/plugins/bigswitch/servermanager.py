@@ -324,6 +324,7 @@ class ServerPool(object):
         # The cache is maintained in a separate thread and sync'ed with
         # Keystone periodically.
         self.keystone_tenants = {}
+        self._update_tenant_cache(reconcile=False)
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
         default_port = 8000
