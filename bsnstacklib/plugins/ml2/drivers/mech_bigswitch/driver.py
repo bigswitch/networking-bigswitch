@@ -23,11 +23,12 @@ import oslo_messaging
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
-from neutron.agent import rpc as agent_rpc
 from neutron.api.rpc.handlers import dhcp_rpc
+from neutron.callbacks import events
+from neutron.callbacks import registry
+from neutron.callbacks import resources
 from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
-from neutron.common import topics
 from neutron import context as ctx
 from neutron.extensions import portbindings
 from neutron.i18n import _LE, _LW
@@ -83,14 +84,22 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         LOG.debug(_("Initialization done"))
 
     def setup_sg_rpc_callbacks(self):
-        # this will listen for the same notifications that the l2 agent uses.
-        # This is triggered whenever security group rules change or members
-        # of a security group change.
-        # The functions that will be called directly correspond to the names
-        # defined in the cast calls in
-        # neutron/api/rpc/handlers/securitygroups_rpc.py
-        self.connection = agent_rpc.create_consumers(
-            [self], topics.AGENT, [[topics.SECURITY_GROUP, topics.UPDATE]])
+        # following way to register call back functions start in kilo
+        self._create_sg_f = self.bsn_create_sg_callback
+        self._delete_sg_f = self.bsn_delete_sg_callback
+        self._update_sg_f = self.bsn_update_sg_callback
+        self._create_sg_rule_f = self.bsn_create_sg_rule_callback
+        self._delete_sg_rule_f = self.bsn_delete_sg_rule_callback
+        registry.subscribe(self._create_sg_f,
+                           resources.SECURITY_GROUP, events.AFTER_CREATE)
+        registry.subscribe(self._delete_sg_f,
+                           resources.SECURITY_GROUP, events.AFTER_DELETE)
+        registry.subscribe(self._update_sg_f,
+                           resources.SECURITY_GROUP, events.AFTER_UPDATE)
+        registry.subscribe(self._create_sg_rule_f,
+                           resources.SECURITY_GROUP_RULE, events.AFTER_CREATE)
+        registry.subscribe(self._delete_sg_rule_f,
+                           resources.SECURITY_GROUP_RULE, events.AFTER_DELETE)
 
         # the above does not cover the cases where security groups are
         # initially created or when they are deleted since those actions
@@ -108,6 +117,51 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             n_rpc.TRANSPORT, [target, keystone_target], [self],
             executor='eventlet', allow_requeue=False)
         self.listener.start()
+
+    def bsn_create_sg_callback(self, resource, event, trigger, **kwargs):
+        security_group = kwargs.get('security_group')
+        context = kwargs.get('context')
+        if security_group and context:
+            sg_id = security_group.get('id')
+            LOG.debug("Callback create sg_id: %s" % sg_id)
+            self.bsn_create_security_group(sg_id=sg_id, context=context)
+
+    def bsn_delete_sg_callback(self, resource, event, trigger, **kwargs):
+        sg_id = kwargs.get('security_group_id')
+        context = kwargs.get('context')
+        if sg_id and context:
+            LOG.debug("Callback delete sg_id: %s" % sg_id)
+            self.bsn_delete_security_group(sg_id=sg_id, context=context)
+
+    def bsn_update_sg_callback(self, resource, event, trigger, **kwargs):
+        security_group = kwargs.get('security_group')
+        context = kwargs.get('context')
+        if security_group and context:
+            sg_id = security_group.get('id')
+            LOG.debug("Callback update sg_id: %s" % sg_id)
+            self.bsn_create_security_group(sg_id=sg_id, context=context)
+
+    def bsn_create_sg_rule_callback(self, resource, event, trigger, **kwargs):
+        rule = kwargs.get('security_group_rule')
+        context = kwargs.get('context')
+        if rule and context:
+            sg_id = rule.get('security_group_id')
+            LOG.debug("Callback create rule in sg_id: %s" % sg_id)
+            self.bsn_create_security_group(sg_id=sg_id, context=context)
+
+    def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
+        context = kwargs.get('context')
+        if context:
+            LOG.debug("Callback deleted sg_rule belones to tenant: %s"
+                      % context.tenant_id)
+            sgs = self.get_security_groups(context, filters={}) or []
+            for sg in sgs:
+                if sg.get('tenant_id') != context.tenant_id:
+                    continue
+                sg_id = sg.get('id')
+                LOG.debug("Callback delete rule in sg_id: %s" % sg_id)
+                # we over write the sg on bcf controller instead of deleting
+                self.bsn_create_security_group(sg_id=sg_id, context=context)
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """
