@@ -349,6 +349,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         """
         sg['tenant_id'] = sg['tenant_id'] or servermanager.SERVICE_TENANT
         sg['tenant_name'] = self.servers.keystone_tenants.get(sg['tenant_id'])
+        if not sg['tenant_name']:
+            self.servers._update_tenant_cache(reconcile=True)
+            tenant_name = self.servers.keystone_tenants.get(sg['tenant_id'])
+            sg['tenant_name'] = tenant_name
 
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
