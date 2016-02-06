@@ -28,29 +28,27 @@ The following functionality is handled by this module:
 """
 import base64
 import httplib
-import os
 import socket
 import ssl
 import time
 import weakref
 
-import eventlet
-import eventlet.corolocal
-from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_serialization import jsonutils
-from oslo_utils import excutils
-
 from neutron.common import exceptions
-
 from neutron.i18n import _
 from neutron.i18n import _LE
 from neutron.i18n import _LI
 from neutron.i18n import _LW
 
-from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
-from keystoneclient.v2_0 import client as ksclient
+from oslo_log import log as logging
 
+from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+import eventlet
+import eventlet.corolocal
+from keystoneclient.v2_0 import client as ksclient
+import os
+from oslo_config import cfg
+from oslo_serialization import jsonutils
+from oslo_utils import excutils
 
 LOG = logging.getLogger(__name__)
 
@@ -73,6 +71,10 @@ TENANT_PATH = "/tenants/%s"
 TOPOLOGY_PATH = "/topology"
 HEALTH_PATH = "/health"
 SWITCHES_PATH = "/switches/%s"
+TESTPATH_PATH = ('/testpath/controller-view'
+                 '?src-tenant=%(src-tenant)s'
+                 '&src-segment=%(src-segment)s&src-ip=%(src-ip)s'
+                 '&dst-ip=%(dst-ip)s')
 SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
@@ -749,6 +751,17 @@ class ServerPool(object):
                                 ignore_codes=[404])
         # return None if switch not found, else return switch info
         return None if resp[0] == 404 else resp[3]
+
+    def rest_get_testpath(self, src, dst):
+        resource = TESTPATH_PATH % {'src-tenant': src['tenant'],
+                                    'src-segment': src['segment'],
+                                    'src-ip': src['ip'],
+                                    'dst-ip': dst['ip']}
+        errstr = _("Unable to retrieve results for testpath ID: %s")
+        resp = self.rest_action('GET', resource, errstr=errstr,
+                                ignore_codes=[404])
+        # return None if testpath not found, else return testpath info
+        return None if (resp[0] not in range(200, 300)) else resp[3]
 
     def _consistency_watchdog(self, polling_interval=60):
         if 'consistency' not in self.get_capabilities():
