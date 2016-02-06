@@ -27,6 +27,7 @@ from oslo_log import log
 import oslo_messaging
 from oslo_service import loopingcall
 from oslo_utils import excutils
+from oslo_utils import importutils
 
 from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
@@ -74,8 +75,8 @@ class IVSBridge(ovs_lib.OVSBridge):
         return edge_ports
 
     def get_vif_port_by_id(self, port_id):
-        # IVS in nova uses hybrid method with last 14 chars of UUID
-        name = 'qvo%s' % port_id[:14]
+        # IVS in nova uses hybrid method with last 11 chars of UUID
+        name = ('qvo%s' % port_id)[:14]
         if name in self.get_vif_port_set():
             return name
         return False
@@ -100,6 +101,12 @@ class IVSBridge(ovs_lib.OVSBridge):
 
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
 
+    def init_firewall(self, defer_refresh_firewall=False):
+        super(FilterDeviceIDMixin, self).init_firewall(defer_refresh_firewall)
+        firewall_driver = ('neutron.agent.linux.iptables_firewall.'
+                           'OVSHybridIptablesFirewallDriver')
+        self.firewall = importutils.import_object(firewall_driver)
+
     def prepare_devices_filter(self, device_ids):
         if not device_ids:
             return
@@ -120,7 +127,12 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
             for device in devices.values():
                 # strip tap back off since prepare_port_filter will apply it
                 device['device'] = device['device'].replace('tap', '')
-                self.set_local_zone(device)
+                # fuel backport fix with conntrack,
+                # which may not exist in other installers
+                try:
+                    self.set_local_zone(device)
+                except AttributeError:
+                    LOG.debug("set_local_zone is not defined.")
                 self.firewall.prepare_port_filter(device)
             if self.use_enhanced_rpc:
                 LOG.debug("Update security group information for ports %s",
