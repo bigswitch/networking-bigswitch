@@ -7,6 +7,7 @@ include neutron/db/migration/alembic.ini
 include neutron/db/migration/alembic_migrations/script.py.mako
 include neutron/db/migration/alembic_migrations/versions/README
 recursive-include neutron/locale *
+recursive-include bsn_horizon *
 
 exclude .gitignore
 exclude .gitreview
