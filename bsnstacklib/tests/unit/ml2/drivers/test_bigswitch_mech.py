@@ -128,7 +128,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                            reason='No such switch', status=404)),
             self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
         ) as (rmock, port):
-            rmock.assert_called_once_with('hostname')
+            rmock.assert_called_with('hostname')
             p = port['port']
             self.assertNotEqual(pl_config.VIF_TYPE_IVS,
                                 p[portbindings.VIF_TYPE])

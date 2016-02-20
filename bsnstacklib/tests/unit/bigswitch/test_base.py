@@ -62,6 +62,7 @@ class BigSwitchTestBase(object):
         cfg.CONF.set_override('cache_connections', False, 'RESTPROXY')
         cfg.CONF.set_override('service_plugins', ['bigswitch_l3'])
         cfg.CONF.set_override('add_meta_server_route', False, 'RESTPROXY')
+        cfg.CONF.set_override('api_extensions_path', False)
 
     def map_tenant_name_side_effect(self, value):
         value['tenant_name'] = 'tenant_name'

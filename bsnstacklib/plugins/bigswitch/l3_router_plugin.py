@@ -225,9 +225,11 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             return del_ret
 
     # add floating_port_id into the dict for later port mac lookup
-    def _make_floatingip_dict(self, floatingip, fields=None):
+    def _make_floatingip_dict(self, floatingip, fields=None,
+                              process_extensions=True):
         res = super(L3RestProxy, self)._make_floatingip_dict(
-            floatingip, fields=fields)
+            floatingip, fields=fields,
+            process_extensions=process_extensions)
         res['floating_port_id'] = floatingip['floating_port_id']
         return self._fields(res, fields)
 
