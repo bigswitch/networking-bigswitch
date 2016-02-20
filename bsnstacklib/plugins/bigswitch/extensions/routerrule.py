@@ -14,6 +14,7 @@
 #    under the License.
 from oslo_log import log as logging
 
+from neutron.api.extensions import ExtensionDescriptor
 from neutron.api.v2 import attributes as attr
 from neutron.common import exceptions as nexception
 
@@ -101,7 +102,7 @@ def _validate_uniquerules(rules):
         raise nexception.InvalidInput(error_message=error)
 
 
-class Routerrule(object):
+class Routerrule(ExtensionDescriptor):
 
     @classmethod
     def get_name(cls):
