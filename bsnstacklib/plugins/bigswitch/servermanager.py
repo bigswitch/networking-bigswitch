@@ -346,10 +346,13 @@ class ServerPool(object):
                            for sp in servers]):
             raise cfg.Error(_('Servers must be defined as <ip>:<port>. '
                               'Configuration was %s') % servers)
-        self.servers = [
-            self.server_proxy_for(server, int(port))
-            for server, port in (s.rsplit(':', 1) for s in servers)
-        ]
+        self.servers = []
+        for s in servers:
+            server, port = s.rsplit(':', 1)
+            if server.startswith("[") and server.endswith("]"):
+                # strip [] for ipv6 address
+                server = server[1:-1]
+            self.servers.append(self.server_proxy_for(server, int(port)))
         self.start_background_tasks()
         ServerPool._instance = self
         LOG.debug("ServerPool: initialization done")

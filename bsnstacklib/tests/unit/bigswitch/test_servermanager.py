@@ -59,7 +59,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             'RESTPROXY')
         s = servermanager.ServerPool()
         self.assertEqual(s.servers[0].server,
-                         '[ABCD:EF01:2345:6789:ABCD:EF01:2345:6789]')
+                         'ABCD:EF01:2345:6789:ABCD:EF01:2345:6789')
 
     def test_sticky_cert_fetch_fail(self):
         pl = manager.NeutronManager.get_plugin()
