@@ -324,6 +324,7 @@ class ServerPool(object):
         # The cache is maintained in a separate thread and sync'ed with
         # Keystone periodically.
         self.keystone_tenants = {}
+        self.keystone_client_error = False
         self._update_tenant_cache(reconcile=False)
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
@@ -557,8 +558,9 @@ class ServerPool(object):
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
                 data = self.get_topo_function(**self.get_topo_function_args)
-                active_server.rest_call('POST', TOPOLOGY_PATH, data,
-                                        timeout=None)
+                if not self.keystone_client_error:
+                    active_server.rest_call('POST', TOPOLOGY_PATH, data,
+                                            timeout=None)
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
             # likely be cluster slaves and won't have a useful error for the
@@ -793,7 +795,9 @@ class ServerPool(object):
                     data = self.get_topo_function(
                         **self.get_topo_function_args)
                     self.rest_action('POST', TOPOLOGY_PATH, data, timeout=None)
+            self.keystone_client_error = False
         except Exception:
+            self.keystone_client_error = True
             LOG.exception(_LE("Encountered an error syncing with "
                               "keystone."))
 
