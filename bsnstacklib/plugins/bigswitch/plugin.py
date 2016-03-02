@@ -295,6 +295,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         """
         data = self._get_all_data(
             send_ports, send_floating_ips, send_routers, send_sgs)
+        if self.keystone_client_error:
+            return
         data['triggered_by_tenant'] = triggered_by_tenant
         errstr = _("Unable to update remote topology: %s")
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
