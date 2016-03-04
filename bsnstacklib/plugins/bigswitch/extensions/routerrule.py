@@ -18,6 +18,7 @@ from neutron.api.extensions import ExtensionDescriptor
 from neutron.api.v2 import attributes as attr
 from neutron.common import exceptions as nexception
 
+from neutron._i18n import _
 
 LOG = logging.getLogger(__name__)
 
