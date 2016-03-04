@@ -14,8 +14,8 @@
 #    under the License.
 from oslo_log import log as logging
 
+from neutron._i18n import _LW
 from neutron.api.v2 import attributes
-from neutron.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 

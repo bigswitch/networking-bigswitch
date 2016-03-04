@@ -30,7 +30,7 @@ from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
 from neutron.extensions import portbindings
-from neutron.i18n import _LE, _LW
+from neutron._i18n import _, _LE, _LW
 from neutron import manager
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
