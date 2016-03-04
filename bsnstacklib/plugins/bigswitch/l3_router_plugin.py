@@ -31,7 +31,7 @@ from neutron.api import extensions as neutron_extensions
 from neutron.common import exceptions
 from neutron.db import l3_db
 from neutron.extensions import l3
-from neutron.i18n import _LE
+from neutron._i18n import _, _LE
 from neutron import manager
 from neutron.plugins.common import constants
 
