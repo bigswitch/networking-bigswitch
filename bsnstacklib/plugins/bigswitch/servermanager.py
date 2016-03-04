@@ -42,7 +42,7 @@ from oslo_serialization import jsonutils
 from oslo_utils import excutils
 
 from neutron.common import exceptions
-from neutron.i18n import _LE, _LI, _LW
+from neutron._i18n import _, _LE, _LI, _LW
 
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
 from keystoneclient.v2_0 import client as ksclient
@@ -557,6 +557,8 @@ class ServerPool(object):
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
                 data = self.get_topo_function(**self.get_topo_function_args)
+                if data is None:
+                    return None
                 active_server.rest_call('POST', TOPOLOGY_PATH, data,
                                         timeout=None)
             # Store the first response as the error to be bubbled up to the
@@ -793,9 +795,11 @@ class ServerPool(object):
                     data = self.get_topo_function(
                         **self.get_topo_function_args)
                     self.rest_action('POST', TOPOLOGY_PATH, data, timeout=None)
+            return True
         except Exception:
             LOG.exception(_LE("Encountered an error syncing with "
                               "keystone."))
+            return False
 
     def _keystone_sync(self, polling_interval=60):
         while True:
