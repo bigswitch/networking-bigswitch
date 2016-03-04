@@ -464,6 +464,27 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 *('GET', '/', '', None, [])
             )
 
+    def test_no_sync_without_keystone(self):
+        pl = manager.NeutronManager.get_plugin()
+        with contextlib.nested(
+            mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
+                       return_value=(False)),
+            mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                       return_value=(httplib.CONFLICT, 0, 0, 0))
+        ) as (fmock, srestmock):
+            # making a call should trigger a conflict sync
+            pl.servers.rest_call('GET', '/', '', None, [])
+            srestmock.assert_called_once_with(
+                'GET', '/', '', None, False, reconnect=True,
+                hash_handler=mock.ANY)
+
+    def test_no_send_all_data_without_keystone(self):
+        pl = manager.NeutronManager.get_plugin()
+        with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
+                return_value=(False)):
+            # making a call should trigger a conflict sync
+            self.assertEqual(None, pl._send_all_data())
+
     def test_floating_calls(self):
         pl = manager.NeutronManager.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool.rest_action') as ramock:

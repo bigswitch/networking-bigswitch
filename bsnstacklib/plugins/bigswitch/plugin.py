@@ -81,7 +81,12 @@ from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
-from neutron.i18n import _LE, _LI, _LW
+
+from neutron._i18n import _
+from neutron._i18n import _LE
+from neutron._i18n import _LI
+from neutron._i18n import _LW
+
 from neutron.plugins.common import constants as pconst
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
@@ -174,7 +179,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True, get_sgs=True):
         # sync tenant cache with keystone
-        self.servers._update_tenant_cache(reconcile=False)
+        if not self.servers._update_tenant_cache(reconcile=False):
+            return None
 
         admin_context = qcontext.get_admin_context()
         networks = []
@@ -295,6 +301,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         """
         data = self._get_all_data(
             send_ports, send_floating_ips, send_routers, send_sgs)
+        # Lost keystone connection if data is None
+        # Log an error and continue
+        if data is None:
+            return None
+
         data['triggered_by_tenant'] = triggered_by_tenant
         errstr = _("Unable to update remote topology: %s")
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
