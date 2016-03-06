@@ -1,0 +1,8 @@
+Code-Review+2: xin wu <xin.wu@bigswitch.com>
+Workflow+1: xin wu <xin.wu@bigswitch.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 06 Mar 2016 19:59:36 +0000
+Reviewed-on: https://review.openstack.org/289075
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/liberty
