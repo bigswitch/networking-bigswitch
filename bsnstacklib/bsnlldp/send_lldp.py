@@ -31,12 +31,12 @@ from ctypes import Union
 import ctypes.util
 import os
 import os.path
-from oslo_log import log
 import platform
 import socket
 from socket import AF_INET
 from socket import AF_INET6
 from socket import inet_ntop
+import syslog as LOG
 import time
 try:
     from rhlib import get_uplinks_and_chassisid
@@ -50,7 +50,6 @@ TTL = 120
 INTERVAL = 10
 CHASSIS_ID_LOCALLY_ASSIGNED = 7
 PORT_ID_INTERFACE_ALIAS = 1
-LOG = log.getLogger(__name__)
 
 
 class struct_sockaddr(Structure):
@@ -302,11 +301,11 @@ def send_lldp():
         systemname = socket.gethostname()
         if args.system_name:
             systemname = args.system_name
-        LOG.debug("LLDP system-name is %s" % systemname)
+        LOG.syslog("LLDP system-name is %s" % systemname)
         systemdesc = SYSTEM_DESC
         if args.system_desc:
             systemdesc = args.system_desc
-        LOG.debug("LLDP system-desc is %s" % systemdesc)
+        LOG.syslog("LLDP system-desc is %s" % systemdesc)
         for intf in intfs:
             interface = intf.strip()
             frame = lldp_frame_of(chassis_id=chassisid,
@@ -330,13 +329,13 @@ def send_lldp():
             intfs, chassisid = get_uplinks_and_chassisid()
         except Exception:
             intfs = []
-    LOG.debug("LLDP interfaces are %s" % ','.join(intfs))
+    LOG.syslog("LLDP interfaces are %s" % ','.join(intfs))
 
     senders, frames = _generate_senders_frames(intfs, chassisid, args)
     interval = INTERVAL
     if args.interval:
         interval = args.interval
-    LOG.debug("LLDP interval is %d" % interval)
+    LOG.syslog("LLDP interval is %d" % interval)
     while True:
         for idx, s in enumerate(senders):
             s.send(frames[idx])
