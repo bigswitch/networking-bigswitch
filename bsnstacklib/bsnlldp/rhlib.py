@@ -18,6 +18,7 @@ import os
 from os_net_config import utils
 from oslo_serialization import jsonutils
 import re
+import syslog as LOG
 import time
 
 # constants for RHOSP
@@ -126,13 +127,22 @@ def get_uplinks_and_chassisid():
             break
         break
 
-    active_intfs = utils.ordered_active_nics()
-    intf_len = len(active_intfs)
-    chassis_id = "00:00:00:00:00:00"
-    if len(active_intfs) != 0:
-        chassis_id = get_mac_str(active_intfs[0])
     intfs = []
-    for index in intf_indexes:
-        if index < intf_len:
+    chassis_id = "00:00:00:00:00:00"
+    while True:
+        active_intfs = utils.ordered_active_nics()
+        intf_len = len(active_intfs)
+        if len(active_intfs) != 0:
+            chassis_id = get_mac_str(active_intfs[0])
+        intfs = []
+        all_nics_are_ready = True
+        for index in intf_indexes:
+            if index >= intf_len:
+                all_nics_are_ready = False
+                break
             intfs.append(active_intfs[index])
+        if all_nics_are_ready:
+            break
+        LOG.syslog("LLDP gets portion active uplinks %s" % intfs)
+        time.sleep(1)
     return intfs, chassis_id
