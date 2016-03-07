@@ -121,8 +121,10 @@ def get_uplinks_and_chassisid():
                         continue
                     nic_name = nic.get('name')
                     indexes = map(int, re.findall(r'\d+', nic_name))
-                    if len(indexes) == 1:
-                        intf_indexes.append(indexes[0] - 1)
+                    if len(indexes) == 1 and nic_name.startswith("nic"):
+                        intf_indexes.append(str(indexes[0] - 1))
+                    else:
+                        intf_indexes.append(str(nic_name))
                 break
             break
         break
@@ -137,12 +139,16 @@ def get_uplinks_and_chassisid():
         intfs = []
         all_nics_are_ready = True
         for index in intf_indexes:
-            if index >= intf_len:
-                all_nics_are_ready = False
-                break
-            intfs.append(active_intfs[index])
+            try:
+                idx = int(index)
+                if idx >= intf_len:
+                    all_nics_are_ready = False
+                    break
+                intfs.append(active_intfs[idx])
+            except ValueError:
+                intfs.append(index)
         if all_nics_are_ready:
             break
-        LOG.syslog("LLDP gets portion active uplinks %s" % intfs)
+        LOG.syslog("LLDP gets partial active uplinks %s" % intfs)
         time.sleep(1)
     return intfs, chassis_id
