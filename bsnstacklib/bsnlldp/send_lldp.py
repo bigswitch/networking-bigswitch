@@ -330,6 +330,7 @@ def send_lldp():
         except Exception:
             intfs = []
     LOG.syslog("LLDP interfaces are %s" % ','.join(intfs))
+    LOG.syslog("LLDP chassisid is %s" % chassisid)
 
     senders, frames = _generate_senders_frames(intfs, chassisid, args)
     interval = INTERVAL
@@ -338,7 +339,10 @@ def send_lldp():
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
         for idx, s in enumerate(senders):
-            s.send(frames[idx])
+            try:
+                s.send(frames[idx])
+            except Exception:
+                continue
         time.sleep(interval)
 
 
