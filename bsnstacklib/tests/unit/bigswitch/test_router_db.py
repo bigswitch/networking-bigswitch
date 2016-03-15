@@ -90,6 +90,18 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
 class RouterDBTestCase(RouterDBTestBase,
                        test_l3.L3NatDBIntTestCase):
 
+    default_router_rule = {'priority': 3000,
+                           'destination': 'any',
+                           'source': 'any',
+                           'action': 'permit',
+                           'nexthops': []}
+
+    reset_router_rule = {'priority': -2,
+                         'source': 'any',
+                         'destination': 'any',
+                         'action': 'permit',
+                         'nexthops': []}
+
     def test_router_create(self):
         name = 'router1'
         tenant_id = _uuid()
@@ -453,42 +465,297 @@ class RouterDBTestCase(RouterDBTestBase,
     def test_router_rules_update(self):
         with self.router() as r:
             r_id = r['router']['id']
-            router_rules = [{'destination': '1.2.3.4/32',
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'destination': '1.2.3.4/32',
                              'source': '4.3.2.1/32',
                              'action': 'permit',
                              'nexthops': ['4.4.4.4', '4.4.4.5']}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(_strip_rule_ids(rules), router_rules)
+
+            # Try after adding another rule
+            router_rules.append({'priority': -1,
+                                 'source': 'any',
+                                 'destination': '8.8.8.8/32',
+                                 'action': 'permit',
+                                 'nexthops': ['1.1.1.1']})
+            body = self._update('routers', r['router']['id'],
+                                {'router': {'router_rules': router_rules}})
+
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(_strip_rule_ids(rules), router_rules)
+
+    def test_router_rules_reset(self):
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'destination': '1.2.3.4/32',
+                             'source': '4.3.2.1/32',
+                             'action': 'permit',
+                             'nexthops': ['4.4.4.4', '4.4.4.5']}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(_strip_rule_ids(rules), router_rules)
+
+            # reset rules to default
+            # router_rules = default_router_rules
+            router_rules = [self.reset_router_rule]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            router_rules = [self.default_router_rule]
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(_strip_rule_ids(rules), router_rules)
+
+    def test_router_rules_overlap_without_blocking_rule(self):
+        """wider net rule gulps smaller rule if there is no lower priority
+        opposite action rule for the smaller rule.
+        """
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': 'any',
+                             'action': 'permit',
+                             'nexthops': ['10.1.1.1']}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # add a higher priority rule with wider net: 192.168.0.0/16
+            router_rules.append({'priority': -1,
+                                 'source': '192.168.0.0/16',
+                                 'destination': 'any',
+                                 'action': 'permit',
+                                 'nexthops': ['10.1.1.1']})
+            body = self._update('routers', r['router']['id'],
+                                {'router': {'router_rules': router_rules}})
+
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+
+            expected_rules = [self.default_router_rule,
+                              {'priority': min_prio,
+                               'source': '192.168.0.0/16',
+                               'destination': 'any',
+                               'action': 'permit',
+                               'nexthops': ['10.1.1.1']}]
+            self.assertEqual(expected_rules, _strip_rule_ids(rules))
+
+    def test_router_rules_overlap_with_blocking_rule(self):
+        """wider net rule completely covers existing same action rule. But,
+        there is a opposite action lower priority rule blocking the existing
+        same action rule
+        """
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': '192.168.1.5/32',
+                             'action': 'deny',
+                             'nexthops': []},
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': 'any',
+                             'action': 'permit',
+                             'nexthops': []}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # add a higher priority rule with wider net: 192.168.0.0/16
+            router_rules.append({'priority': -1,
+                                 'source': '192.168.0.0/16',
+                                 'destination': 'any',
+                                 'action': 'permit',
+                                 'nexthops': ['10.1.1.1']})
+            body = self._update('routers', r['router']['id'],
+                                {'router': {'router_rules': router_rules}})
+
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+    def test_router_rules_priority_reassignment(self):
+        with self.router() as r:
+            r_id = r['router']['id']
+            # existing set of rules
+            router_rules = [self.default_router_rule,
+                            {'priority': 3,
+                             'source': '192.168.1.0/24',
+                             'destination': '192.168.1.5/32',
+                             'action': 'deny',
+                             'nexthops': []}]
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': router_rules}})
 
             body = self._show('routers', r['router']['id'])
             self.assertIn('router_rules', body['router'])
             rules = body['router']['router_rules']
-            self.assertEqual(_strip_rule_ids(rules), router_rules)
-            # Try after adding another rule
-            router_rules.append({'source': 'external',
-                                 'destination': '8.8.8.8/32',
-                                 'action': 'permit', 'nexthops': []})
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # since next priority = 3-10 = -7, ID assignment logic will perform
+            # cleanup
+            router_rules.append({'priority': -1,
+                                 'source': '192.168.1.0/24',
+                                 'destination': 'any',
+                                 'action': 'permit',
+                                 'nexthops': []})
             body = self._update('routers', r['router']['id'],
+                                {'router': {'router_rules': router_rules}})
+
+            min_prio = 3000
+            for rule in router_rules:
+                rule['priority'] = min_prio
+                min_prio = min_prio - 10
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+    def test_router_rules_delete(self):
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': '192.168.1.5/32',
+                             'action': 'deny',
+                             'nexthops': []},
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': 'any',
+                             'action': 'permit',
+                             'nexthops': []}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # remove rule 2990 -> the only deny rule of the pack
+            router_rules = [rule for rule in router_rules
+                            if rule['priority'] != 2990]
+            body = self._update('routers', r_id,
                                 {'router': {'router_rules': router_rules}})
 
             body = self._show('routers', r['router']['id'])
             self.assertIn('router_rules', body['router'])
             rules = body['router']['router_rules']
-            self.assertEqual(_strip_rule_ids(rules), router_rules)
+            # since all the remaining are permit rules with no nexthops, it
+            # will remove all except the default permit rule
+            expected_rules = [self.default_router_rule]
+            self.assertEqual(expected_rules, _strip_rule_ids(rules))
+
+            # reset rules to previous configuration
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': '192.168.1.5/32',
+                             'action': 'deny',
+                             'nexthops': []},
+                            {'priority': -1,
+                             'source': '192.168.1.0/24',
+                             'destination': 'any',
+                             'action': 'permit',
+                             'nexthops': []}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            # test multiple rule delete operation
+            router_rules = [self.default_router_rule]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(expected_rules, _strip_rule_ids(rules))
 
     def test_router_rules_separation(self):
         with self.router() as r1:
             with self.router() as r2:
                 r1_id = r1['router']['id']
                 r2_id = r2['router']['id']
-                router1_rules = [{'destination': '5.6.7.8/32',
-                                 'source': '8.7.6.5/32',
-                                 'action': 'permit',
-                                 'nexthops': ['8.8.8.8', '9.9.9.9']}]
-                router2_rules = [{'destination': '1.2.3.4/32',
-                                 'source': '4.3.2.1/32',
-                                 'action': 'permit',
-                                 'nexthops': ['4.4.4.4', '4.4.4.5']}]
+                router1_rules = [self.default_router_rule,
+                                 {'priority': 2990,
+                                  'destination': '5.6.7.8/32',
+                                  'source': '8.7.6.5/32',
+                                  'action': 'permit',
+                                  'nexthops': ['8.8.8.8', '9.9.9.9']}]
+                router2_rules = [self.default_router_rule,
+                                 {'priority': 2990,
+                                  'destination': '1.2.3.4/32',
+                                  'source': '4.3.2.1/32',
+                                  'action': 'permit',
+                                  'nexthops': ['4.4.4.4', '4.4.4.5']}]
                 body1 = self._update('routers', r1_id,
                                      {'router':
                                          {'router_rules': router1_rules}})
@@ -506,7 +773,9 @@ class RouterDBTestCase(RouterDBTestBase,
     def test_router_rules_validation(self):
         with self.router() as r:
             r_id = r['router']['id']
-            good_rules = [{'destination': '1.2.3.4/32',
+            good_rules = [self.default_router_rule,
+                          {'priority': 2990,
+                           'destination': '1.2.3.4/32',
                            'source': '4.3.2.1/32',
                            'action': 'permit',
                            'nexthops': ['4.4.4.4', '4.4.4.5']}]
@@ -520,44 +789,57 @@ class RouterDBTestCase(RouterDBTestBase,
 
             # Missing nexthops should be populated with an empty list
             light_rules = copy.deepcopy(good_rules)
-            del light_rules[0]['nexthops']
+            for rule in light_rules:
+                del rule['nexthops']
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': light_rules}})
             body = self._show('routers', r_id)
             self.assertIn('router_rules', body['router'])
-            light_rules[0]['nexthops'] = []
+            for rule in light_rules:
+                rule['nexthops'] = []
+                if rule['priority'] == 2990:
+                    rule['nexthops'] = ['4.4.4.4', '4.4.4.5']
             self.assertEqual(light_rules,
                              _strip_rule_ids(body['router']['router_rules']))
             # bad CIDR
             bad_rules = copy.deepcopy(good_rules)
-            bad_rules[0]['destination'] = '1.1.1.1'
+            for rule in bad_rules:
+                if rule['priority'] == 2990:
+                    rule['destination'] = '1.1.1.1'
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': bad_rules}},
                                 expected_code=exc.HTTPBadRequest.code)
             # bad next hop
             bad_rules = copy.deepcopy(good_rules)
-            bad_rules[0]['nexthops'] = ['1.1.1.1', 'f2']
+            for rule in bad_rules:
+                if rule['priority'] == 2990:
+                    rule['nexthops'] = ['1.1.1.1', 'f2']
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': bad_rules}},
                                 expected_code=exc.HTTPBadRequest.code)
             # bad action
             bad_rules = copy.deepcopy(good_rules)
-            bad_rules[0]['action'] = 'dance'
+            for rule in bad_rules:
+                if rule['priority'] == 2990:
+                    rule['action'] = 'dance'
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': bad_rules}},
                                 expected_code=exc.HTTPBadRequest.code)
-            # duplicate rule with opposite action
+
+            # duplicate rule with same priority, source, destination, action
             bad_rules = copy.deepcopy(good_rules)
-            bad_rules.append(copy.deepcopy(bad_rules[0]))
-            bad_rules.append(copy.deepcopy(bad_rules[0]))
-            bad_rules[1]['source'] = 'any'
-            bad_rules[2]['action'] = 'deny'
+            bad_rules.append({'priority': 2990,
+                              'destination': '1.2.3.4/32',
+                              'source': '4.3.2.1/32',
+                              'action': 'permit'})
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': bad_rules}},
                                 expected_code=exc.HTTPBadRequest.code)
             # duplicate nexthop
             bad_rules = copy.deepcopy(good_rules)
-            bad_rules[0]['nexthops'] = ['1.1.1.1', '1.1.1.1']
+            for rule in bad_rules:
+                if rule['priority'] == 2990:
+                    rule['nexthops'] = ['1.1.1.1', '1.1.1.1']
             body = self._update('routers', r_id,
                                 {'router': {'router_rules': bad_rules}},
                                 expected_code=exc.HTTPBadRequest.code)
@@ -574,10 +856,16 @@ class RouterDBTestCase(RouterDBTestBase,
                               'ROUTER')
         with self.router() as r:
             body = self._show('routers', r['router']['id'])
-            expected_rules = [{'source': 'any', 'destination': 'any',
-                               'nexthops': [], 'action': 'deny'},
-                              {'source': '8.8.8.8/32', 'destination': 'any',
-                               'nexthops': ['1.2.3.4'], 'action': 'permit'}]
+            expected_rules = [{'priority': 3000,
+                               'source': 'any',
+                               'destination': 'any',
+                               'action': 'deny',
+                               'nexthops': []},
+                              {'priority': 2990,
+                               'source': '8.8.8.8/32',
+                               'destination': 'any',
+                               'action': 'permit',
+                               'nexthops': ['1.2.3.4']}]
             self.assertEqual(expected_rules,
                              _strip_rule_ids(body['router']['router_rules']))
 
@@ -586,9 +874,11 @@ class RouterDBTestCase(RouterDBTestBase,
         with self.router() as r:
             rules = []
             for i in moves.range(1, 12):
-                rule = {'source': 'any', 'nexthops': [],
+                rule = {'priority': -1,
+                        'source': 'any',
                         'destination': '1.1.1.' + str(i) + '/32',
-                        'action': 'permit'}
+                        'action': 'permit',
+                        'nexthops': []}
                 rules.append(rule)
             self._update('routers', r['router']['id'],
                          {'router': {'router_rules': rules}},
