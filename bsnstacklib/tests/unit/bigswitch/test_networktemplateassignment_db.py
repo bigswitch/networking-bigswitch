@@ -16,12 +16,14 @@
 
 
 from bsnstacklib.plugins.bigswitch.db import network_template_db
+from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
 from neutron import context
 from neutron.tests.unit import testlib_api
 
 
-class TestNetworkTemplateAssignmentDbMixin(testlib_api.SqlTestCase):
+class TestNetworkTemplateAssignmentDbMixin(testlib_api.SqlTestCase,
+                                           bsn_test_base.BigSwitchTestBase):
     def setUp(self):
         super(TestNetworkTemplateAssignmentDbMixin, self).setUp()
         self.context = context.get_admin_context()
