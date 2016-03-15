@@ -112,6 +112,27 @@ def upgrade():
         sa.Column('run_test', sa.Boolean, nullable=False, default=False),
         sa.Column('save_test', sa.Boolean, nullable=False, default=False))
 
+    op.create_table(
+        'bsn_routerrules',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('priority', sa.Integer(), nullable=False),
+        sa.Column('source', sa.String(length=64), nullable=False),
+        sa.Column('destination', sa.String(length=64), nullable=False),
+        sa.Column('action', sa.String(length=10), nullable=False),
+        sa.Column('router_id', sa.String(length=36), nullable=True),
+        sa.ForeignKeyConstraint(['router_id'], ['routers.id'],
+                                ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('priority', 'router_id', name='unique_prio_rid'))
+
+    op.create_table(
+        'bsn_nexthops',
+        sa.Column('rule_id', sa.Integer(), nullable=False),
+        sa.Column('nexthop', sa.String(length=64), nullable=False),
+        sa.ForeignKeyConstraint(['rule_id'], ['bsn_routerrules.id'],
+                                ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('rule_id', 'nexthop'))
+
 
 def downgrade():
     pass
