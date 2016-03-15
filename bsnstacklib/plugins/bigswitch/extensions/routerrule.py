@@ -50,7 +50,7 @@ def convert_to_valid_router_rules(data):
         raise nexception.InvalidInput(error_message=emsg)
     _validate_uniquerules(data)
     rules = []
-    expected_keys = ['source', 'destination', 'action']
+    expected_keys = ['source', 'destination', 'action', 'priority']
     for rule in data:
         rule['nexthops'] = rule.get('nexthops', [])
         if not isinstance(rule['nexthops'], list):
@@ -92,12 +92,15 @@ def _validate_action(action):
 def _validate_uniquerules(rules):
     pairs = []
     for r in rules:
-        if 'source' not in r or 'destination' not in r:
+        if ('source' not in r or 'destination' not in r
+            or 'action' not in r or 'priority' not in r):
             continue
-        pairs.append((r['source'], r['destination']))
+        pairs.append((r['source'], r['destination'],
+                      r['action'], r['priority']))
 
     if len(set(pairs)) != len(pairs):
-        error = _("Duplicate router rules (src,dst)  found '%s'") % pairs
+        error = _("Duplicate router rules (src,dst,action,priority) "
+                  "found '%s'") % pairs
         LOG.debug(error)
         raise nexception.InvalidInput(error_message=error)
 
