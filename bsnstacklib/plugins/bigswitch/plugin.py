@@ -81,7 +81,6 @@ from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
-
 from neutron.plugins.common import constants as pconst
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
