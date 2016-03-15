@@ -16,6 +16,7 @@
 
 from bsnstacklib.plugins.bigswitch.db import network_template_db  # noqa
 from bsnstacklib.plugins.bigswitch.db import reachability_test_db  # noqa
+from bsnstacklib.plugins.bigswitch.db import routerrule_db  # noqa
 from neutron.db.migration.models import head
 
 
