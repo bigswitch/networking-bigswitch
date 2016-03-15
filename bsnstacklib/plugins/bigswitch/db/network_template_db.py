@@ -14,14 +14,13 @@
 #    under the License.
 import sqlalchemy as sa
 
+from bsnstacklib.plugins.bigswitch.i18n import _
 from neutron.common import exceptions
 from neutron.db import common_db_mixin
 from neutron.db import model_base
 from oslo_db import exception as db_exc
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc
-
-from bsnstacklib.plugins.bigswitch.i18n import _
 
 
 class NetworkTemplate(model_base.BASEV2):

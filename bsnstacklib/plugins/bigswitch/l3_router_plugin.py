@@ -29,7 +29,6 @@ from neutron.db import l3_db
 from neutron.extensions import l3
 from neutron import manager
 from neutron.plugins.common import constants
-from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import excutils
 
@@ -40,8 +39,6 @@ from bsnstacklib.plugins.bigswitch import plugin as cplugin
 from bsnstacklib.plugins.bigswitch import routerrule_db
 from bsnstacklib.plugins.bigswitch import servermanager
 
-# number of fields in a router rule string
-ROUTER_RULE_COMPONENT_COUNT = 5
 LOG = logging.getLogger(__name__)
 put_context_in_serverpool = cplugin.put_context_in_serverpool
 BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
@@ -329,26 +326,3 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # get_external_network can raise errors when multiple external
             # networks are detected, which isn't supported by the Plugin
             LOG.error(_LE("NeutronRestProxyV2: too many external networks"))
-
-    def _get_tenant_default_router_rules(self, tenant):
-        rules = cfg.CONF.ROUTER.tenant_default_router_rule
-        default_set = []
-        tenant_set = []
-        for rule in rules:
-            items = rule.split(':')
-            # put an empty string on the end if nexthops wasn't specified
-            if len(items) < ROUTER_RULE_COMPONENT_COUNT:
-                items.append('')
-            try:
-                (tenant_id, source, destination, action, nexthops) = items
-            except ValueError:
-                continue
-            parsed_rule = {'source': source,
-                           'destination': destination, 'action': action,
-                           'nexthops': [hop for hop in nexthops.split(',')
-                                        if hop]}
-            if tenant_id == '*':
-                default_set.append(parsed_rule)
-            if tenant_id == tenant:
-                tenant_set.append(parsed_rule)
-        return tenant_set if tenant_set else default_set

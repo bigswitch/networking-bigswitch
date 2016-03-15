@@ -16,12 +16,14 @@
 
 
 from bsnstacklib.plugins.bigswitch.db import reachability_test_db
+from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
 from neutron import context
 from neutron.tests.unit import testlib_api
 
 
-class TestReachabilityQuickTestDbMixin(testlib_api.SqlTestCase):
+class TestReachabilityQuickTestDbMixin(testlib_api.SqlTestCase,
+                                       bsn_test_base.BigSwitchTestBase):
     def setUp(self):
         super(TestReachabilityQuickTestDbMixin, self).setUp()
         self.context = context.get_admin_context()
