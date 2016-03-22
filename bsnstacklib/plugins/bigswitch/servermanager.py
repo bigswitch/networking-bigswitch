@@ -33,15 +33,15 @@ import ssl
 import time
 import weakref
 
-from neutron._i18n import _
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron._i18n import _LW
 from neutron.common import exceptions
 
 from oslo_log import log as logging
 
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from bsnstacklib.plugins.bigswitch.i18n import _
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 import eventlet
 import eventlet.corolocal
 from keystoneclient.v2_0 import client as ksclient

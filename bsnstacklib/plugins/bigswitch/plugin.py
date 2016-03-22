@@ -82,16 +82,15 @@ from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
 
-from neutron._i18n import _
-from neutron._i18n import _LE
-from neutron._i18n import _LI
-from neutron._i18n import _LW
-
 from neutron.plugins.common import constants as pconst
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import porttracker_db
 from bsnstacklib.plugins.bigswitch import extensions
+from bsnstacklib.plugins.bigswitch.i18n import _
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.plugins.bigswitch import version
 
