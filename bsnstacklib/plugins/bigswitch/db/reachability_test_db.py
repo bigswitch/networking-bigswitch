@@ -13,17 +13,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sqlalchemy as sa
+
 from neutron.common import exceptions
 from neutron.db import common_db_mixin
 from neutron.db import model_base
-from neutron.i18n import _
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
-
-import sqlalchemy as sa
 from sqlalchemy.dialects.mysql.base import VARCHAR
 from sqlalchemy.orm import exc
 from sqlalchemy.types import Enum, TIMESTAMP, TypeDecorator
+
+from bsnstacklib.plugins.bigswitch.i18n import _
 
 
 class JSONEncodedDict(TypeDecorator):

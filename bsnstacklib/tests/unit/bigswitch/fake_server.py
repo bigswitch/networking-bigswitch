@@ -15,7 +15,7 @@
 from oslo_log import log as logging
 from oslo_serialization import jsonutils
 
-
+from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch import servermanager
 
 LOG = logging.getLogger(__name__)

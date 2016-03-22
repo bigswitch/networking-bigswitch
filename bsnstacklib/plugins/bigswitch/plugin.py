@@ -41,16 +41,11 @@ on port-attach) on an additional PUT to do a bulk dump of all persistent data.
 """
 
 import copy
+import eventlet
 import functools
 import httplib
-import re
-
-import eventlet
-from oslo_config import cfg
-from oslo_log import log as logging
 import oslo_messaging
-from oslo_utils import importutils
-from sqlalchemy.orm import exc as sqlexc
+import re
 
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api import extensions as neutron_extensions
@@ -81,17 +76,19 @@ from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
-
-from neutron.i18n import _
-from neutron.i18n import _LE
-from neutron.i18n import _LI
-from neutron.i18n import _LW
-
 from neutron.plugins.common import constants as pconst
+from oslo_config import cfg
+from oslo_log import log as logging
+from oslo_utils import importutils
+from sqlalchemy.orm import exc as sqlexc
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import porttracker_db
 from bsnstacklib.plugins.bigswitch import extensions
+from bsnstacklib.plugins.bigswitch.i18n import _
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.plugins.bigswitch import version
 

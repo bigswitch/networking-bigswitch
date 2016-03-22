@@ -14,17 +14,18 @@
 #    under the License.
 import random
 import re
+import sqlalchemy as sa
 import string
 import time
 
+from neutron.plugins.bigswitch.db import consistency_db
 from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import session
 from oslo_log import log as logging
-import sqlalchemy as sa
 
-from neutron.i18n import _LI, _LW
-from neutron.plugins.bigswitch.db import consistency_db
+from bsnstacklib.plugins.bigswitch.i18n import _LI
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 # Maximum time in seconds to wait for a single record lock to be released

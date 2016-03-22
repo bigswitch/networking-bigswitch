@@ -12,11 +12,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-from oslo_log import log as logging
 
 from neutron.api.v2 import attributes as attr
 from neutron.common import exceptions as nexception
+from oslo_log import log as logging
 
+from bsnstacklib.plugins.bigswitch.i18n import _
 
 LOG = logging.getLogger(__name__)
 

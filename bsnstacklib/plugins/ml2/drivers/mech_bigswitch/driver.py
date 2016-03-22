@@ -14,14 +14,9 @@
 #    under the License.
 import copy
 import datetime
-import httplib
-
 import eventlet
-from oslo_config import cfg
-from oslo_log import log
+import httplib
 import oslo_messaging
-from oslo_utils import excutils
-from oslo_utils import timeutils
 
 from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.callbacks import events
@@ -31,13 +26,19 @@ from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
 from neutron.extensions import portbindings
-from neutron.i18n import _LE, _LW
 from neutron import manager
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
+from oslo_config import cfg
+from oslo_log import log
+from oslo_utils import excutils
+from oslo_utils import timeutils
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from bsnstacklib.plugins.bigswitch.i18n import _
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 from bsnstacklib.plugins.bigswitch import plugin
 from bsnstacklib.plugins.bigswitch import servermanager
 

@@ -27,28 +27,27 @@ The following functionality is handled by this module:
 
 """
 import base64
+import eventlet
+import eventlet.corolocal
 import httplib
+import os
 import socket
 import ssl
 import time
 import weakref
 
-from neutron.common import exceptions
-from neutron.i18n import _
-from neutron.i18n import _LE
-from neutron.i18n import _LI
-from neutron.i18n import _LW
-
-from oslo_log import log as logging
-
-from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
-import eventlet
-import eventlet.corolocal
 from keystoneclient.v2_0 import client as ksclient
-import os
+from neutron.common import exceptions
 from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
+
+from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from bsnstacklib.plugins.bigswitch.i18n import _
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 

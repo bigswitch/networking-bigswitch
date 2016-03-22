@@ -12,15 +12,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import sqlalchemy as sa
 
 from neutron.common import exceptions
 from neutron.db import common_db_mixin
 from neutron.db import model_base
-from neutron.i18n import _
 from oslo_db import exception as db_exc
 from oslo_utils import uuidutils
-import sqlalchemy as sa
 from sqlalchemy.orm import exc
+
+from bsnstacklib.plugins.bigswitch.i18n import _
 
 
 class NetworkTemplate(model_base.BASEV2):
