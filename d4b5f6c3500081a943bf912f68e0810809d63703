@@ -1,0 +1,9 @@
+Code-Review+2: xin wu <xin.wu@bigswitch.com>
+Code-Review+2: Kanzhe Jiang <kanzhe@gmail.com>
+Workflow+1: Kanzhe Jiang <kanzhe@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 22 Mar 2016 21:04:49 +0000
+Reviewed-on: https://review.openstack.org/296008
+Project: openstack/networking-bigswitch
+Branch: refs/heads/master
