@@ -38,9 +38,10 @@ from neutron.common import constants as q_const
 from neutron.common import topics
 from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
-from neutron.i18n import _LE, _LI
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
+from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
 
 LOG = log.getLogger(__name__)
 
