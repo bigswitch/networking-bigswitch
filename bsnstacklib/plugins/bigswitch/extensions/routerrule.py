@@ -14,9 +14,9 @@
 #    under the License.
 from oslo_log import log as logging
 
+from bsnstacklib.plugins.bigswitch.i18n import _
 from neutron.api.v2 import attributes as attr
 from neutron.common import exceptions as nexception
-
 
 LOG = logging.getLogger(__name__)
 
