@@ -13,15 +13,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sqlalchemy as sa
+
 from alembic import context
-from bsnstacklib.plugins.bigswitch.db.migration.alembic_migrations \
-    import BSN_VERSION_TABLE
 from logging import config as logging_config
 from neutron.db import model_base
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
-import sqlalchemy as sa
 from sqlalchemy import event
+
+from bsnstacklib.plugins.bigswitch.db.migration.alembic_migrations \
+    import BSN_VERSION_TABLE
 
 MYSQL_ENGINE = None
 config = context.config
