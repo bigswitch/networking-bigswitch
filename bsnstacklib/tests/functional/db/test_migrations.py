@@ -13,15 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_config import cfg
-
-from bsnstacklib.plugins.bigswitch.db.migration import alembic_migrations
-from bsnstacklib.plugins.bigswitch.db.models import head
-
 from neutron.db.migration.alembic_migrations import external
 from neutron.db.migration import cli as migration
 from neutron.tests.common import base
 from neutron.tests.functional.db import test_migrations
+from oslo_config import cfg
+
+from bsnstacklib.plugins.bigswitch.db.migration import alembic_migrations
+from bsnstacklib.plugins.bigswitch.db.models import head
 
 
 # EXTERNAL_TABLES should contain all names of tables that are not related to
