@@ -173,12 +173,9 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                                                              router_id,
                                                              interface_info)
             port = self._get_port(context, new_intf_info['port_id'])
-            net_id = port['network_id']
             subnet_id = new_intf_info['subnet_id']
-            # we will use the port's network id as interface's id
-            interface_id = net_id
+            # we will use the port's subnet id as interface's id
             intf_details = self._get_router_intf_details(context,
-                                                         interface_id,
                                                          subnet_id)
 
             # create interface on the network controller
@@ -201,10 +198,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             raise exceptions.BadRequest(resource='router', msg=msg)
         if 'port_id' in interface_info:
             port = self._get_port(context, interface_info['port_id'])
-            interface_id = port['network_id']
+            interface_id = port['fixed_ips'][0]['subnet_id']
         elif 'subnet_id' in interface_info:
             subnet = self._get_subnet(context, interface_info['subnet_id'])
-            interface_id = subnet['network_id']
+            interface_id = subnet['id']
         else:
             msg = _("Either subnet_id or port_id must be specified")
             raise exceptions.BadRequest(resource='router', msg=msg)
