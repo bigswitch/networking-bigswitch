@@ -420,7 +420,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         filters = {'name': ['default'], 'tenant_id': [tenant_id]}
         default_group = self.get_security_groups(
             context, filters, default_sg=True)
-        self.bsn_create_security_group(sg=default_group[0])
+        if default_group:
+            # VRRP tenant doesn't have tenant_id nor sg
+            self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
         if not tenant_id:
