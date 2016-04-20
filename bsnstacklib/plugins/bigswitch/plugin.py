@@ -676,7 +676,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         LOG.debug("NeutronRestProxyV2: initialization done")
 
     def _setup_rpc(self):
-        self.conn = n_rpc.create_connection(new=True)
+        self.conn = n_rpc.create_connection()
         self.topic = topics.PLUGIN
         self.notifier = AgentNotifierApi(topics.AGENT)
         # init dhcp agent support
