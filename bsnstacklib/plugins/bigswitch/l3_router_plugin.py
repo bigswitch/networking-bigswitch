@@ -181,6 +181,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             intf_details = self._get_router_intf_details(context,
                                                          subnet_id)
 
+            # get gateway_ip from port instead of gateway_ip
+            if port.get("fixed_ips"):
+                intf_details['ip_address'] = port["fixed_ips"][0]['ip_address']
+
             # create interface on the network controller
             self.servers.rest_add_router_interface(tenant_id, router_id,
                                                    intf_details)
