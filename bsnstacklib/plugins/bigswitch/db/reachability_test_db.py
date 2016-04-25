@@ -55,12 +55,19 @@ class ReachabilityTest(model_base.BASEV2,
     src_segment_name = sa.Column(sa.String(255), nullable=False)
     src_ip = sa.Column(sa.String(16), nullable=False)
     dst_ip = sa.Column(sa.String(16), nullable=False)
-    expected_result = sa.Column(Enum("reached destination", "dropped by route",
+    expected_result = sa.Column(Enum("dropped by route",
                                      "dropped by policy",
+                                     "not permitted by security groups",
                                      "dropped due to private segment",
-                                     "packet in", "forwarded", "dropped",
-                                     "multiple sources",
-                                     "unsupported", "invalid input",
+                                     "dropped due to loop",
+                                     "packet in",
+                                     "forwarded",
+                                     "dropped",
+                                     "unspecified source",
+                                     "unsupported",
+                                     "invalid input",
+                                     "inconsistent status",
+                                     "no traffic detected",
                                      name="expected_result"), nullable=False)
     test_time = sa.Column(TIMESTAMP(timezone=True), nullable=True)
     test_result = sa.Column(Enum("pass", "fail", "pending"),
@@ -180,12 +187,19 @@ class ReachabilityQuickTest(model_base.BASEV2,
     src_segment_name = sa.Column(sa.String(255), nullable=False)
     src_ip = sa.Column(sa.String(16), nullable=False)
     dst_ip = sa.Column(sa.String(16), nullable=False)
-    expected_result = sa.Column(Enum("reached destination", "dropped by route",
+    expected_result = sa.Column(Enum("dropped by route",
                                      "dropped by policy",
+                                     "not permitted by security groups",
                                      "dropped due to private segment",
-                                     "packet in", "forwarded", "dropped",
-                                     "multiple sources",
-                                     "unsupported", "invalid input",
+                                     "dropped due to loop",
+                                     "packet in",
+                                     "forwarded",
+                                     "dropped",
+                                     "unspecified source",
+                                     "unsupported",
+                                     "invalid input",
+                                     "inconsistent status",
+                                     "no traffic detected",
                                      name="expected_result"), nullable=False)
     test_time = sa.Column(TIMESTAMP(timezone=True), nullable=True)
     test_result = sa.Column(Enum("pass", "fail", "pending"),
