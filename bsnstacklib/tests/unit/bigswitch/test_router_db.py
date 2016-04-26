@@ -634,6 +634,57 @@ class RouterDBTestCase(RouterDBTestBase,
             rules = body['router']['router_rules']
             self.assertEqual(router_rules, _strip_rule_ids(rules))
 
+    def test_router_rules_different_nexthop(self):
+        """different nexthop is considered as different rule, but when the
+        source, destination and action are all same, we replace the existing
+        rule with new one and highest priority.
+
+        the new rule may not apply if existing rule covers the new one.
+        """
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '10.1.1.0/24',
+                             'destination': '10.2.1.0/24',
+                             'action': 'permit',
+                             'nexthops': ['1.1.1.1']},
+                            {'priority': -1,
+                             'source': '10.2.0.0/24',
+                             'destination': 'any',
+                             'action': 'deny',
+                             'nexthops': []}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 10
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # add a higher priority rule same as previous permit rule but
+            # without the nexthop. which makes it equal to the any->any permit
+            router_rules.append({'priority': -1,
+                                 'source': '10.1.1.0/24',
+                                 'destination': '10.2.1.0/24',
+                                 'action': 'permit',
+                                 'nexthops': []})
+            body = self._update('routers', r['router']['id'],
+                                {'router': {'router_rules': router_rules}})
+            # all except any->any and deny rule are removed
+            router_rules = [rule for rule in router_rules
+                            if (rule['action'] == 'deny' or
+                                rule['priority'] == 3000)]
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
     def test_router_rules_priority_reassignment(self):
         with self.router() as r:
             r_id = r['router']['id']
