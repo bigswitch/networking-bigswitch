@@ -208,6 +208,22 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
 
         return False, None
 
+    def _identical_rule_exists(self, context, old_rules, new_rule):
+        """Check if rule exists with same action and exact same source
+        and destination
+        """
+        sorted_rules = sorted(old_rules, key=lambda k: k.priority,
+                              reverse=True)
+        for old_rule in sorted_rules:
+            if (old_rule.priority >= new_rule.priority
+                and old_rule.source == new_rule.source
+                and old_rule.destination == new_rule.destination
+                and old_rule.action == new_rule.action):
+
+                return True, old_rule
+
+        return False, None
+
     def _filter_opposite_rules(self, new_rule, rules):
         """Get list of rules with opposite action and higher priority i.e.
         lower priority number
@@ -383,21 +399,35 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 LOG.debug('Removing exact opposite rule: %s' % opp_rule)
                 context.session.delete(opp_rule)
 
+            # exact same rule with lower priority
+            identical_exists, identical_rule = self._identical_rule_exists(
+                context, old_rules, new_rule)
+            if identical_exists:
+                LOG.debug('Removing identical rule: %s' % identical_rule)
+                context.session.delete(identical_rule)
+
             # query again, since some rules may have been deleted
+            old_rules = (context.session.query(RouterRule)
+                         .filter_by(router_id=router['id']).all())
+
             # lazy flush takes care of the delete
             same_action_rules = self._get_same_action_rules(
                 old_rules, new_rule.action)
+            # sort same action rules with high->low priority i.e. lower number
+            # first
+            sorted_same_action_rules = sorted(same_action_rules,
+                                              key=lambda k: k['priority'])
 
             # default is apply_rule
             apply_rule, rule_obj = True, new_rule
-            for old_rule in same_action_rules:
+            for old_rule in sorted_same_action_rules:
                 if self._rule_a_superset_rule_b(rule_a=old_rule,
                                                 rule_b=new_rule):
                     apply_rule, rule_obj = False, old_rule
                     LOG.debug('Found existing superset rule: %s' % old_rule)
                     break
             if apply_rule:
-                for old_rule in same_action_rules:
+                for old_rule in sorted_same_action_rules:
                     if self._rule_a_superset_rule_b(rule_a=new_rule,
                                                     rule_b=old_rule):
                         # remove old_rule
@@ -411,7 +441,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                                                                    old_rules)
                 for rule in reverse_action_rules:
                     if self._rule_a_obstructs_rule_b(rule_a=rule,
-                                                     rule_b=new_rule):
+                                                     rule_b=rule_obj):
                         # apply new rule
                         LOG.debug('Higher priority opposite rule exists, '
                                   'applying the new rule: %s' % new_rule)
