@@ -884,6 +884,75 @@ class RouterDBTestCase(RouterDBTestBase,
                          {'router': {'router_rules': rules}},
                          expected_code=exc.HTTPBadRequest.code)
 
+    def test_rule_exhaustion_priorty_reassignment(self):
+        cfg.CONF.set_override('max_router_rules', 3, 'ROUTER')
+        routerrule_db.MIN_PRIORITY_DIFF = 1000
+        with self.router() as r:
+            r_id = r['router']['id']
+            router_rules = [self.default_router_rule,
+                            {'priority': -1,
+                             'source': '10.2.0.0/24',
+                             'destination': 'any',
+                             'action': 'deny',
+                             'nexthops': []},
+                            {'priority': -1,
+                             'source': '10.1.1.0/24',
+                             'destination': '10.2.1.0/24',
+                             'action': 'permit',
+                             'nexthops': ['1.1.1.1']}]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+
+            min_prio = 3000
+            for rule in router_rules:
+                if rule['priority'] == -1:
+                    min_prio = min_prio - 1000
+                    rule['priority'] = min_prio
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # delete one rule with priority 2000, new set of rules is with
+            # priority 3000 and 1000. reassignment will be invoked on next
+            # rule addition
+            router_rules = [rule for rule in router_rules
+                            if rule['priority'] != 2000]
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # next rule addition should cause reassignment and make space
+            # for new one
+            router_rules.append({'priority': -1,
+                                 'source': '10.3.0.0/24',
+                                 'destination': 'any',
+                                 'action': 'deny',
+                                 'nexthops': []})
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}})
+            min_prio = 3000
+            for rule in router_rules:
+                rule['priority'] = min_prio
+                min_prio = min_prio - 1000
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('router_rules', body['router'])
+            rules = body['router']['router_rules']
+            self.assertEqual(router_rules, _strip_rule_ids(rules))
+
+            # trying to add another rule should fail
+            router_rules.append({'priority': -1,
+                                 'source': '10.4.0.0/24',
+                                 'destination': 'any',
+                                 'action': 'deny',
+                                 'nexthops': []})
+            body = self._update('routers', r_id,
+                                {'router': {'router_rules': router_rules}},
+                                expected_code=exc.HTTPBadRequest.code)
+
     def test_rollback_on_router_create(self):
         tid = test_base._uuid()
         self.httpPatch.stop()
