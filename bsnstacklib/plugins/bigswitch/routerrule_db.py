@@ -163,7 +163,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         for rule in sorted_rules:
             rule.update({'priority': min_priority})
             min_priority = min_priority - MIN_PRIORITY_DIFF
-            if min_priority <= MIN_PRIORITY_DIFF:
+            if min_priority <= 0:
                 raise Exception("All router rule priorities are exhausted")
         return min_priority
 
@@ -177,19 +177,16 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         boolean compaction required, min_priority
         """
         min_priority = MAX_PRIORITY
-        if len(rules) == 0:
-            return False, min_priority
 
-        for rule in rules:
-            min_priority = (rule.priority
-                            if (rule.priority < min_priority)
-                            else min_priority)
+        sorted_rules = sorted(rules, key=lambda k: k.priority)
+        for rule in sorted_rules:
+            if rule.priority <= MIN_PRIORITY_DIFF:
+                return True, -1
+            else:
+                min_priority = rule.priority - MIN_PRIORITY_DIFF
+                return False, min_priority
 
-        if min_priority <= MIN_PRIORITY_DIFF:
-            return True, -1
-        else:
-            min_priority = min_priority - MIN_PRIORITY_DIFF
-            return False, min_priority
+        return False, min_priority
 
     def _opposite_rule_exists(self, context, old_rules, new_rule):
         """Check if rule exists with opposite action and exact same source
