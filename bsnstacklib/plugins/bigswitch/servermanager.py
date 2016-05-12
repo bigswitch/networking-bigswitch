@@ -169,7 +169,8 @@ class ServerProxy(object):
     def get_capabilities(self):
         try:
             body = self.rest_call('GET', CAPABILITIES_PATH)[2]
-            self.capabilities = jsonutils.loads(body)
+            if body:
+                self.capabilities = jsonutils.loads(body)
         except Exception:
             LOG.exception(_LE("Couldn't retrieve capabilities. "
                               "Newer API calls won't be supported."))
