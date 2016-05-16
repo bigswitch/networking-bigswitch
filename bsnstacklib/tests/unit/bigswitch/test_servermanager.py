@@ -428,7 +428,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         ):
             # a failed delete call should put a bad hash in the DB
             pl.servers.rest_call('DELETE', '/', '', None, [])
-            self.assertEqual('INCONSISTENT,INCONSISTENT',
+            self.assertEqual('initial:hash,code',
                              hash_handler.read_for_update())
 
     def test_conflict_triggers_sync(self):
@@ -446,6 +446,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                           {'routers': [], 'security-groups': [],
                            'networks': [],
                            'tenants': {'VRRP_Service': 'VRRP_Service'}},
+                          hash_handler=mock.ANY,
                           timeout=None)
             ])
 

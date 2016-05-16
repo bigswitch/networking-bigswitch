@@ -68,12 +68,21 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
-        LOG.debug("Force topology sync")
+        LOG.debug("Check if topology sync is necessary")
+        force_sync = True
         hash_handler = cdb.HashHandler()
-        cur_hash = hash_handler.read_for_update()
-        if not cur_hash or True:
-            hash_handler.put_hash('intial:hash,code')
-        LOG.debug("Force topology sync Done")
+        res = hash_handler._get_current_record()
+        if res:
+            lockedby_topo_sync, current_lock_owner = \
+                hash_handler._get_lock_owner(res.hash)
+            if current_lock_owner:
+                force_sync = False
+            elif "initial:hash,code" not in res.hash:
+                force_sync = False
+        if force_sync:
+            hash_handler.read_for_update()
+            hash_handler.put_hash('initial:hash,code')
+            LOG.debug("Force topology sync Done")
 
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
