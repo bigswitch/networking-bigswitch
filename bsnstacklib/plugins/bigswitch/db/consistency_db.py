@@ -76,7 +76,7 @@ class HashHandler(object):
     '''
     _FACADE = None
 
-    def __init__(self, hash_id='1'):
+    def __init__(self, hash_id='1', topo_sync=False):
         if HashHandler._FACADE is None:
             HashHandler._FACADE = session.EngineFacade.from_config(
                 cfg.CONF, sqlite_fk=True)
@@ -86,7 +86,12 @@ class HashHandler(object):
         self.random_lock_id = ''.join(random.choice(string.ascii_uppercase
                                                     + string.digits)
                                       for _ in range(10))
-        self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
+        self.topo_sync = topo_sync
+        self.lock_marker = None
+        if topo_sync:
+            self.lock_marker = 'TOPO_SYNC[%s]' % self.random_lock_id
+        else:
+            self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
 
     def _get_current_record(self):
         with self.session.begin(subtransactions=True):
@@ -127,10 +132,15 @@ class HashHandler(object):
         return result.rowcount != 0
 
     def _get_lock_owner(self, record):
+        # return topo_sync, means if it is locked by topology sync
+        # return lock_owner, means which thread owns the lock
+        topo_sync_matches = re.findall(r"^TOPO_SYNC\[(\w+)\]", record)
         matches = re.findall(r"^LOCKED_BY\[(\w+)\]", record)
-        if not matches:
-            return None
-        return matches[0]
+        if topo_sync_matches:
+            return True, topo_sync_matches[0]
+        elif matches:
+            return False, matches[0]
+        return False, None
 
     def read_for_update(self):
         # An optimistic locking strategy with a timeout to avoid using a
@@ -154,7 +164,7 @@ class HashHandler(object):
                 # The empty hash was successfully inserted with our lock
                 return ''
 
-            current_lock_owner = self._get_lock_owner(res.hash)
+            lockedby_topo_sync, current_lock_owner = self._get_lock_owner(res.hash)
             if not current_lock_owner:
                 # no current lock. attempt to lock
                 new = self.lock_marker + res.hash
@@ -170,18 +180,22 @@ class HashHandler(object):
                 # successfully got the lock
                 return res.hash
 
-            LOG.debug("This request's lock ID is %(this)s. "
-                      "DB lock held by %(that)s",
-                      {'this': self.random_lock_id,
-                       'that': current_lock_owner})
+            if (not lockedby_topo_sync) and (self.topo_sync):
+                new = self.lock_marker + "initial:hash,code"
+                self.put_hash(new)
+                LOG.debug("Topology sync gets the lock, with "
+                          "hash value: %s" % new)
+                return "initial:hash,code"
 
-            if current_lock_owner == self.random_lock_id:
+            if ((not lockedby_topo_sync) and
+                (current_lock_owner == self.random_lock_id)):
                 # no change needed, we already have the table lock due to
                 # previous read_for_update call.
                 # return hash with lock tag stripped off for use in a header
                 return res.hash.replace(self.lock_marker, '')
 
-            if current_lock_owner != last_lock_owner:
+            if ((not lockedby_topo_sync) and
+                (current_lock_owner != last_lock_owner)):
                 # The owner changed since the last iteration, but it
                 # wasn't to us. Reset the counter. Log if not
                 # first iteration.
@@ -192,7 +206,9 @@ class HashHandler(object):
                                'new': current_lock_owner})
                 lock_wait_start = time.time()
                 last_lock_owner = current_lock_owner
-            if time.time() - lock_wait_start > MAX_LOCK_WAIT_TIME:
+
+            if ((not lockedby_topo_sync) and
+                (time.time() - lock_wait_start > MAX_LOCK_WAIT_TIME)):
                 # the lock has been held too long, steal it
                 LOG.warning(_LW("Gave up waiting for consistency DB "
                                 "lock, trying to take it. "

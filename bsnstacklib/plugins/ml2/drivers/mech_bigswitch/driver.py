@@ -72,7 +72,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         hash_handler = cdb.HashHandler()
         cur_hash = hash_handler.read_for_update()
         if not cur_hash or True:
-            hash_handler.put_hash('intial:hash,code')
+            hash_handler.put_hash('initial:hash,code')
         LOG.debug("Force topology sync Done")
 
         # init network ctrl connections
