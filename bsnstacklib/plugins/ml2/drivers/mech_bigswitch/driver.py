@@ -35,7 +35,6 @@ from oslo_utils import excutils
 from oslo_utils import timeutils
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
-from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
 from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
 from bsnstacklib.plugins.bigswitch.i18n import _LW
@@ -67,13 +66,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # register plugin config opts
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
-
-        LOG.debug("Force topology sync")
-        hash_handler = cdb.HashHandler()
-        cur_hash = hash_handler.read_for_update()
-        if not cur_hash or True:
-            hash_handler.put_hash('intial:hash,code')
-        LOG.debug("Force topology sync Done")
 
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
