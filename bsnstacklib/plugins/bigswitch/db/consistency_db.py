@@ -76,7 +76,7 @@ class HashHandler(object):
     '''
     _FACADE = None
 
-    def __init__(self, hash_id='1'):
+    def __init__(self, hash_id='1', prefix=None, length=10):
         if HashHandler._FACADE is None:
             HashHandler._FACADE = session.EngineFacade.from_config(
                 cfg.CONF, sqlite_fk=True)
@@ -85,7 +85,9 @@ class HashHandler(object):
                                                        expire_on_commit=False)
         self.random_lock_id = ''.join(random.choice(string.ascii_uppercase
                                                     + string.digits)
-                                      for _ in range(10))
+                                      for _ in range(length))
+        if prefix:
+            self.random_lock_id = prefix + self.random_lock_id
         self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
 
     def _get_current_record(self):
@@ -212,6 +214,8 @@ class HashHandler(object):
             if not res:
                 LOG.warning(_LW("Hash record already gone, no lock to clear."))
                 return
+            else:
+                self.session.refresh(res)  # get the latest res from db
             if not res.hash.startswith(self.lock_marker):
                 # if these are frequent the server is too slow
                 LOG.warning(_LW("Another server already removed the lock. %s"),
