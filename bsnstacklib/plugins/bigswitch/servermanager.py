@@ -28,8 +28,10 @@ The following functionality is handled by this module:
 """
 import base64
 import httplib
+import random
 import socket
 import ssl
+import string
 import time
 import weakref
 
@@ -337,6 +339,7 @@ class ServerPool(object):
         default_port = 8000
         if timeout is not False:
             self.timeout = timeout
+        self._topo_sync_in_progress = False
 
         # Function to use to retrieve topology for consistency syncs.
         # Needs to be set by module that uses the servermanager.
@@ -535,6 +538,18 @@ class ServerPool(object):
         """
         return resp[0] in SUCCESS_CODES
 
+    def keep_updating_lock(self):
+        topo_index = ''.join(random.choice(string.ascii_uppercase +
+                                           string.digits) for _ in range(2))
+        # topology sync will lock the consistency hash table
+        # the lock starts with TOPO
+        prefix = "TOPO" + topo_index
+        while self._topo_sync_in_progress:
+            handler = cdb.HashHandler(prefix=prefix, length=4)
+            new = handler.lock_marker + "initial:hash,code"
+            handler.put_hash(new)
+            time.sleep(2)
+
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
         context = self.get_context_ref()
@@ -563,7 +578,15 @@ class ServerPool(object):
                 if not self.get_topo_function:
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
-                data = self.get_topo_function(**self.get_topo_function_args)
+
+                self._topo_sync_in_progress = True
+                eventlet.spawn_n(self.keep_updating_lock)
+                try:
+                    data = self.get_topo_function(
+                               **self.get_topo_function_args)
+                finally:
+                    self._topo_sync_in_progress = False
+
                 if data is None:
                     return None
                 active_server.rest_call('POST', TOPOLOGY_PATH, data,
@@ -809,10 +832,15 @@ class ServerPool(object):
                     LOG.debug("TENANT delete: id %s" % tenant_id)
                     self.rest_delete_tenant(tenant_id)
                 if diff.changed():
-                    LOG.debug("TENANT changed: topo sync")
-                    data = self.get_topo_function(
-                        **self.get_topo_function_args)
-                    self.rest_action('POST', TOPOLOGY_PATH, data, timeout=None)
+                    hash_handler = cdb.HashHandler()
+                    res = hash_handler._get_current_record()
+                    if res:
+                        lock_owner = hash_handler._get_lock_owner(res.hash)
+                        if lock_owner and "TOPO" in lock_owner:
+                            # topology sync is still going on
+                            return True
+                    LOG.debug("TENANT changed: force topo sync")
+                    hash_handler.put_hash('initial:hash,code')
             return True
         except Exception:
             LOG.exception(_LE("Encountered an error syncing with "
