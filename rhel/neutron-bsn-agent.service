@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenStack Neutron Big Switch Networks Agent
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=neutron
+ExecStart=/usr/bin/neutron-bsn-agent --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-dir /etc/neutron/conf.d/common --config-dir /etc/neutron/conf.d/neutron-bsn-agent --log-file /var/log/neutron/bsn-agent.log
+PrivateTmp=true
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
