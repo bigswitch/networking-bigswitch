@@ -1,0 +1,14 @@
+[Unit]
+Description=bsn lldp
+Wants=network-online.target
+After=syslog.target network.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bsnlldp
+Restart=always
+StartLimitInterval=60s
+StartLimitBurst=3
+[Install]
+WantedBy=multi-user.target
+
