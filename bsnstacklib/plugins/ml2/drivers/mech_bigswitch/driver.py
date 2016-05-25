@@ -326,7 +326,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         """
         try:
             return self._get_cached_vswitch_existence(host)
-        except ValueError:
+        except ValueError as e:
+            LOG.info("SSK, nothing cached! " + str(e))
             # cache was empty for that switch or expired
             pass
 
@@ -340,6 +341,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             'timestamp': datetime.datetime.now(),
             'exists': exists
         }
+        LOG.info("SSK cached " + str(self.ivs_host_cache))
+        LOG.info("SSK cached " + str(self.ivs_host_cache))
+        LOG.info("SSK cached " + str(self.ivs_host_cache))
+        LOG.info("SSK cached " + str(self.ivs_host_cache))
         return exists
 
     def _get_cached_vswitch_existence(self, host):
