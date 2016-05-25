@@ -92,11 +92,14 @@ done
 %{_unitdir}/neutron-bsn-agent.service
 %{_bindir}/neutron-bsn-agent
 %dir %{_sysconfdir}/neutron/conf.d/neutron-bsn-agent
+%dir %{_sysconfdir}/policy.d/bsn_plugin_policy.json
 
 %files -n %{rpm_prefix}-lldp
 %license LICENSE
 %{_unitdir}/neutron-bsn-lldp.service
 %{_bindir}/bsnlldp
+%{_bindir}/neutron-db-manage
+
 
 %files doc
 %license LICENSE
