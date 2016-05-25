@@ -1,0 +1,8 @@
+Code-Review+2: xin wu <xin.wu@bigswitch.com>
+Workflow+1: xin wu <xin.wu@bigswitch.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 25 May 2016 04:02:05 +0000
+Reviewed-on: https://review.openstack.org/320766
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/kilo_v2
