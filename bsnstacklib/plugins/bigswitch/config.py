@@ -102,10 +102,21 @@ VIF_TYPES = [
     portbindings.VIF_TYPE_OVS,
     portbindings.VIF_TYPE_BRIDGE,
     portbindings.VIF_TYPE_OTHER,
+    portbindings.VIF_TYPE_VHOST_USER,
     VIF_TYPE_IVS,
-    'iovisor', 'vhostuser', 'dvs', '802.1qbg', '802.1qbh', 'hyperv',
+    'iovisor', 'dvs', '802.1qbg', '802.1qbh', 'hyperv',
     'midonet', 'ib_hostdev', 'hw_web', 'vrouter',
 ]
+
+VHOST_USER_SOCKET_DIR = "/run/vhost/"
+
+
+class VSwitchType(enumerate):
+    """Enums declaring the different Virtual Switch types
+    """
+    VIRTUAL = "virtual"        # Indigo virtual switch (IVS)
+    NFVSWITCH = "nfvswitch"    # NFV switch
+
 
 # Each VIF Type can have a list of nova host IDs that are fixed to that type
 for i in VIF_TYPES:
