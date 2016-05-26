@@ -741,6 +741,13 @@ class ServerPool(object):
         errstr = _("Unable to delete security group: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 
+    def rest_get_port(self, tenant_id, net_id, port_id):
+        resource = ATTACHMENT_PATH % (tenant_id, net_id, port_id)
+        errstr = _("Unable to retrieve port: %s")
+        resp = self.rest_action('GET', resource, errstr=errstr,
+                                ignore_codes=[404])
+        return None if resp[0] == 404 else resp[3]
+
     def rest_create_port(self, tenant_id, net_id, port):
         resource = ATTACHMENT_PATH % (tenant_id, net_id, port["id"])
         data = {"port": port}
