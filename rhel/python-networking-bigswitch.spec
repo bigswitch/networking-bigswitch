@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        2015.1.56
+Version:        2015.1.57
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -22,10 +22,10 @@ BuildRequires:  python-setuptools
 BuildRequires:  python-sphinx
 BuildRequires:  systemd-units
 
-Requires:       openstack-neutron-common >= 1:7.0.0
+Requires:       openstack-neutron-common
 Requires:       python-pbr >= 0.10.8
 Requires:       python-oslo-log >= 1.0.0
-Requires:       python-oslo-config >= 2:1.9.3
+Requires:       python-oslo-config
 Requires:       python-oslo-utils >= 1.4.0
 Requires:       python-oslo-messaging >= 1.8.0
 Requires:       python-oslo-serialization >= 1.4.0
