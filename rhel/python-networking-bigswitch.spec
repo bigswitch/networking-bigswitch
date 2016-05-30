@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        2015.1.57
+Version:        2015.1.58
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -98,12 +98,12 @@ done
 %license LICENSE
 %{_unitdir}/neutron-bsn-lldp.service
 %{_bindir}/bsnlldp
-%{_bindir}/neutron-db-manage
 
 %files doc
 %license LICENSE
 %doc README.rst
 %doc %{docpath}
+%{_bindir}/neutron-db-manage
 
 %post
 %systemd_post neutron-bsn-agent.service
