@@ -205,8 +205,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         # implements the router
                         if (self.l3_bsn_plugin and
                             port.get('device_owner') in
-                            [const.DEVICE_OWNER_ROUTER_INTF,
-                             const.DEVICE_OWNER_ROUTER_GW,
+                            [const.DEVICE_OWNER_ROUTER_GW,
                              const.DEVICE_OWNER_ROUTER_HA_INTF]):
                             continue
                         mapped_port = self._map_tenant_name(port)
