@@ -85,21 +85,15 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         LOG.debug("Initialization done")
 
     def setup_sg_rpc_callbacks(self):
-        # following way to register call back functions start in kilo
-        self._create_sg_f = self.bsn_create_sg_callback
-        self._delete_sg_f = self.bsn_delete_sg_callback
-        self._update_sg_f = self.bsn_update_sg_callback
-        self._create_sg_rule_f = self.bsn_create_sg_rule_callback
-        self._delete_sg_rule_f = self.bsn_delete_sg_rule_callback
-        registry.subscribe(self._create_sg_f,
+        registry.subscribe(self.bsn_create_sg_callback,
                            resources.SECURITY_GROUP, events.AFTER_CREATE)
-        registry.subscribe(self._delete_sg_f,
+        registry.subscribe(self.bsn_delete_sg_callback,
                            resources.SECURITY_GROUP, events.AFTER_DELETE)
-        registry.subscribe(self._update_sg_f,
+        registry.subscribe(self.bsn_update_sg_callback,
                            resources.SECURITY_GROUP, events.AFTER_UPDATE)
-        registry.subscribe(self._create_sg_rule_f,
+        registry.subscribe(self.bsn_create_sg_rule_callback,
                            resources.SECURITY_GROUP_RULE, events.AFTER_CREATE)
-        registry.subscribe(self._delete_sg_rule_f,
+        registry.subscribe(self.bsn_delete_sg_rule_callback,
                            resources.SECURITY_GROUP_RULE, events.AFTER_DELETE)
 
         # the above does not cover the cases where security groups are
