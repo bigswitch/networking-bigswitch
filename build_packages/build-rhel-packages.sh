@@ -13,7 +13,7 @@ cp rhel/*.service $BUILDDIR/SOURCES/
 cp rhel/*.spec $BUILDDIR/SPECS/
 cp build_packages/build-rhel-packages-inner.sh $BUILDDIR/build-rhel-packages-inner.sh
 
-docker.io run -i -t -v $BUILDDIR:/rpmbuild $DOCKER_IMAGE /bin/bash /rpmbuild/build-rhel-packages-inner.sh
+docker.io run -v $BUILDDIR:/rpmbuild $DOCKER_IMAGE /rpmbuild/build-rhel-packages-inner.sh
 
 # Copy built RPMs to pkg/
 OUTDIR=$(readlink -m "pkg/$BUILD_OS/$GIT_BRANCH/$CURR_VERSION")
