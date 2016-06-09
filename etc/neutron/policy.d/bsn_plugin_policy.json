@@ -9,8 +9,8 @@
     "update_networktemplateassignment": "",
     "delete_networktemplateassignment": "",
 
-    "get_reachabilitytest": "",
-    "create_reachabilitytest": "",
-    "update_reachabilitytest": "",
-    "delete_reachabilitytest": ""
+    "get_reachabilitytest": "rule:admin_or_owner",
+    "create_reachabilitytest": "rule:admin_or_owner",
+    "update_reachabilitytest": "rule:admin_or_owner",
+    "delete_reachabilitytest": "rule:admin_or_owner"
 }
