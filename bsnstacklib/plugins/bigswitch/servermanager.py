@@ -564,6 +564,12 @@ class ServerPool(object):
         good_first = sorted(self.servers, key=lambda x: x.failed)
         first_response = None
         for active_server in good_first:
+            LOG.debug("ServerProxy: %(action)s to servers: "
+                      "%(server)r, %(resource)s" %
+                     {'action': action,
+                      'server': (active_server.server,
+                                 active_server.port),
+                      'resource': resource})
             for x in range(HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT + 1):
                 ret = active_server.rest_call(action, resource, data, headers,
                                               timeout,
@@ -599,18 +605,25 @@ class ServerPool(object):
                 first_response = ret
             if not self.server_failure(ret, ignore_codes):
                 active_server.failed = False
-                return ret
-            else:
-                LOG.error(_LE('ServerProxy: %(action)s failure for servers: '
-                              '%(server)r Response: %(response)s'),
+                LOG.debug("ServerProxy: %(action)s succeed for servers: "
+                          "%(server)r Response: %(response)s" %
                           {'action': action,
                            'server': (active_server.server,
                                       active_server.port),
                            'response': ret[3]})
-                LOG.error(_LE("ServerProxy: Error details: status=%(status)d, "
-                              "reason=%(reason)r, ret=%(ret)s, data=%(data)r"),
-                          {'status': ret[0], 'reason': ret[1], 'ret': ret[2],
-                           'data': ret[3]})
+                return ret
+            else:
+                LOG.warning(_LW('ServerProxy: %(action)s failure for servers:'
+                                '%(server)r Response: %(response)s'),
+                           {'action': action,
+                            'server': (active_server.server,
+                                       active_server.port),
+                            'response': ret[3]})
+                LOG.warning(_LW("ServerProxy: Error details: "
+                                "status=%(status)d, reason=%(reason)r, "
+                                "ret=%(ret)s, data=%(data)r"),
+                           {'status': ret[0], 'reason': ret[1],
+                            'ret': ret[2], 'data': ret[3]})
                 active_server.failed = True
 
         # A failure on a delete means the object is gone from Neutron but not
