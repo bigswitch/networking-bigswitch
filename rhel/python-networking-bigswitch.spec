@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        2015.1.59
+Version:        2015.1.60
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Jun 09 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 2015.1.60-1
+- policy file update for testpath
 * Fri May 20 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 2015.2.16-1
 - automate rpm build and packaging
 * Tue Jan 26 2016 Xin Wu <xin.wu@bigswitch.com> - 2015.2.13-1
