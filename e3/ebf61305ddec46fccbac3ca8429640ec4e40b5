@@ -1,0 +1,8 @@
+Code-Review+2: xin wu <xin.wu@bigswitch.com>
+Workflow+1: xin wu <xin.wu@bigswitch.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 10 Jun 2016 00:36:33 +0000
+Reviewed-on: https://review.openstack.org/327983
+Project: openstack/networking-bigswitch
+Branch: refs/heads/master
