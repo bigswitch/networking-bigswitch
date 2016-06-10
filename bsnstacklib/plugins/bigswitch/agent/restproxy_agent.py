@@ -167,6 +167,16 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
     def _report_state(self):
         # How many devices are likely used by a VM
         try:
+            if not hasattr(self, 'agent_state'):
+                self.agent_state = {
+                    'binary': 'neutron-bsn-agent',
+                    'host': cfg.CONF.host,
+                    'topic': q_const.L2_AGENT_TOPIC,
+                    'configurations': {},
+                    'agent_type': "BSN IVS Agent",
+                    'start_flag': True}
+            if not hasattr(self, 'use_call'):
+                self.use_call = True
             self.state_rpc.report_state(self.context,
                                         self.agent_state,
                                         self.use_call)
