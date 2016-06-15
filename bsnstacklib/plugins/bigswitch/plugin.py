@@ -263,6 +263,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
             data.update({'routers': routers})
 
+        self.servers._update_tenant_cache(reconcile=False)
         if get_sgs and self.l3_plugin:
             sgs = plugin.get_security_groups(admin_context) or []
             new_sgs = []
