@@ -590,13 +590,14 @@ class ServerPool(object):
                 try:
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
+                    if data:
+                        active_server.rest_call('POST', TOPOLOGY_PATH, data,
+                                                timeout=None)
                 finally:
                     self._topo_sync_in_progress = False
+                    if data is None:
+                        return None
 
-                if data is None:
-                    return None
-                active_server.rest_call('POST', TOPOLOGY_PATH, data,
-                                        timeout=None)
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
             # likely be cluster slaves and won't have a useful error for the
