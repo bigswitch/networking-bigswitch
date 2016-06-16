@@ -528,7 +528,7 @@ class ServerPool(object):
         """
         if ignore_codes is None:
             ignore_codes = []
-        return (resp[0] in FAILURE_CODES and resp[0] not in ignore_codes)
+        return (resp and resp[0] in FAILURE_CODES and resp[0] not in ignore_codes)
 
     def action_success(self, resp):
         """Defining success codes as required.
