@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.0.0
+Version:        8.36.0
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,5 +118,7 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.36.0
+- BVS-6440: allow duplicate testpath names across tenants
 * Mon Jun 06 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.0.0
 - initialize mitaka with build automation
