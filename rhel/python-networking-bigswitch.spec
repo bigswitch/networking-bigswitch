@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20153.36.0
+Version:        20153.36.1
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.1-1
+- BVS-6440: allow duplicate testpath names across tenants
 * Fri Jun 17 2016 xin wu <xin.wu@bigswitch.com> - 20153.36.0-1
 - use new version scheme os_release.bcf_release.bug_fix
 * Thu Jun 09 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 2015.3.17-1
