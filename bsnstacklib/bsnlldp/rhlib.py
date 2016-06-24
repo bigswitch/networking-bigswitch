@@ -111,6 +111,8 @@ def get_uplinks_and_chassisid():
         for config in network_config:
             if config.get('type') != 'ovs_bridge':
                 continue
+            if config.get('name') != 'br-ex':
+                continue
             members = config.get('members')
             for member in members:
                 if member.get('type') not in SUPPORTED_BOND:
