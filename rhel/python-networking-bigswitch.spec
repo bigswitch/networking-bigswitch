@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        7.0.4
+Version:        7.0.5
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 7.0.5
+- BVS-6563 allow non admin user to assign floating IP
 * Fri May 20 2016 Aditya Vaja <aditya.vaja@bigswitch.com> 7.0.4
 - automate rpm build and packaging
 * Mon Apr 11 2016 Xin Wu <xin.wu@bigswitch.com> - 2015.3.12-1
