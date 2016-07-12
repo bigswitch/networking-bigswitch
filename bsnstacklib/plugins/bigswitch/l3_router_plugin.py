@@ -32,6 +32,7 @@ from neutron.extensions import l3
 from neutron import manager
 from neutron.plugins.common import constants
 
+from bsnstacklib.plugins.bigswitch.db import staticroute_db
 from bsnstacklib.plugins.bigswitch import extensions
 from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
@@ -47,9 +48,10 @@ BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
 
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
+                  staticroute_db.Route_db_mixin,
                   routerrule_db.RouterRule_db_mixin):
 
-    supported_extension_aliases = ["router", "router_rules"]
+    supported_extension_aliases = ["router", "router_rules", "routes"]
     # This is a flag to tell that L3 plugin is BSN.
     bsn = True
 
