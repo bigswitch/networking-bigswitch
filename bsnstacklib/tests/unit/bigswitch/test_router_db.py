@@ -1034,6 +1034,31 @@ class RouterDBTestCase(RouterDBTestBase,
                              self._get_routers(r['router']['tenant_id']
                                                )[0]['id'])
 
+    def test_router_staticroute_update(self):
+        with self.router() as r:
+            r_id = r['router']['id']
+            staticroutes = [{'destination': '10.1.1.0/24',
+                             'nexthops': ['8.8.8.8','4.4.4.4']}]
+            body = self._update('routers', r_id,
+                                {'router': {'routes': staticroutes}})
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('routes', body['router'])
+            routes = body['router']['router_rules']
+            self.assertEqual(_strip_rule_ids(routes), staticroutes)
+
+            # Try after adding another rule
+            staticroutes = routes
+            staticroutes.append({'destination': '172.1.1.22/32',
+                                 'nexthops': ['1.1.1.1']})
+            body = self._update('routers', r['router']['id'],
+                                {'router': {'routes': staticroutes}})
+
+            body = self._show('routers', r['router']['id'])
+            self.assertIn('routes', body['router'])
+            routes = body['router']['routes']
+            self.assertEqual(_strip_rule_ids(routes), staticroutes)
+
     def _get_routers(self, tenant_id):
         ctx = context.Context('', tenant_id)
         return self.plugin_obj.get_routers(ctx)
