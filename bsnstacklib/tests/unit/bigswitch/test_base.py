@@ -24,6 +24,7 @@ import neutron.common.test_lib as test_lib
 from bsnstacklib.plugins.bigswitch import config
 from bsnstacklib.plugins.bigswitch.db import consistency_db
 from bsnstacklib.plugins.bigswitch.db import routerrule_db
+from bsnstacklib.plugins.bigswitch.db import staticroute_db
 from bsnstacklib.tests.unit.bigswitch import fake_server
 
 
@@ -54,6 +55,7 @@ class BigSwitchTestBase(object):
         self.addCleanup(cfg.CONF.reset)
         self.addCleanup(consistency_db.clear_db)
         self.addCleanup(routerrule_db.clear_db)
+        self.addCleanup(staticroute_db.clear_db)
         config.register_config()
         # Only try SSL on SSL tests
         cfg.CONF.set_override('server_ssl', False, 'RESTPROXY')
@@ -99,3 +101,4 @@ class BigSwitchTestBase(object):
         # setup the db engine and models for the consistency db
         consistency_db.setup_db()
         routerrule_db.setup_db()
+        staticroute_db.setup_db()
