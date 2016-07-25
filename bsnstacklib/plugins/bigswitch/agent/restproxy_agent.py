@@ -102,8 +102,10 @@ class IVSBridge(ovs_lib.OVSBridge):
 
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
 
-    def init_firewall(self, defer_refresh_firewall=False):
-        super(FilterDeviceIDMixin, self).init_firewall(defer_refresh_firewall)
+    def init_firewall(self, defer_refresh_firewall=False,
+                      integration_bridge=None):
+        super(FilterDeviceIDMixin, self).init_firewall(defer_refresh_firewall,
+                                                       integration_bridge)
         firewall_driver = ('neutron.agent.linux.iptables_firewall.'
                            'OVSHybridIptablesFirewallDriver')
         self.firewall = importutils.import_object(firewall_driver)
