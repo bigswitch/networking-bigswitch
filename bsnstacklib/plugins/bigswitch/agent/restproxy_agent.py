@@ -46,7 +46,7 @@ from bsnstacklib.plugins.bigswitch.i18n import _LI
 LOG = log.getLogger(__name__)
 
 
-class IVSBridge(ovs_lib.OVSBridge):
+class IVSBridge(object):
     '''
     This class does not provide parity with OVS using IVS.
     It's only the bare minimum necessary to use IVS with this agent.
