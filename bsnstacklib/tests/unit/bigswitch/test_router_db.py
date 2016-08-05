@@ -86,6 +86,10 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
             'L3_ROUTER_NAT')
         self.startHttpPatch()
 
+    def test_router_add_interface_dup_port(self):
+        self.skipTest("Skipped until I5f473fff4f8372852d563c79dac2991089eb0b77"
+                      " is merged")
+
 
 class RouterDBTestCase(RouterDBTestBase,
                        test_l3.L3NatDBIntTestCase):

@@ -46,7 +46,7 @@ from bsnstacklib.plugins.bigswitch.i18n import _LI
 LOG = log.getLogger(__name__)
 
 
-class IVSBridge(ovs_lib.OVSBridge):
+class IVSBridge(object):
     '''
     This class does not provide parity with OVS using IVS.
     It's only the bare minimum necessary to use IVS with this agent.
@@ -152,7 +152,7 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
         self._setup_rpc()
         self.sg_agent = FilterDeviceIDMixin(self.context, self.sg_plugin_rpc)
         if vs == 'ivs':
-            self.int_br = IVSBridge(integ_br)
+            self.int_br = IVSBridge()
         else:
             self.int_br = ovs_lib.OVSBridge(integ_br)
         self.use_call = True
