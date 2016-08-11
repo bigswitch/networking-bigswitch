@@ -20,8 +20,8 @@ from bsnstacklib.plugins.bigswitch.db.models import head
 
 from neutron.db.migration.alembic_migrations import external
 from neutron.db.migration import cli as migration
-from neutron.tests.common import base
 from neutron.tests.functional.db import test_migrations
+from neutron.tests.unit import testlib_api
 
 
 # EXTERNAL_TABLES should contain all names of tables that are not related to
@@ -52,12 +52,14 @@ class _TestModelsMigrationsBsn(test_migrations._TestModelsMigrations):
             return True
 
 
-class TestModelsMigrationsMysql(_TestModelsMigrationsBsn,
-                                base.MySQLTestCase):
+class TestModelsMigrationsMysql(testlib_api.MySQLTestCaseMixin,
+                                _TestModelsMigrationsBsn,
+                                testlib_api.SqlTestCaseLight):
 
     pass
 
 
-class TestModelsMigrationsPsql(_TestModelsMigrationsBsn,
-                               base.PostgreSQLTestCase):
+class TestModelsMigrationsPsql(testlib_api.PostgreSQLTestCaseMixin,
+                               _TestModelsMigrationsBsn,
+                               testlib_api.SqlTestCaseLight):
     pass
