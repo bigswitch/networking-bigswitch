@@ -100,6 +100,20 @@ class IVSBridge(ovs_lib.OVSBridge):
         return port_names
 
 
+class NFVSwitchBridge(ovs_lib.OVSBridge):
+    '''
+    This class does not provide parity with OVS using NFVSwitch.
+    It's only the bare minimum necessary to use NFVSwitch with this agent.
+    '''
+    def get_vif_port_set(self):
+        # Un-supported operation. Return empty set for no-op
+        return set()
+
+    def get_vif_port_by_id(self, port_id):
+        # Un-supported operation. Return False for no-op
+        return False
+
+
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
 
     def init_firewall(self, defer_refresh_firewall=False,
@@ -155,15 +169,20 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
         self.sg_agent = FilterDeviceIDMixin(self.context, self.sg_plugin_rpc)
         if vs == 'ivs':
             self.int_br = IVSBridge(integ_br)
+            self.agent_type = "BSN IVS Agent"
+        elif vs == "nfvswitch":
+            self.int_br = NFVSwitchBridge(integ_br)
+            self.agent_type = "BSN NFVSwitch Agent"
         else:
             self.int_br = ovs_lib.OVSBridge(integ_br)
+            self.agent_type = "OVS Agent"
         self.use_call = True
         self.agent_state = {
             'binary': 'neutron-bsn-agent',
             'host': cfg.CONF.host,
             'topic': q_const.L2_AGENT_TOPIC,
             'configurations': {},
-            'agent_type': "BSN IVS Agent",
+            'agent_type': self.agent_type,
             'start_flag': True}
 
     def _report_state(self):
@@ -175,7 +194,7 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
                     'host': cfg.CONF.host,
                     'topic': q_const.L2_AGENT_TOPIC,
                     'configurations': {},
-                    'agent_type': "BSN IVS Agent",
+                    'agent_type': self.agent_type,
                     'start_flag': True}
             if not hasattr(self, 'use_call'):
                 self.use_call = True
