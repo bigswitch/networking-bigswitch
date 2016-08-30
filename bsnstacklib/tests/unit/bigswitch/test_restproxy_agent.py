@@ -30,6 +30,7 @@ SGRPC = 'neutron.agent.securitygroups_rpc'
 AGENTMOD = 'bsnstacklib.plugins.bigswitch.agent.restproxy_agent'
 SGAGENT = AGENTMOD + '.FilterDeviceIDMixin'
 IVSBRIDGE = AGENTMOD + '.IVSBridge'
+NFVSWBRIDGE = AGENTMOD + '.NFVSwitchBridge'
 NEUTRONCFG = 'neutron.common.config'
 PLCONFIG = 'bsnstacklib.plugins.bigswitch.config'
 
@@ -321,3 +322,57 @@ ivs:
     1000 inband (internal)
       rx: packets=20565 bytes=1768550 errors=0 dropped=0
       tx: packets=586 bytes=50368 errors=0 dropped=0'''
+
+
+class TestRestProxyAgentNFVSwitch(TestRestProxyAgentOVS):
+
+    def setUp(self):
+        super(TestRestProxyAgentNFVSwitch, self).setUp()
+        # we don't want to mock out the whole class, just the part that
+        # tries to run commands on the system
+        self.ovsbridge_p.stop()
+
+    def mock_agent(self):
+        mock_context = mock.Mock(return_value='abc')
+        self.context.get_admin_context_without_session = mock_context
+        # same as OVS case except passing 'nfvswitch' for vswitch type
+        return self.mod_agent.RestProxyAgent('int-br', 2, vs='nfvswitch')
+
+    def mock_update_ports(self, vif_port_set=None, registered_ports=None):
+        vif_port_set = vif_port_set or set()
+        registered_ports = registered_ports or set()
+        agent = self.mock_agent()
+        with mock.patch.object(agent.int_br,
+                               'get_vif_port_set',
+                               return_value=vif_port_set):
+            return agent._update_ports(registered_ports)
+
+    def test_port_update_not_vifport(self):
+        port = {'id': '1', 'security_groups': 'default'}
+
+        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+                        return_value=False) as get_vif:
+            self.mock_port_update(port=port)
+
+        get_vif.assert_called_once_with('1')
+        self.assertFalse(self.sg_agent.return_value.refresh_firewall.called)
+
+    def test_port_update_without_secgroup(self):
+        port = {'id': '1'}
+
+        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+                        return_value=False) as get_vif:
+            self.mock_port_update(port=port)
+
+        get_vif.assert_called_once_with('1')
+        self.assertFalse(self.sg_agent.return_value.refresh_firewall.called)
+
+    def test_port_update(self):
+        port = {'id': '1', 'security_groups': 'default'}
+
+        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+                        return_value=False) as get_vif:
+            self.mock_port_update(port=port)
+
+        get_vif.assert_called_once_with('1')
+        self.assertFalse(self.sg_agent.return_value.refresh_firewall.called)

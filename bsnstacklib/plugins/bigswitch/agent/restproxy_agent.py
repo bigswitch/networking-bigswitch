@@ -100,6 +100,20 @@ class IVSBridge(ovs_lib.OVSBridge):
         return port_names
 
 
+class NFVSwitchBridge(ovs_lib.OVSBridge):
+    '''
+    This class does not provide parity with OVS using NFVSwitch.
+    It's only the bare minimum necessary to use NFVSwitch with this agent.
+    '''
+    def get_vif_port_set(self):
+        # Un-supported operation. Return empty set for no-op
+        return set()
+
+    def get_vif_port_by_id(self, port_id):
+        # Un-supported operation. Return False for no-op
+        return False
+
+
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
 
     def init_firewall(self, defer_refresh_firewall=False,
@@ -151,34 +165,30 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
     def __init__(self, integ_br, polling_interval, vs='ovs'):
         super(RestProxyAgent, self).__init__()
         self.polling_interval = polling_interval
-        self._setup_rpc()
-        self.sg_agent = FilterDeviceIDMixin(self.context, self.sg_plugin_rpc)
         if vs == 'ivs':
             self.int_br = IVSBridge(integ_br)
+            self.agent_type = "BSN IVS Agent"
+        elif vs == "nfvswitch":
+            self.int_br = NFVSwitchBridge(integ_br)
+            self.agent_type = "BSN NFVSwitch Agent"
         else:
             self.int_br = ovs_lib.OVSBridge(integ_br)
-        self.use_call = True
+            self.agent_type = "OVS Agent"
         self.agent_state = {
             'binary': 'neutron-bsn-agent',
             'host': cfg.CONF.host,
             'topic': q_const.L2_AGENT_TOPIC,
             'configurations': {},
-            'agent_type': "BSN IVS Agent",
+            'agent_type': self.agent_type,
             'start_flag': True}
+        self.use_call = True
+
+        self._setup_rpc()
+        self.sg_agent = FilterDeviceIDMixin(self.context, self.sg_plugin_rpc)
 
     def _report_state(self):
         # How many devices are likely used by a VM
         try:
-            if not hasattr(self, 'agent_state'):
-                self.agent_state = {
-                    'binary': 'neutron-bsn-agent',
-                    'host': cfg.CONF.host,
-                    'topic': q_const.L2_AGENT_TOPIC,
-                    'configurations': {},
-                    'agent_type': "BSN IVS Agent",
-                    'start_flag': True}
-            if not hasattr(self, 'use_call'):
-                self.use_call = True
             self.state_rpc.report_state(self.context,
                                         self.agent_state,
                                         self.use_call)
