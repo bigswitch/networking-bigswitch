@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.0
+Version:        8.40.1
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,9 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Wed Aug 31 2016 Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com> - 8.40.1
+- BVS-6597: Add support for NFV switch for BSN's ML2 mechanism driver
+- BVS-6743: Update BSN Agent for NFV type compute nodes
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.36.1
 - BVS-6563 allow non admin user to assign floating IP
 * Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.36.0
