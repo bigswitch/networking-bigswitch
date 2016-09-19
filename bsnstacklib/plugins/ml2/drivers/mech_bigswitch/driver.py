@@ -82,6 +82,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
         self.setup_sg_rpc_callbacks()
+        self.unsupported_vnic_types = [portbindings.VNIC_DIRECT]
+
         LOG.debug("Initialization done")
 
     def setup_sg_rpc_callbacks(self):
@@ -236,6 +238,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         # If bsn_l3 plugin and it is a gateway port, bind to ivs.
         if (self.l3_bsn_plugin and
             context.current['device_owner'] == ROUTER_GATEWAY_PORT_OWNER):
@@ -251,6 +258,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def update_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         # update port on the network controller
         port = self._prepare_port_for_controller(context)
         if port:
@@ -314,6 +326,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                         {portbindings.CAP_PORT_FILTER: False,
                          portbindings.OVS_HYBRID_PLUG: False})
                     return
+
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
 
         # IVS hosts will have a vswitch with the same name as the hostname
         if self.does_vswitch_exist(context.host):
