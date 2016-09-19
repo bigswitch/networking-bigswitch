@@ -179,6 +179,28 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             self.assertNotEqual(portbindings.VIF_TYPE_VHOST_USER,
                                 p[portbindings.VIF_TYPE])
 
+    def test_dont_bind_vnic_type_direct(self):
+        host_arg = {portbindings.HOST_ID: 'hostname',
+                    portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT}
+        with contextlib.nested(
+            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True),
+            self.port(arg_list=(portbindings.HOST_ID, portbindings.VNIC_TYPE),
+                      **host_arg)
+        ) as (rmock, _):
+            # bind_port() shall ignore this call
+            rmock.assert_not_called()
+
+    def test_dont_bind_vnic_type_direct_physical(self):
+        host_arg = {portbindings.HOST_ID: 'hostname',
+                    portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT_PHYSICAL}
+        with contextlib.nested(
+            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True),
+            self.port(arg_list=(portbindings.HOST_ID, portbindings.VNIC_TYPE),
+                      **host_arg)
+        ) as (rmock, _):
+            # bind_port() shall ignore this call
+            rmock.assert_not_called()
+
     def test_bind_port_cache(self):
         with contextlib.nested(
             self.subnet(),
