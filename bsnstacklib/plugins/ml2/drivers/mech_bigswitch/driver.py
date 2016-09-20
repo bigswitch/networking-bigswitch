@@ -283,6 +283,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def delete_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         # delete port on the network controller
         port = context.current
         net = context.network.current
