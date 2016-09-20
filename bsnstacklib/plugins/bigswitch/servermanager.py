@@ -255,6 +255,12 @@ class ServerProxy(object):
                 hash_value = response.getheader(HASH_MATCH_HEADER)
                 # don't clear hash from DB if a hash header wasn't present
                 if hash_value is not None:
+                    # BVS-6979: race-condition(#1) set sync=false so that
+                    # keep_updating_thread doesn't squash updated HASH
+                    # Delay is required in-case the loop is already executing
+                    if resource == TOPOLOGY_PATH:
+                        self._topo_sync_in_progress = False
+                        time.sleep(0.10)
                     hash_handler.put_hash(hash_value)
                 else:
                     hash_handler.clear_lock()
@@ -264,8 +270,11 @@ class ServerProxy(object):
                     # response was not JSON, ignore the exception
                     pass
             else:
-                # release lock so others don't have to wait for timeout
-                hash_handler.clear_lock()
+                # BVS-6979: race-condition(#2) on HashConflict, don't unlock
+                # to ensure topo_sync is scheduled next (it force grabs lock)
+                if response.status != httplib.CONFLICT:
+                    # release lock so others don't have to wait for timeout
+                    hash_handler.clear_lock()
 
             ret = (response.status, response.reason, respstr, respdata)
         except httplib.HTTPException:
