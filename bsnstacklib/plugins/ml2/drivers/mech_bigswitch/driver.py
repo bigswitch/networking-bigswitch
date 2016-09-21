@@ -257,6 +257,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # create port on the network controller
         port = self._prepare_port_for_controller(context)
         if port:
+            # For vhostuser type ports, membership rule and endpoint was
+            # created during bind_port, so skip this
+            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
+                return
+
             self.async_port_create(port["network"]["tenant_id"],
                                    port["network"]["id"], port)
 
@@ -270,6 +275,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # update port on the network controller
         port = self._prepare_port_for_controller(context)
         if port:
+            # For vhostuser type ports, membership rule and endpoint was
+            # created during bind_port, so skip this
+            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
+                return
+
             try:
                 self.async_port_create(port["network"]["tenant_id"],
                                        port["network"]["id"], port)
