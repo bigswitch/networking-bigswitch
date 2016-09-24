@@ -17,15 +17,12 @@ from datetime import datetime
 
 from neutron.db import common_db_mixin
 from neutron.services import service_base
-from oslo_log import log
 from oslo_serialization import jsonutils
 
 from bsnstacklib.plugins.bigswitch.db import network_template_db
 from bsnstacklib.plugins.bigswitch.db import reachability_test_db
 from bsnstacklib.plugins.bigswitch.extensions import bsnserviceextension
 from bsnstacklib.plugins.bigswitch import servermanager
-
-LOG = log.getLogger(__name__)
 
 
 class BSNServicePlugin(service_base.ServicePluginBase,

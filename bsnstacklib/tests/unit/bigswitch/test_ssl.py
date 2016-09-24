@@ -17,7 +17,6 @@ import ssl
 
 import mock
 from oslo_config import cfg
-from oslo_log import log as logging
 import webob.exc
 
 from neutron.tests.unit.api.v2 import test_base
@@ -26,7 +25,6 @@ from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 
-LOG = logging.getLogger(__name__)
 
 SERVERMANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPS = SERVERMANAGER + '.HTTPSConnectionWithValidation'
