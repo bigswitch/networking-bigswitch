@@ -584,15 +584,23 @@ class ServerPool(object):
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
 
+                LOG.info(_LI("ServerProxy: HashConflict detected with request "
+                             "%(action)s %(resource)s Starting Topology sync"),
+                         {'action': action, 'resource': resource})
                 self._topo_sync_in_progress = True
                 eventlet.spawn_n(self.keep_updating_lock)
                 try:
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
                     if data:
-                        active_server.rest_call('POST', TOPOLOGY_PATH, data,
-                                                timeout=None)
+                        ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
+                                                         data, timeout=None)
+                        if self.server_failure(ret_ts, ignore_codes):
+                            LOG.error(_LE("ServerProxy: Topology sync failed"))
+                            raise RemoteRestError(reason=ret_ts[2],
+                                                  status=ret_ts[0])
                 finally:
+                    LOG.info(_LI("ServerProxy: Topology sync completed"))
                     self._topo_sync_in_progress = False
                     if data is None:
                         return None
