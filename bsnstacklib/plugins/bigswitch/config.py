@@ -108,6 +108,7 @@ VIF_TYPES = [
     'midonet', 'ib_hostdev', 'hw_web', 'vrouter',
 ]
 
+VIF_DET_BSN_VSWITCH_HOST_ID = "bsn_vswitch_host_id"
 VHOST_USER_SOCKET_DIR = "/run/vhost/"
 
 

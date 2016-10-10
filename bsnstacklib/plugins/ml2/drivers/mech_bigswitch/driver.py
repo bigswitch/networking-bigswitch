@@ -38,11 +38,13 @@ from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
 from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LI
 from bsnstacklib.plugins.bigswitch.i18n import _LW
 from bsnstacklib.plugins.bigswitch import plugin
 from bsnstacklib.plugins.bigswitch import servermanager
 
 from bsnstacklib.plugins.bigswitch.config import VHOST_USER_SOCKET_DIR
+from bsnstacklib.plugins.bigswitch.config import VIF_DET_BSN_VSWITCH_HOST_ID
 from bsnstacklib.plugins.bigswitch.config import VSwitchType
 
 EXTERNAL_PORT_OWNER = 'neutron:external_port'
@@ -325,9 +327,17 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             # in ML2, controller doesn't care about ports without
             # the host_id set
             return False
+
+        # Update HOST_ID if vif_details has VIF_DET_BSN_VSWITCH_HOST_ID
+        vif_details = prepped_port[portbindings.VIF_DETAILS]
+        if vif_details:
+            host_id = vif_details.get(VIF_DET_BSN_VSWITCH_HOST_ID)
+            if host_id:
+                prepped_port[portbindings.HOST_ID] = host_id
+
         return prepped_port
 
-    def _bind_port_nfvswitch(self, context):
+    def _bind_port_nfvswitch(self, context, segment, host_id):
         """Perform bind_port for nfvswitch.
 
         A NFV VM needs to be attached to a nfv-switch socket. So, during
@@ -350,6 +360,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         network_id = port["network"]["id"]
         # Set vif_type to 'vhost_user' for the Controller to reserve vhost_sock
         port[portbindings.VIF_TYPE] = vif_type
+        # Update host_id so that endpoint create will have the correct value
+        port[portbindings.HOST_ID] = host_id
         try:
             self.async_port_create(tenant_id, network_id, port)
         except servermanager.RemoteRestError as e:
@@ -361,9 +373,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                     LOG.error(_LE("Inconsistency with backend controller "
                                   "triggering full synchronization."))
                     self._send_all_data_auto(triggered_by_tenant=tenant_id)
-
-        LOG.debug('Successfully created endpoint for nfv-switch VM %s'
-                  % port['id'])
 
         # Retrieve the vhost_socket reserved for the port(endpoint) by the
         # Controller and use it in set_binding()
@@ -382,21 +391,23 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         vhost_sock_path = self._get_vhost_user_sock_path(vhost_sock)
-        LOG.debug('nfv-switch VM alloted sock_path %s' % vhost_sock_path)
+        LOG.info(_LI('nfv-switch VM %(port)s alloted sock_path %(sock)s'),
+                 {'port': port['id'], 'sock': vhost_sock_path})
 
+        # Update vif_details with host_id. This way, for all BCF
+        # communications, we we shall use it as HOST_ID (i.e. interface-group
+        # on BCF)
         vif_details = {
                        portbindings.CAP_PORT_FILTER: False,
                        portbindings.VHOST_USER_MODE:
                        portbindings.VHOST_USER_MODE_SERVER,
                        portbindings.VHOST_USER_OVS_PLUG: False,
-                       portbindings.VHOST_USER_SOCKET: vhost_sock_path
+                       portbindings.VHOST_USER_SOCKET: vhost_sock_path,
+                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id
         }
+        context.set_binding(segment[api.ID], vif_type, vif_details)
 
-        for segment in context.segments_to_bind:
-            if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
-                context.set_binding(segment[api.ID], vif_type, vif_details)
-
-    def _bind_port_ivswitch(self, context):
+    def _bind_port_ivswitch(self, context, segment, host_id):
         """Perform bind_port for Indigo virtual switch.
 
         @param context: PortContext object
@@ -404,12 +415,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         vif_type = pl_config.VIF_TYPE_IVS
         vif_details = {
                        portbindings.CAP_PORT_FILTER: True,
-                       portbindings.OVS_HYBRID_PLUG: True
+                       portbindings.OVS_HYBRID_PLUG: True,
+                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id
         }
-
-        for segment in context.segments_to_bind:
-            if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
-                context.set_binding(segment[api.ID], vif_type, vif_details)
+        context.set_binding(segment[api.ID], vif_type, vif_details)
 
     def bind_port(self, context):
         """Marks ports as bound.
@@ -435,14 +444,41 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
             return
 
-        # IVS and NFV hosts will have a vswitch with the same name as hostname
-        vswitch_type = self.get_vswitch_type(context.host)
-        if vswitch_type == VSwitchType.NFVSWITCH:
-            self._bind_port_nfvswitch(context)
-        elif vswitch_type == VSwitchType.VIRTUAL:
-            self._bind_port_ivswitch(context)
+        # A compute node can have multiple vswitches. They are differentiated
+        # on BCF based on the lldps sent by them.
+        #   IVS shall be identified as 'HOST'
+        #   Others (eg. NFVSwitch) shall be identified as 'HOST'_'PHYSNET'
+        #
+        # Check each segment to identify the correct vswitch, and set it in
+        # vif_details
+        for segment in context.segments_to_bind:
+            if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
+                (vswitch_type, host_id) = self.get_vswitch_type(context.host,
+                                                                segment)
+                if vswitch_type == VSwitchType.NFVSWITCH:
+                    self._bind_port_nfvswitch(context, segment, host_id)
+                elif vswitch_type == VSwitchType.VIRTUAL:
+                    self._bind_port_ivswitch(context, segment, host_id)
 
-    def get_vswitch_type(self, host):
+    def get_vswitch_type(self, host, segment=None):
+        """Get the virtual switch type on the given host for the given segment
+        Check for virtual switch on host_physnet, else check on host.
+
+        @param host: the HOST_ID.
+        @param segment: the segment.
+        @returns: (vswitch-type, host-id): if vswitch is found on the host.
+                  (None, _): otherwise.
+        """
+        if segment and segment[api.PHYSICAL_NETWORK]:
+            physnet = segment[api.PHYSICAL_NETWORK]
+            host_physnet = host + "_" + physnet
+            host_physnet_vswitch_type = self._get_vswitch_type(host_physnet)
+            if host_physnet_vswitch_type:
+                return (host_physnet_vswitch_type, host_physnet)
+
+        return (self._get_vswitch_type(host), host)
+
+    def _get_vswitch_type(self, host):
         """Get virtual switch type
         Check if a virtual switch exists with the given hostname on BCF, if
         it does, return its type.
