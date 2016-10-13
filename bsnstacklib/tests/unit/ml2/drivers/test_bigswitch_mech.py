@@ -114,7 +114,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                        return_value=[{"fabric-role": "virtual"}]),
             self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
         ) as (rmock, port):
-            rmock.assert_called_once_with('hostname_' + PHYS_NET)
+            rmock.assert_called_once_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
             self.assertEqual('hostname', p[portbindings.HOST_ID])
@@ -133,7 +133,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                                       {'interface': vhost_sock}}]),
             self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
         ) as (rmock1, _, _, port):
-            rmock1.assert_called_with('hostname_' + PHYS_NET)
+            rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
             self.assertEqual('hostname', p[portbindings.HOST_ID])
@@ -158,14 +158,14 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             mock.patch(SERVER_POOL + '.rest_get_port', return_value=None),
             self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
         ) as (rmock1, _, _, port):
-            rmock1.assert_called_with('hostname_' + PHYS_NET)
+            rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('hostname', p[portbindings.HOST_ID])
             self.assertEqual(portbindings.VIF_TYPE_BINDING_FAILED,
                              p[portbindings.VIF_TYPE])
 
     def test_bind_vswitch_on_host(self):
-        '''get_vswitch() to suceed on HOST instead of HOST_PHYSNET '''
+        '''get_vswitch() to suceed on HOST instead of HOST.PHYSNET '''
         host_arg = {portbindings.HOST_ID: 'hostname'}
 
         def side_effects(*args, **kwargs):
@@ -237,7 +237,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             with contextlib.nested(makeport(), makeport(),
                                    makeport()) as ports:
                 # response from first should be cached
-                rmock.assert_called_once_with('hostname_' + PHYS_NET)
+                rmock.assert_called_once_with('hostname.' + PHYS_NET)
                 for port in ports:
                     self.assertEqual(pl_config.VIF_TYPE_IVS,
                                      port['port'][portbindings.VIF_TYPE])

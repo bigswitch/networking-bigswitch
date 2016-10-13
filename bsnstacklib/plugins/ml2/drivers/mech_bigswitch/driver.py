@@ -447,7 +447,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # A compute node can have multiple vswitches. They are differentiated
         # on BCF based on the lldps sent by them.
         #   IVS shall be identified as 'HOST'
-        #   Others (eg. NFVSwitch) shall be identified as 'HOST'_'PHYSNET'
+        #   Others (eg. NFVSwitch) shall be identified as 'HOST'.'PHYSNET'
         #
         # Check each segment to identify the correct vswitch, and set it in
         # vif_details
@@ -462,7 +462,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     def get_vswitch_type(self, host, segment=None):
         """Get the virtual switch type on the given host for the given segment
-        Check for virtual switch on host_physnet, else check on host.
+        Check for virtual switch on host.physnet, else check on host.
 
         @param host: the HOST_ID.
         @param segment: the segment.
@@ -471,7 +471,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         """
         if segment and segment[api.PHYSICAL_NETWORK]:
             physnet = segment[api.PHYSICAL_NETWORK]
-            host_physnet = host + "_" + physnet
+            host_physnet = host + "." + physnet
             host_physnet_vswitch_type = self._get_vswitch_type(host_physnet)
             if host_physnet_vswitch_type:
                 return (host_physnet_vswitch_type, host_physnet)
