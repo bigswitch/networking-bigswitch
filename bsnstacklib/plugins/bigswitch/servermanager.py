@@ -39,6 +39,8 @@ from neutron.common import exceptions
 from oslo_log import log as logging
 
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
+from bsnstacklib.plugins.bigswitch.db import namecache_db
+from bsnstacklib.plugins.bigswitch.db.namecache_db import ObjTypeEnum
 from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
 from bsnstacklib.plugins.bigswitch.i18n import _LI
@@ -332,6 +334,8 @@ class ServerPool(object):
         # The cache is maintained in a separate thread and sync'ed with
         # Keystone periodically.
         self.keystone_tenants = {}
+        # cache to map Openstack object names to their non-space BCF form
+        self.namecachedb = namecache_db.NameCacheHandler()
         self._update_tenant_cache(reconcile=False)
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
@@ -549,6 +553,67 @@ class ServerPool(object):
             handler.put_hash(new)
             time.sleep(2)
 
+    def _sanitize_names_for_topo_sync(self, data):
+        '''
+        When performing a complete topo sync operation, we need to replace all
+        names of objects with its corresponding names without spaces.
+        '''
+
+        def _get_subobj_name(obj_type, subobj, all_subobjs):
+            try:
+                name_nospace = (all_subobjs[obj_type]
+                                [subobj['tenant_id']]
+                                [subobj['id']])
+                return name_nospace
+            except Exception:
+                return subobj['name']
+
+        all_tenants_dict = self.namecachedb.get_all_tenants()
+        all_subobj_dict = self.namecachedb.get_all_tenant_subobj()
+        if not all_tenants_dict:
+            LOG.debug('Tenant namecache is empty.')
+            return data
+
+        if 'tenants' in data:
+            for tenant_id in all_tenants_dict:
+                if tenant_id in data['tenants']:
+                    data['tenants'][tenant_id] = all_tenants_dict[tenant_id]
+
+        if 'networks' in data:
+            for network in data['networks']:
+                if 'name' in network and ' ' in network['name']:
+                    network['name'] = _get_subobj_name(ObjTypeEnum.network,
+                                                       network,
+                                                       all_subobj_dict)
+
+                if 'tenant_name' in network and ' ' in network['tenant_name']:
+                    if network['tenant_id'] in all_tenants_dict:
+                        network['tenant_name'] = \
+                            all_tenants_dict[network['tenant_id']]
+
+        if 'routers' in data:
+            for router in data['routers']:
+                if 'name' in router and ' ' in router['name']:
+                    router['name'] = _get_subobj_name(ObjTypeEnum.router,
+                                                      router, all_subobj_dict)
+
+                if 'tenant_name' in router and ' ' in router['tenant_name']:
+                    if router['tenant_id'] in all_tenants_dict:
+                        router['tenant_name'] = \
+                            all_tenants_dict[router['tenant_id']]
+
+        if 'security-groups' in data:
+            for sg in data['security-groups']:
+                if 'name' in sg and ' ' in sg['name']:
+                    sg['name'] = _get_subobj_name(ObjTypeEnum.security_group,
+                                                  sg, all_subobj_dict)
+
+                if 'tenant_name' in sg and ' ' in sg['tenant_name']:
+                    if sg['tenant_id'] in all_tenants_dict:
+                        sg['tenant_name'] = all_tenants_dict[sg['tenant_id']]
+
+        return data
+
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
         context = self.get_context_ref()
@@ -558,6 +623,15 @@ class ServerPool(object):
             # remove the auth token so it's not present in debug logs on the
             # backend controller
             cdict.pop('auth_token', None)
+            if ('tenant_name' in cdict and cdict['tenant_name']
+                and ' ' in cdict['tenant_name']):
+
+                tenant_namecache = self.namecachedb.get_tenant(cdict['tenant'])
+                if not tenant_namecache:
+                    raise namecache_db.TenantcacheMissingException(
+                        obj_type=ObjTypeEnum.tenant,
+                        obj_name=cdict['tenant_name'])
+                cdict['tenant_name'] = tenant_namecache.name_nospace
             headers[REQ_CONTEXT_HEADER] = jsonutils.dumps(cdict)
         hash_handler = cdb.HashHandler()
         good_first = sorted(self.servers, key=lambda x: x.failed)
@@ -593,6 +667,9 @@ class ServerPool(object):
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
                     if data:
+                        # topo sync contains tenants. replace name with name
+                        # without spaces
+                        data = self._sanitize_names_for_topo_sync(data)
                         ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
                                                          data, timeout=None)
                         if self.server_failure(ret_ts, ignore_codes):
@@ -683,29 +760,62 @@ class ServerPool(object):
         if not tenant_name:
             raise TenantIDNotFound(tenant=tenant_id)
 
+        namecache_tenant = self.namecachedb.create_tenant(tenant_id,
+                                                          tenant_name)
+        tenant_name = namecache_tenant.name_nospace
+
         resource = TENANT_RESOURCE_PATH
         data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
         errstr = _("Unable to create tenant: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_delete_tenant(self, tenant_id):
+        LOG.debug('deleting tenant from namecache %s' % tenant_id)
+        self.namecachedb.delete_tenant(tenant_id)
+
         resource = TENANT_PATH % tenant_id
         errstr = _("Unable to delete tenant: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_router(self, tenant_id, router):
+        LOG.debug('creating router in namecache %s' % router)
+        if ' ' in router['name']:
+            router_namecache = self.namecachedb.create_tenant_subobj(
+                ObjTypeEnum.router, router)
+            router['name'] = router_namecache.name_nospace
+
+        if ' ' in router['tenant_name']:
+            tenant_namecache = self.namecachedb.get_tenant(router['tenant_id'])
+            if not tenant_namecache:
+                raise namecache_db.TenantcacheMissingException(
+                    obj_type=ObjTypeEnum.tenant,
+                    obj_name=router['tenant_name'])
+            router['tenant_name'] = tenant_namecache.name_nospace
+
         resource = ROUTER_RESOURCE_PATH % tenant_id
         data = {"router": router}
         errstr = _("Unable to create remote router: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_router(self, tenant_id, router, router_id):
+        LOG.debug('updating router in namecache %s' % router)
+        if ' ' in router['tenant_name']:
+            tenant_namecache = self.namecachedb.get_tenant(router['tenant_id'])
+            if not tenant_namecache:
+                raise namecache_db.TenantcacheMissingException(
+                    obj_type=ObjTypeEnum.tenant,
+                    obj_name=router['tenant_name'])
+            router['tenant_name'] = tenant_namecache.name_nospace
+
         resource = ROUTERS_PATH % (tenant_id, router_id)
         data = {"router": router}
         errstr = _("Unable to update remote router: %s")
         self.rest_action('PUT', resource, data, errstr)
 
     def rest_delete_router(self, tenant_id, router_id):
+        LOG.debug('deleting router from namecache %s', router_id)
+        self.namecachedb.delete_tenant_subobj(ObjTypeEnum.router, router_id)
+
         resource = ROUTERS_PATH % (tenant_id, router_id)
         errstr = _("Unable to delete remote router: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
@@ -722,29 +832,76 @@ class ServerPool(object):
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_network(self, tenant_id, network):
+        LOG.debug('creating network in namecache %s' % network)
+        if 'name' in network and ' ' in network['name']:
+            network_namecache = self.namecachedb.create_tenant_subobj(
+                ObjTypeEnum.network, network)
+            network['name'] = network_namecache.name_nospace
+
+        if 'tenant_name' in network and ' ' in network['tenant_name']:
+            tenant_namecache = self.namecachedb.get_tenant(
+                network['tenant_id'])
+            if not tenant_namecache:
+                raise namecache_db.TenantcacheMissingException(
+                    obj_type=ObjTypeEnum.tenant,
+                    obj_name=network['tenant_name'])
+            network['tenant_name'] = tenant_namecache.name_nospace
+
         resource = NET_RESOURCE_PATH % tenant_id
         data = {"network": network}
         errstr = _("Unable to create remote network: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_network(self, tenant_id, net_id, network):
+        LOG.debug('updating network %s', network)
+
+        if ' ' in network['name']:
+            network_namecache = self.namecachedb.get_tenant_subobj(
+                ObjTypeEnum.network, net_id)
+            if not network_namecache:
+                raise namecache_db.TenantcacheMissingException(
+                    obj_type=ObjTypeEnum.tenant,
+                    obj_name=network['tenant_name'])
+            network_name = network_namecache.name_nospace
+            network['name'] = network_name
+
         resource = NETWORKS_PATH % (tenant_id, net_id)
         data = {"network": network}
         errstr = _("Unable to update remote network: %s")
         self.rest_action('PUT', resource, data, errstr)
 
     def rest_delete_network(self, tenant_id, net_id):
+        LOG.debug('deleting network from namecache %s', net_id)
+        self.namecachedb.delete_tenant_subobj(ObjTypeEnum.network, net_id)
+
         resource = NETWORKS_PATH % (tenant_id, net_id)
         errstr = _("Unable to delete remote network: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_securitygroup(self, sg):
+        LOG.debug('creating security group in namecache %s', sg)
+        if ' ' in sg['name']:
+            sg_namecache = self.namecachedb.create_tenant_subobj(
+                ObjTypeEnum.security_group, sg)
+            sg['name'] = sg_namecache.name_nospace
+
+        if ' ' in sg['tenant_name']:
+            tenant_namecache = self.namecachedb.get_tenant(sg['tenant_id'])
+            if tenant_namecache:
+                raise namecache_db.TenantcacheMissingException(
+                    obj_type=ObjTypeEnum.tenant, obj_name=sg['tenant_name'])
+            sg['tenant_name'] = tenant_namecache.name_nospace
+
         resource = SECURITY_GROUP_RESOURCE_PATH
         data = {"security-group": sg}
         errstr = _("Unable to create security group: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_delete_securitygroup(self, sg_id):
+        LOG.debug('deleting security group from namecache %s' % sg_id)
+        self.namecachedb.delete_tenant_subobj(ObjTypeEnum.security_group,
+                                              sg_id)
+
         resource = SECURITY_GROUP_PATH % sg_id
         errstr = _("Unable to delete security group: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
