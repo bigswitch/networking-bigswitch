@@ -26,3 +26,4 @@ pylint==1.4.5 # GNU GPL v2
 reno>=0.1.1 # Apache2
 # Needed to run DB commands in virtualenvs
 PyMySQL>=0.6.2 # MIT License
+kombu>=3.0.25,<4.0.0 # BSD
