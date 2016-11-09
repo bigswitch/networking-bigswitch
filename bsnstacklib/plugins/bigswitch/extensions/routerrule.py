@@ -17,6 +17,7 @@ from oslo_log import log as logging
 from neutron.api.extensions import ExtensionDescriptor
 from neutron.api.v2 import attributes as attr
 from neutron.common import exceptions as nexception
+from neutron_lib.api import validators
 
 from bsnstacklib.plugins.bigswitch.i18n import _
 
@@ -60,9 +61,9 @@ def convert_to_valid_router_rules(data):
         src = V4ANY if rule['source'] in CIDRALL else rule['source']
         dst = V4ANY if rule['destination'] in CIDRALL else rule['destination']
 
-        errors = [attr._verify_dict_keys(expected_keys, rule, False),
-                  attr._validate_subnet(dst),
-                  attr._validate_subnet(src),
+        errors = [validators._verify_dict_keys(expected_keys, rule, False),
+                  validators.validate_subnet(dst),
+                  validators.validate_subnet(src),
                   _validate_nexthops(rule['nexthops']),
                   _validate_action(rule['action'])]
         errors = [m for m in errors if m]
@@ -76,7 +77,7 @@ def convert_to_valid_router_rules(data):
 def _validate_nexthops(nexthops):
     seen = []
     for ip in nexthops:
-        msg = attr._validate_ip_address(ip)
+        msg = validators.validate_ip_address(ip)
         if ip in seen:
             msg = _("Duplicate nexthop in rule '%s'") % ip
         seen.append(ip)
