@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20153.36.6
+Version:        20154.36.6
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Tue Nov 8 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.6
+  BVS-7375 bsnstacklib: support keystonev3 in openstack deployments
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.3-1
 - BVS-6563 allow non admin user to assign floating IP
 * Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.1-1
