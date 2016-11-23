@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Dec 1 2016 Sarath Kumar <sarath@bigswitch.com> - 20153.36.3-1
+  BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.3-1
 - BVS-6563 allow non admin user to assign floating IP
 * Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.1-1
