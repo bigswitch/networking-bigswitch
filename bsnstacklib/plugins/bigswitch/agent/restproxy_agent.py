@@ -43,6 +43,10 @@ from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.i18n import _LE
 from bsnstacklib.plugins.bigswitch.i18n import _LI
 
+IVS_PORT_MTU = 9216
+IVS_VM_PORT_PREFIX = 'qvo'
+IVS_VM_PORT_IFACE_PREFIXES = [IVS_VM_PORT_PREFIX, 'qvb', 'tap', 'qbr']
+
 LOG = log.getLogger(__name__)
 
 
@@ -98,6 +102,23 @@ class IVSBridge(ovs_lib.OVSBridge):
             port_names = map(lambda x: x.strip().split(' ')[1], ports)
         LOG.debug("Ports on IVS: %s", port_names)
         return port_names
+
+    def set_port_mtu(self, port_name):
+        # If this IVS port is attached to a VM, set the MTU of all
+        # corresponding interfaces (veth pairs, tap and bridge interfaces)
+        if IVS_VM_PORT_PREFIX in port_name:
+            for iface in IVS_VM_PORT_IFACE_PREFIXES:
+                iface_name = port_name.replace(IVS_VM_PORT_PREFIX, iface)
+                cmd = ['ip', 'link', 'set', iface_name, 'mtu', IVS_PORT_MTU]
+                try:
+                    utils.execute(cmd, run_as_root=True, return_stderr=False,
+                                  log_fail_as_error=False)
+                    LOG.debug("MTU of port %s set to %d", str(iface_name),
+                              IVS_PORT_MTU)
+                except Exception as e:
+                    LOG.error(_LE("Set MTU for port %(p)s failed. Unable to "
+                                  "execute %(cmd)s. Exception: %(exception)s"),
+                              {'p': iface_name, 'cmd': cmd, 'exception': e})
 
 
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
@@ -225,6 +246,13 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
                 'added': added,
                 'removed': removed}
 
+    def _update_port_mtus(self, port_info):
+        """Update the MTU of all ports that attach the VM port to IVS """
+        if 'added' in port_info:
+            ports = port_info['added']
+            for port in ports:
+                self.int_br.set_port_mtu(port)
+
     def _process_devices_filter(self, port_info):
         if 'added' in port_info:
             self.sg_agent.prepare_devices_filter(port_info['added'])
@@ -240,6 +268,7 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
                 port_info = self._update_ports(ports)
                 if port_info:
                     LOG.debug("Agent loop has new device")
+                    self._update_port_mtus(port_info)
                     self._process_devices_filter(port_info)
                     ports = port_info['current']
             except Exception:
