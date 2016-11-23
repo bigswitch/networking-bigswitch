@@ -206,7 +206,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             interface_id = port['fixed_ips'][0]['subnet_id']
             subnet = self._get_subnet(context, interface_id)
             interface_cidr = port["fixed_ips"][0]['ip_address']
-            interface_cidr += "/" + subnet['cidr'].split("/")[1]
+            interface_cidr += "_" + subnet['cidr'].split("/")[1]
         elif 'subnet_id' in interface_info:
             subnet = self._get_subnet(context, interface_info['subnet_id'])
             interface_id = subnet['id']
