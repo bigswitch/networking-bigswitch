@@ -29,6 +29,7 @@ The following functionality is handled by this module:
 import base64
 import httplib
 import random
+import re
 import socket
 import ssl
 import string
@@ -92,6 +93,11 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 
+# RE pattern for checking BCF syntax names
+BCF_IDENTIFIER_RE = re.compile(r"[a-zA-Z][-.0-9a-zA-Z_]*")
+BCF_IDENTIFIER_WITHSPACE_RE = re.compile(r"[a-zA-Z][-.0-9a-zA-Z\ _]*")
+
+
 class TenantIDNotFound(exceptions.NeutronException):
     message = _("Tenant: %(tenant)s is not known by keystone.")
     status = None
@@ -99,6 +105,32 @@ class TenantIDNotFound(exceptions.NeutronException):
     def __init__(self, **kwargs):
         self.tenant = kwargs.get('tenant')
         super(TenantIDNotFound, self).__init__(**kwargs)
+
+
+class IllegalNameObject(exceptions.NeutronException):
+    message = _("Object of type %(obj_type)s and id %(obj_id)s has illegal"
+                " character in name %(obj_name)s")
+    status = None
+
+    def __init__(self, **kwargs):
+        self.obj_type = kwargs.pop('obj_type', None)
+        self.obj_id = kwargs.pop('obj_id', None)
+        self.obj_name = kwargs.pop('obj_name', None)
+        super(IllegalNameObject, self).__init__(**kwargs)
+
+
+class IllegalNameSubObject(exceptions.NeutronException):
+    message = _("Object of type %(obj_type)s and id %(obj_id)s and name "
+                "%(obj_name)s has illegal character in its tenant name "
+                "%(tenant_name)s")
+    status = None
+
+    def __init__(self, **kwargs):
+        self.obj_type = kwargs.pop('obj_type', None)
+        self.obj_id = kwargs.pop('obj_id', None)
+        self.obj_name = kwargs.pop('obj_name', None)
+        self.tenant_name = kwargs.pop('tenant_name', None)
+        super(IllegalNameSubObject, self).__init__(**kwargs)
 
 
 class NetworkNameChangeError(exceptions.NeutronException):
@@ -144,6 +176,20 @@ class DictDiffer(object):
     def unchanged(self):
         return set(o for o in self.intersect
                    if self.past_dict[o] == self.current_dict[o])
+
+
+def is_valid_bcf_name(name):
+    match_obj = BCF_IDENTIFIER_RE.match(name)
+    if match_obj and match_obj.group(0) == name:
+        return True
+    return False
+
+
+def is_valid_tenant_name_with_spaces(name):
+    match_obj = BCF_IDENTIFIER_WITHSPACE_RE.match(name)
+    if match_obj and match_obj.group(0) == name:
+        return True
+    return False
 
 
 class ServerProxy(object):
@@ -568,30 +614,78 @@ class ServerPool(object):
             except Exception:
                 return subobj['name']
 
+        def _log_illegal_obj_name(**kwargs):
+            """
+            LOG an error message for objects not synced due to illegal char in
+            name. Illegal char is anything that doesn't match
+            BCF_IDENTIFIER_RE regular expression
+            """
+            obj_type = kwargs.pop('obj_type', None)
+            if obj_type == ObjTypeEnum.tenant:
+                obj_id = kwargs.pop('obj_id', 'obj_id not found')
+                obj_name = kwargs.pop('obj_name', 'obj_name not found')
+
+                LOG.error(_LE('TOPO_SYNC_ILLEGAL_CHAR: Tenant with id '
+                              '%(obj_id)s has illegal char in name: '
+                              '%(obj_name)s. Tenant will not be synced to the '
+                              'controller.'),
+                          {'obj_id': obj_id, 'obj_name': obj_name})
+            else:
+                obj = kwargs.pop('obj', None)
+
+                LOG.error(_LE('TOPO_SYNC_ILLEGAL_CHAR: %(obj_type)s under '
+                              'tenant %(tenant_name)s has illegal char in '
+                              'name: %(obj_name)s. %(obj_type)s will not be '
+                              'synced to the controller.'),
+                          {'obj_type': obj_type,
+                           'tenant_name': obj['tenant_name'],
+                           'obj_name': obj['name']})
+
         all_tenants_dict = self.namecachedb.get_all_tenants()
         all_subobj_dict = self.namecachedb.get_all_tenant_subobj()
         if not all_tenants_dict:
             LOG.info(_LI("Tenant namecache is empty during topo_sync."))
             return data
 
+        new_data = {}
         if 'tenants' in data:
+            new_data['tenants'] = {}
             for tenant_id in all_tenants_dict:
                 if tenant_id in data['tenants']:
                     data['tenants'][tenant_id] = all_tenants_dict[tenant_id]
+            # retain all tenants with legal name as per BCF schema
+            for tenant in data['tenants']:
+                if is_valid_bcf_name(data['tenants'][tenant]):
+                    new_data['tenants'][tenant] = data['tenants'][tenant]
+                else:
+                    _log_illegal_obj_name(obj_type=ObjTypeEnum.tenant,
+                                          obj_id=tenant,
+                                          obj_name=data['tenants'][tenant])
 
         if 'networks' in data:
+            new_data['networks'] = []
             for network in data['networks']:
-                if 'name' in network and ' ' in network['name']:
-                    network['name'] = _get_subobj_name(ObjTypeEnum.network,
-                                                       network,
-                                                       all_subobj_dict)
+                if 'name' in network:
+                    if ' ' in network['name']:
+                        network['name'] = _get_subobj_name(ObjTypeEnum.network,
+                                                           network,
+                                                           all_subobj_dict)
 
                 if 'tenant_name' in network and ' ' in network['tenant_name']:
                     if network['tenant_id'] in all_tenants_dict:
                         network['tenant_name'] = \
                             all_tenants_dict[network['tenant_id']]
 
+                # retain all networks with legal name as per BCF schema
+                if ('name' in network and is_valid_bcf_name(network['name'])
+                    and is_valid_bcf_name(network['tenant_name'])):
+                    new_data['networks'].append(network)
+                else:
+                    _log_illegal_obj_name(obj_type=ObjTypeEnum.network,
+                                          obj=network)
+
         if 'routers' in data:
+            new_data['routers'] = []
             for router in data['routers']:
                 if 'name' in router and ' ' in router['name']:
                     router['name'] = _get_subobj_name(ObjTypeEnum.router,
@@ -602,7 +696,16 @@ class ServerPool(object):
                         router['tenant_name'] = \
                             all_tenants_dict[router['tenant_id']]
 
+                # retain all routers with legal name as per BCF schema
+                if ('name' in router and is_valid_bcf_name(router['name'])
+                    and is_valid_bcf_name(router['tenant_name'])):
+                    new_data['routers'].append(router)
+                else:
+                    _log_illegal_obj_name(obj_type=ObjTypeEnum.router,
+                                          obj=router)
+
         if 'security-groups' in data:
+            new_data['security-groups'] = []
             for sg in data['security-groups']:
                 if 'name' in sg and ' ' in sg['name']:
                     sg['name'] = _get_subobj_name(ObjTypeEnum.security_group,
@@ -612,7 +715,15 @@ class ServerPool(object):
                     if sg['tenant_id'] in all_tenants_dict:
                         sg['tenant_name'] = all_tenants_dict[sg['tenant_id']]
 
-        return data
+                # retain all security groups with legal name as per BCF schema
+                if ('name' in sg and is_valid_bcf_name(sg['name'])
+                    and is_valid_bcf_name(sg['tenant_name'])):
+                    new_data['security-groups'].append(sg)
+                else:
+                    _log_illegal_obj_name(obj_type=ObjTypeEnum.security_group,
+                                          obj=sg)
+
+        return new_data
 
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
@@ -764,6 +875,10 @@ class ServerPool(object):
                                                           tenant_name)
         tenant_name = namecache_tenant.name_nospace
 
+        if not is_valid_bcf_name(tenant_name):
+            raise IllegalNameObject(obj_type=ObjTypeEnum.tenant,
+                                    obj_id=tenant_id, obj_name=tenant_name)
+
         resource = TENANT_RESOURCE_PATH
         data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
         errstr = _("Unable to create tenant: %s")
@@ -789,6 +904,16 @@ class ServerPool(object):
                     obj_type=ObjTypeEnum.tenant,
                     obj_name=router['tenant_name'])
             router['tenant_name'] = tenant_namecache.name_nospace
+
+        if router['name'] and not is_valid_bcf_name(router['name']):
+            raise IllegalNameObject(obj_type=ObjTypeEnum.router,
+                                    obj_id=router['id'],
+                                    obj_name=router['name'])
+        if not is_valid_bcf_name(router['tenant_name']):
+            raise IllegalNameSubObject(obj_type=ObjTypeEnum.router,
+                                       obj_id=router['id'],
+                                       obj_name=router['name'],
+                                       tenant_name=router['tenant_name'])
 
         resource = ROUTER_RESOURCE_PATH % tenant_id
         data = {"router": router}
@@ -842,6 +967,17 @@ class ServerPool(object):
                     obj_name=network['tenant_name'])
             network['tenant_name'] = tenant_namecache.name_nospace
 
+        if 'name' in network and not is_valid_bcf_name(network['name']):
+            raise IllegalNameObject(obj_type=ObjTypeEnum.network,
+                                    obj_id=network['id'],
+                                    obj_name=network['name'])
+        if ('tenant_name' in network and
+                not is_valid_bcf_name(network['tenant_name'])):
+            raise IllegalNameSubObject(obj_type=ObjTypeEnum.network,
+                                       obj_id=network['id'],
+                                       obj_name=network['name'],
+                                       tenant_name=network['tenant_name'])
+
         resource = NET_RESOURCE_PATH % tenant_id
         data = {"network": network}
         errstr = _("Unable to create remote network: %s")
@@ -882,6 +1018,16 @@ class ServerPool(object):
                 raise namecache_db.TenantcacheMissingException(
                     obj_type=ObjTypeEnum.tenant, obj_name=sg['tenant_name'])
             sg['tenant_name'] = tenant_namecache.name_nospace
+
+        if not is_valid_bcf_name(sg['name']):
+            raise IllegalNameObject(obj_type=ObjTypeEnum.security_group,
+                                    obj_id=sg['id'],
+                                    obj_name=sg['name'])
+        if not is_valid_bcf_name(sg['tenant_name']):
+            raise IllegalNameSubObject(obj_type=ObjTypeEnum.security_group,
+                                       obj_id=sg['id'],
+                                       obj_name=sg['name'],
+                                       tenant_name=sg['tenant_name'])
 
         resource = SECURITY_GROUP_RESOURCE_PATH
         data = {"security-group": sg}
@@ -983,7 +1129,8 @@ class ServerPool(object):
                                               password=self.auth_password,
                                               tenant_name=self.auth_tenant)
             tenants = keystone_client.tenants.list()
-            new_cached_tenants = {tn.id: tn.name for tn in tenants}
+            new_cached_tenants = {tn.id: tn.name for tn in tenants
+                                  if is_valid_tenant_name_with_spaces(tn.name)}
             # Add SERVICE_TENANT to handle hidden network for VRRP
             new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT
 
