@@ -338,8 +338,13 @@ class ServerPool(object):
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
             self.auth_password = cfg.CONF.RESTPROXY.auth_password
             self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
-        if "v3" not in self.auth_url:
+
+        # Use Keystonev3 URL for authentication
+        if "v2.0" in self.auth_url:
+            self.auth_url = self.auth_url.replace("v2.0", "v3")
+        elif "v3" not in self.auth_url:
             self.auth_url = "%s/v3" % self.auth_url
+
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
