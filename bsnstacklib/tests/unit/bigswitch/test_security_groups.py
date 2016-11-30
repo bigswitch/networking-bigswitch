@@ -13,9 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron import manager
 from neutron.tests.unit.agent import test_securitygroups_rpc as test_sg_rpc
 from neutron.tests.unit.extensions import test_securitygroup as test_sg
+from neutron_lib.plugins import directory
 
 from bsnstacklib.tests.unit.bigswitch import test_base
 
@@ -32,7 +32,7 @@ class RestProxySecurityGroupsTestCase(test_sg.SecurityGroupDBTestCase,
         self._attribute_map_bk_ = {}
         super(RestProxySecurityGroupsTestCase, self).setUp(self.plugin_str)
         self.setup_db()
-        plugin = manager.NeutronManager.get_plugin()
+        plugin = directory.get_plugin()
         self.notifier = plugin.notifier
         self.rpc = plugin.endpoints[0]
         self.startHttpPatch()

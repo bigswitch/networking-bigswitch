@@ -14,10 +14,10 @@
 #    under the License.
 from oslo_log import log as logging
 
-from neutron.api.extensions import ExtensionDescriptor
-from neutron.api.v2 import attributes as attr
-from neutron.common import exceptions as nexception
+from neutron_lib.api.extensions import ExtensionDescriptor
 from neutron_lib.api import validators
+from neutron_lib import constants
+from neutron_lib import exceptions as nexception
 
 from bsnstacklib.plugins.bigswitch.i18n import _
 
@@ -141,6 +141,6 @@ EXTENDED_ATTRIBUTES_2_0 = {
         'router_rules': {'allow_post': False, 'allow_put': True,
                          'convert_to': convert_to_valid_router_rules,
                          'is_visible': True,
-                         'default': attr.ATTR_NOT_SPECIFIED},
+                         'default': constants.ATTR_NOT_SPECIFIED},
     }
 }

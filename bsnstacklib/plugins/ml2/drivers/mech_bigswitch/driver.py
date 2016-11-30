@@ -30,9 +30,9 @@ from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
 from neutron.extensions import portbindings
-from neutron import manager
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
+from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import consistency_db as cdb
@@ -233,7 +233,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self._trigger_network_update_from_subnet_transaction(context)
 
     def _trigger_network_update_from_subnet_transaction(self, context):
-        net = manager.NeutronManager.get_plugin().get_network(
+        net = directory.get_plugin().get_network(
             ctx.get_admin_context(), context.current['network_id'])
         self._send_update_network(net)
 
@@ -252,7 +252,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # If bsn_l3 plugin and it is a gateway port, bind to ivs.
         if (self.l3_bsn_plugin and
             context.current['device_owner'] == ROUTER_GATEWAY_PORT_OWNER):
-            manager.NeutronManager.get_plugin().update_port_status(
+            directory.get_plugin().update_port_status(
                 context._plugin_context, context.current['id'],
                 const.PORT_STATUS_ACTIVE)
 

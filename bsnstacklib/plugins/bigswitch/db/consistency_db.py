@@ -23,7 +23,7 @@ from oslo_db.sqlalchemy import session
 from oslo_log import log as logging
 import sqlalchemy as sa
 
-from neutron.db import model_base
+from neutron_lib.db import model_base
 
 from bsnstacklib.plugins.bigswitch.i18n import _LI
 from bsnstacklib.plugins.bigswitch.i18n import _LW
