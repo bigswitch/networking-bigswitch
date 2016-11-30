@@ -16,7 +16,7 @@
 from neutron.api import extensions
 from neutron.api.v2 import base
 from neutron.api.v2 import resource_helper
-from neutron import manager
+from neutron_lib.plugins import directory
 
 import abc
 from bsnstacklib.plugins.bigswitch import extensions as bsn_extensions
@@ -151,8 +151,7 @@ class Bsnserviceextension(extensions.ExtensionDescriptor):
     def get_resources(cls):
         """Returns Extended Resources."""
         resources = []
-        q_mgr = manager.NeutronManager.get_instance()
-        net_template_inst = q_mgr.get_service_plugins()['BSNSERVICEPLUGIN']
+        net_template_inst = directory.get_plugin('BSNSERVICEPLUGIN')
         plural_mappings = resource_helper.build_plural_mappings(
             {}, RESOURCE_ATTRIBUTE_MAP)
         for collection in RESOURCE_ATTRIBUTE_MAP:

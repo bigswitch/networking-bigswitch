@@ -26,7 +26,7 @@ from bsnstacklib.plugins.bigswitch.db import consistency_db
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.tests.unit.bigswitch import test_restproxy_plugin as test_rp
 from neutron import context
-from neutron import manager
+from neutron_lib.plugins import directory
 
 SERVERMANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
@@ -62,7 +62,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                          'ABCD:EF01:2345:6789:ABCD:EF01:2345:6789')
 
     def test_sticky_cert_fetch_fail(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.ssl = True
         with mock.patch(
             'ssl.get_server_certificate',
@@ -77,7 +77,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                   ('example.org', 443), ssl_version=ssl.PROTOCOL_TLSv1)])
 
     def test_consistency_watchdog_stops_with_0_polling_interval(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.capabilities = ['consistency']
         self.watch_p.stop()
         with mock.patch('eventlet.sleep') as smock:
@@ -86,7 +86,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertFalse(smock.called)
 
     def test_consistency_watchdog(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.capabilities = []
         self.watch_p.stop()
         with contextlib.nested(
@@ -158,7 +158,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                                  'HASHHEADER')
 
     def test_file_put_contents(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.open', create=True) as omock:
             pl.servers._file_put_contents('somepath', 'contents')
             omock.assert_has_calls([mock.call('somepath', 'w')])
@@ -167,7 +167,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             ])
 
     def test_combine_certs_to_file(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.open', create=True) as omock:
             omock.return_value.__enter__().read.return_value = 'certdata'
             pl.servers._combine_certs_to_file(['cert1.pem', 'cert2.pem'],
@@ -214,7 +214,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         self.assertEqual(callheaders['EXTRA-HEADER'], 'HI')
 
     def test_req_context_header(self):
-        sp = manager.NeutronManager.get_plugin().servers
+        sp = directory.get_plugin().servers
         ncontext = context.Context('uid', 'tid')
         sp.set_context(ncontext)
         with mock.patch(HTTPCON) as conmock:
@@ -341,7 +341,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertEqual(resp, (0, None, None, None))
 
     def test_cert_get_fail(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.ssl = True
         with mock.patch('os.path.exists', return_value=False):
             self.assertRaises(cfg.Error,
@@ -349,7 +349,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                               *('example.org', 443))
 
     def test_cert_make_dirs(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists, 3 children don't, and host cert does
@@ -372,7 +372,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertEqual(makemock.call_count, 3)
 
     def test_no_cert_error(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists and 3 children do, but host cert doesn't
@@ -389,18 +389,18 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertEqual(exmock.call_count, 5)
 
     def test_action_success(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         self.assertTrue(pl.servers.action_success((200,)))
 
     def test_server_failure(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         self.assertTrue(pl.servers.server_failure((404,)))
         # server failure has an ignore codes option
         self.assertFalse(pl.servers.server_failure((404,),
                                                    ignore_codes=[404]))
 
     def test_retry_on_unavailable(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with contextlib.nested(
             mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
                        return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)),
@@ -420,7 +420,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             tmock.assert_has_calls(sleep_call * sleep_call_count)
 
     def test_delete_failure_sets_bad_hash(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         hash_handler = consistency_db.HashHandler()
         with mock.patch(
             SERVERMANAGER + '.ServerProxy.rest_call',
@@ -432,7 +432,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                              hash_handler.read_for_update())
 
     def test_conflict_triggers_sync(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with mock.patch(
             SERVERMANAGER + '.ServerProxy.rest_call',
             return_value=(httplib.CONFLICT, 0, 0, 0)
@@ -450,7 +450,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             ])
 
     def test_conflict_sync_raises_error_without_topology(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         pl.servers.get_topo_function = None
         with mock.patch(
             SERVERMANAGER + '.ServerProxy.rest_call',
@@ -465,7 +465,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             )
 
     def test_no_sync_without_keystone(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with contextlib.nested(
             mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
                        return_value=(False)),
@@ -479,14 +479,14 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 hash_handler=mock.ANY)
 
     def test_no_send_all_data_without_keystone(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
                 return_value=(False)):
             # making a call should trigger a conflict sync
             self.assertEqual(None, pl._send_all_data())
 
     def test_floating_calls(self):
-        pl = manager.NeutronManager.get_plugin()
+        pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool.rest_action') as ramock:
             body1 = {'id': 'somefloat'}
             body2 = {'name': 'myfl'}

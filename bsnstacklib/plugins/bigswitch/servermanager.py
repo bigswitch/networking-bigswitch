@@ -35,7 +35,7 @@ import string
 import time
 import weakref
 
-from neutron.common import exceptions
+from neutron_lib import exceptions
 
 from oslo_log import log as logging
 

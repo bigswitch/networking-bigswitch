@@ -30,10 +30,10 @@ from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
 from neutron import context
 from neutron.extensions import l3
-from neutron import manager
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3
+from neutron_lib.plugins import directory
 
 
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
@@ -82,8 +82,7 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
                                             service_plugins=service_plugins)
         self.setup_db()
         cfg.CONF.set_default('allow_overlapping_ips', False)
-        self.plugin_obj = manager.NeutronManager.get_service_plugins().get(
-            'L3_ROUTER_NAT')
+        self.plugin_obj = directory.get_plugin('L3_ROUTER_NAT')
         self.startHttpPatch()
 
     def test_router_add_interface_dup_port(self):
@@ -217,7 +216,7 @@ class RouterDBTestCase(RouterDBTestBase,
                     self._delete('ports', p2['port']['id'])
 
     def test_add_network_to_ext_gw_backend_body(self):
-        plugin_obj = manager.NeutronManager.get_plugin()
+        plugin_obj = directory.get_plugin()
         with contextlib.nested(
             self.network(), self.router()
         ) as (n1, r1):
@@ -400,7 +399,7 @@ class RouterDBTestCase(RouterDBTestBase,
 
     def test_send_data(self):
         fmt = 'json'
-        plugin_obj = manager.NeutronManager.get_plugin()
+        plugin_obj = directory.get_plugin()
 
         with self.router() as r:
             r_id = r['router']['id']

@@ -19,14 +19,14 @@ import mock
 from oslo_config import cfg
 import webob.exc
 
-from neutron.common import constants
 from neutron import context
 from neutron.extensions import portbindings
-from neutron import manager
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.db import test_allowedaddresspairs_db as test_addr_pair
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
+from neutron_lib import constants
+from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.tests.unit.bigswitch import fake_server
@@ -53,9 +53,10 @@ class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
         self.port_create_status = 'BUILD'
         self.startHttpPatch()
 
-    def setup_coreplugin(self, plugin):
+    def setup_coreplugin(self, plugin, load_plugins=False):
         self.setup_db()
-        super(BigSwitchProxyPluginV2TestCase, self).setup_coreplugin(plugin)
+        super(BigSwitchProxyPluginV2TestCase, self).setup_coreplugin(
+            plugin, load_plugins=load_plugins)
 
 
 class TestBigSwitchProxyBasicGet(test_plugin.TestBasicGet,
@@ -90,7 +91,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
 
     def test_get_ports_no_id(self):
         with self.port(name='test'):
-            ports = manager.NeutronManager.get_plugin().get_ports(
+            ports = directory.get_plugin().get_ports(
                 context.get_admin_context(), fields=['name'])
             self.assertEqual(['name'], ports[0].keys())
 
@@ -118,7 +119,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
                                 self._list_ports('json', netid=netid))['ports']
 
     def test_rollback_for_port_create(self):
-        plugin = manager.NeutronManager.get_plugin()
+        plugin = directory.get_plugin()
         with self.subnet() as s:
             # stop normal patch
             self.httpPatch.stop()
@@ -205,7 +206,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
         ) as (s, mock_http, mock_send_all):
             with self.port(subnet=s, device_id='somedevid') as p:
                 # wait for the async port thread to finish
-                plugin = manager.NeutronManager.get_plugin()
+                plugin = directory.get_plugin()
                 plugin.evpool.waitall()
         call = mock.call(
             send_routers=True, send_floating_ips=True, timeout=None,
@@ -279,7 +280,7 @@ class TestBigSwitchProxyNetworksV2(test_plugin.TestNetworksV2,
 
     def _get_networks(self, tenant_id):
         ctx = context.Context('', tenant_id)
-        return manager.NeutronManager.get_plugin().get_networks(ctx)
+        return directory.get_plugin().get_networks(ctx)
 
     def test_rollback_on_network_create(self):
         tid = test_base._uuid()
@@ -317,7 +318,7 @@ class TestBigSwitchProxyNetworksV2(test_plugin.TestNetworksV2,
                                                 )[0]['id'])
 
     def test_notify_on_security_group_change(self):
-        plugin = manager.NeutronManager.get_plugin()
+        plugin = directory.get_plugin()
         with self.port() as p:
             with contextlib.nested(
                 mock.patch.object(plugin, 'notifier'),
@@ -340,7 +341,7 @@ class TestBigSwitchProxySubnetsV2(test_plugin.TestSubnetsV2,
 class TestBigSwitchProxySync(BigSwitchProxyPluginV2TestCase):
 
     def test_send_data(self):
-        plugin_obj = manager.NeutronManager.get_plugin()
+        plugin_obj = directory.get_plugin()
         result = plugin_obj._send_all_data()
         self.assertEqual(result[0], 200)
 

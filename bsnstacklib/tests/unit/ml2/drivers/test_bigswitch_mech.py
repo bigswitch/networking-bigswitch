@@ -22,11 +22,11 @@ from oslo_serialization import jsonutils
 
 from neutron import context as neutron_context
 from neutron.extensions import portbindings
-from neutron import manager
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.db import test_db_base_plugin_v2
 from neutron.tests.unit.plugins.ml2 import test_plugin
+from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch import servermanager
@@ -263,7 +263,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                          'arg_list': ('binding:host_id',)})
         ) as (mock_http, mock_send_all, p):
             # wait for thread to finish
-            mm = manager.NeutronManager.get_plugin().mechanism_manager
+            mm = directory.get_plugin().mechanism_manager
             bigdriver = mm.mech_drivers['bsn_ml2'].obj
             bigdriver.evpool.waitall()
             mock_send_all.assert_has_calls([
@@ -284,7 +284,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             mock.patch(DRIVER + '._send_all_data'),
             self.port()
         ) as (mock_update, mock_send_all, p):
-            plugin = manager.NeutronManager.get_plugin()
+            plugin = directory.get_plugin()
             context = neutron_context.get_admin_context()
             plugin.update_port(context, p['port']['id'],
                                {'port': {'device_id': 'devid',
