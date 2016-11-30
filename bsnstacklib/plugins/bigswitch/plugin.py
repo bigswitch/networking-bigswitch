@@ -58,7 +58,6 @@ from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.api.rpc.handlers import metadata_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc
-from neutron.common import constants as const
 from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -80,8 +79,10 @@ from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
-from neutron import manager
 from neutron.plugins.common import constants as pconst
+
+from neutron_lib import constants as const
+from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import porttracker_db
@@ -141,7 +142,7 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
             if not port_and_sgs:
                 return
             port = port_and_sgs[0][0]
-            plugin = manager.NeutronManager.get_plugin()
+            plugin = directory.get_plugin()
             port_dict = plugin._make_port_dict(port)
             port_dict['security_groups'] = [
                 sg_id for port_, sg_id in port_and_sgs if sg_id]
@@ -161,8 +162,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     @property
     def l3_plugin(self):
-        return manager.NeutronManager.get_service_plugins().get(
-            pconst.L3_ROUTER_NAT)
+        return directory.get_plugin(pconst.L3_ROUTER_NAT)
 
     @property
     def l3_bsn_plugin(self):
@@ -184,7 +184,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         networks = []
         # this method is used by the ML2 driver so it can't directly invoke
         # the self.get_(ports|networks) methods
-        plugin = manager.NeutronManager.get_plugin()
+        plugin = directory.get_plugin()
         all_networks = plugin.get_networks(admin_context) or []
         for net in all_networks:
             try:

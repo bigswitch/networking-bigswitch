@@ -14,9 +14,9 @@
 #    under the License.
 
 from bsnstacklib.plugins.bigswitch.i18n import _
-from neutron.common import exceptions
 from neutron.db import common_db_mixin
 from neutron.db import model_base
+from neutron_lib import exceptions
 from oslo_serialization import jsonutils
 
 import sqlalchemy as sa
