@@ -29,6 +29,7 @@ The following functionality is handled by this module:
 import base64
 import httplib
 import random
+import re
 import socket
 import ssl
 import string
@@ -53,6 +54,7 @@ import os
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import excutils
+from sqlalchemy.types import Enum
 
 LOG = logging.getLogger(__name__)
 
@@ -94,6 +96,10 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 
+# RE pattern for checking BCF supported names
+BCF_IDENTIFIER_RE = re.compile(r"[a-zA-Z][-.0-9a-zA-Z_]*")
+
+
 class TenantIDNotFound(exceptions.NeutronException):
     message = _("Tenant: %(tenant)s is not known by keystone.")
     status = None
@@ -101,6 +107,38 @@ class TenantIDNotFound(exceptions.NeutronException):
     def __init__(self, **kwargs):
         self.tenant = kwargs.get('tenant')
         super(TenantIDNotFound, self).__init__(**kwargs)
+
+
+class UnsupportedNameException(exceptions.NeutronException):
+    """
+    Exception class to be raised when encountering object names with
+    unsupported names. Namely those that do not conform to the regular
+    expression BCF_IDENTIFIER_RE
+
+    :keyword obj_type
+    :keyword obj_id
+    :keyword obj_name
+    """
+    message = _("Object of type %(obj_type)s and id %(obj_id)s has unsupported"
+                " character in name \"%(obj_name)s\"")
+    status = None
+
+
+class UnsupportedTenantNameInObjectException(exceptions.NeutronException):
+    """
+    Exception class to be raised when objects have tenant names with
+    unsupported characters. Namely those that do not conform to the regular
+    expression BCF_IDENTIFIER_RE
+
+    :keyword obj_type
+    :keyword obj_id
+    :keyword obj_name
+    :keyword tenant_name
+    """
+    message = _("Object of type %(obj_type)s, id %(obj_id)s and name "
+                "%(obj_name)s has unsupported character in its tenant name "
+                "\"%(tenant_name)s\"")
+    status = None
 
 
 class NetworkNameChangeError(exceptions.NeutronException):
@@ -146,6 +184,28 @@ class DictDiffer(object):
     def unchanged(self):
         return set(o for o in self.intersect
                    if self.past_dict[o] == self.current_dict[o])
+
+
+class ObjTypeEnum(Enum):
+    """
+    Enum to represent various object types whose name requires sanitization
+    before syncing to the controller.
+    """
+    network = "network"
+    router = "router"
+    security_group = "security_group"
+    tenant = "tenant"
+
+
+def is_valid_bcf_name(name):
+    """
+    :returns True if name matches BCF_IDENTIFIER_RE
+    :returns False otherwise
+    """
+    match_obj = BCF_IDENTIFIER_RE.match(name)
+    if match_obj and match_obj.group(0) == name:
+        return True
+    return False
 
 
 class ServerProxy(object):
@@ -564,6 +624,93 @@ class ServerPool(object):
             handler.put_hash(new)
             time.sleep(2)
 
+    def _sanitize_data_for_topo_sync(self, data):
+        """
+        Removes all objects with name or its tenant name that do not match
+        BCF_IDENTIFIER_RE regular expression
+
+        :returns new dict with updated data
+        """
+
+        def _log_unsupported_name(**kwargs):
+            """
+            LOG an error message for objects not synced due to unsupported char
+            in name. Unsupported char is anything that doesn't match
+            BCF_IDENTIFIER_RE regular expression
+            """
+            obj_type = kwargs.pop('obj_type', None)
+            if obj_type == ObjTypeEnum.tenant:
+                obj_id = kwargs.pop('obj_id', 'obj_id not found')
+                obj_name = kwargs.pop('obj_name', 'obj_name not found')
+
+                LOG.warning(_LW('TOPO_SYNC_UNSUPPORTED_CHAR: Tenant with id '
+                                '%(obj_id)s has unsupported char in name: '
+                                '%(obj_name)s. Tenant will not be synced to '
+                                'the controller.'),
+                            {'obj_id': obj_id, 'obj_name': obj_name})
+            else:
+                obj = kwargs.pop('obj', None)
+
+                LOG.warning(_LW('TOPO_SYNC_UNSUPPORTED_CHAR: %(obj_type)s '
+                                'under  tenant %(tenant_name)s has unsupported'
+                                ' char in name: %(obj_name)s. %(obj_type)s '
+                                '\"%(obj_name)s\" will not be synced to the '
+                                'controller.'),
+                            {'obj_type': obj_type,
+                             'tenant_name': obj['tenant_name'],
+                             'obj_name': obj['name']})
+
+        def _valid_name_in_obj(obj):
+            """
+            :returns True if the object name and object's tenant name are both
+            in supported format
+            :returns False otherwise
+            """
+            if ('name' in obj and is_valid_bcf_name(obj['name'])
+                and is_valid_bcf_name(obj['tenant_name'])):
+                return True
+            return False
+
+        new_data = {}
+        if 'tenants' in data:
+            new_data['tenants'] = {}
+            for tenant in data['tenants']:
+                if is_valid_bcf_name(data['tenants'][tenant]):
+                    new_data['tenants'][tenant] = data['tenants'][tenant]
+                else:
+                    _log_unsupported_name(obj_type=ObjTypeEnum.tenant,
+                                          obj_id=tenant,
+                                          obj_name=data['tenants'][tenant])
+
+        if 'networks' in data:
+            new_data['networks'] = []
+            for network in data['networks']:
+                if _valid_name_in_obj(network):
+                    new_data['networks'].append(network)
+                else:
+                    _log_unsupported_name(obj_type=ObjTypeEnum.network,
+                                          obj=network)
+
+        if 'routers' in data:
+            new_data['routers'] = []
+            for router in data['routers']:
+                if _valid_name_in_obj(router):
+                    new_data['routers'].append(router)
+                else:
+                    _log_unsupported_name(obj_type=ObjTypeEnum.router,
+                                          obj=router)
+
+        if 'security-groups' in data:
+            new_data['security-groups'] = []
+            for sg in data['security-groups']:
+                if _valid_name_in_obj(sg):
+                    new_data['security-groups'].append(sg)
+                else:
+                    _log_unsupported_name(obj_type=ObjTypeEnum.security_group,
+                                          obj=sg)
+
+        return new_data
+
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
         context = self.get_context_ref()
@@ -608,6 +755,7 @@ class ServerPool(object):
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
                     if data:
+                        data = self._sanitize_data_for_topo_sync(data)
                         ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
                                                          data, timeout=None)
                         if self.server_failure(ret_ts, ignore_codes):
@@ -689,6 +837,27 @@ class ServerPool(object):
                       'resource': resource})
         return resp
 
+    def _check_and_raise_exception_unsupported_name(self, obj_type, obj):
+        """
+        Used to sanity check object names and tenant names within an object.
+        If they do not comply with the BCF expectation, raises an exception.
+
+        :returns None if all ok
+        :raises UnsupportedNameException or
+                UnsupportedTenantNameInObjectException if name does not match
+                BCF expectation
+        """
+        if ('name' in obj and obj['name'] and
+                not is_valid_bcf_name(obj['name'])):
+            raise UnsupportedNameException(obj_type=obj_type,
+                                           obj_id=obj['id'],
+                                           obj_name=obj['name'])
+        if ('tenant_name' in obj and
+                not is_valid_bcf_name(obj['tenant_name'])):
+            raise UnsupportedTenantNameInObjectException(
+                obj_type=obj_type, obj_id=obj['id'], obj_name=obj['name'],
+                tenant_name=obj['tenant_name'])
+
     def rest_create_tenant(self, tenant_id):
         self._update_tenant_cache()
         self._rest_create_tenant(tenant_id)
@@ -697,6 +866,11 @@ class ServerPool(object):
         tenant_name = self.keystone_tenants.get(tenant_id)
         if not tenant_name:
             raise TenantIDNotFound(tenant=tenant_id)
+
+        if not is_valid_bcf_name(tenant_name):
+            raise UnsupportedNameException(obj_type=ObjTypeEnum.tenant,
+                                           obj_id=tenant_id,
+                                           obj_name=tenant_name)
 
         resource = TENANT_RESOURCE_PATH
         data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
@@ -709,12 +883,17 @@ class ServerPool(object):
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_router(self, tenant_id, router):
+        self._check_and_raise_exception_unsupported_name(ObjTypeEnum.router,
+                                                         router)
+
         resource = ROUTER_RESOURCE_PATH % tenant_id
         data = {"router": router}
         errstr = _("Unable to create remote router: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_router(self, tenant_id, router, router_id):
+        self._check_and_raise_exception_unsupported_name(ObjTypeEnum.router,
+                                                         router)
         resource = ROUTERS_PATH % (tenant_id, router_id)
         data = {"router": router}
         errstr = _("Unable to update remote router: %s")
@@ -737,12 +916,16 @@ class ServerPool(object):
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_network(self, tenant_id, network):
+        self._check_and_raise_exception_unsupported_name(ObjTypeEnum.network,
+                                                         network)
         resource = NET_RESOURCE_PATH % tenant_id
         data = {"network": network}
         errstr = _("Unable to create remote network: %s")
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_network(self, tenant_id, net_id, network):
+        self._check_and_raise_exception_unsupported_name(ObjTypeEnum.network,
+                                                         network)
         resource = NETWORKS_PATH % (tenant_id, net_id)
         data = {"network": network}
         errstr = _("Unable to update remote network: %s")
@@ -754,6 +937,8 @@ class ServerPool(object):
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_securitygroup(self, sg):
+        self._check_and_raise_exception_unsupported_name(
+            ObjTypeEnum.security_group, sg)
         resource = SECURITY_GROUP_RESOURCE_PATH
         data = {"security-group": sg}
         errstr = _("Unable to create security group: %s")
