@@ -14,9 +14,9 @@
 #    under the License.
 
 from bsnstacklib.plugins.bigswitch.i18n import _
-from neutron.common import exceptions
 from neutron.db import common_db_mixin
-from neutron.db import model_base
+from neutron_lib.db import model_base
+from neutron_lib import exceptions
 from oslo_serialization import jsonutils
 
 import sqlalchemy as sa
@@ -45,7 +45,7 @@ class JSONEncodedDict(TypeDecorator):
 
 class ReachabilityTest(model_base.BASEV2,
                        model_base.HasId,
-                       model_base.HasTenant):
+                       model_base.HasProject):
     '''
     A table to store user configured reachability tests.
     '''
@@ -177,7 +177,7 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
 
 class ReachabilityQuickTest(model_base.BASEV2,
                             model_base.HasId,
-                            model_base.HasTenant):
+                            model_base.HasProject):
     '''
     A table to store user configured reachability quick tests.
     '''

@@ -16,7 +16,7 @@
 import sqlalchemy as sa
 from sqlalchemy import orm
 
-from neutron.db import model_base
+from neutron_lib.db import model_base
 
 
 class BsnRouterRule(model_base.BASEV2):
