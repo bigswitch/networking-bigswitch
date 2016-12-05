@@ -194,6 +194,33 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         return True
 
+    def _validate_names(self, obj, name=None):
+        """
+        :returns
+            True, if obj name, obj's tenant name and name have supported chars
+            False, otherwise
+        """
+        if name and not servermanager.is_valid_bcf_name(name):
+            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '),
+                        {'name': name})
+            return False
+
+        if (obj and 'name' in obj and
+                not servermanager.is_valid_bcf_name(obj['name'])):
+            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '
+                            'Object details: %(obj)s'),
+                        {'name': obj['name'], 'obj': obj})
+            return False
+
+        if (obj and 'tenant_name' in obj and
+                not servermanager.is_valid_bcf_name(obj['tenant_name'])):
+            LOG.warning(_LW('Unsupported characters in TenantName: %(tname)s. '
+                            'Object details: %(obj)s'),
+                        {'tname': obj['tenant_name'], 'obj': obj})
+            return False
+
+        return True
+
     def _get_all_data_auto(self):
         return self._get_all_data(
                 get_floating_ips=self.l3_bsn_plugin,
