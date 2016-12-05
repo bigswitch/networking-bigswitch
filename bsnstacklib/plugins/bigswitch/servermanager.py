@@ -623,93 +623,6 @@ class ServerPool(object):
             handler.put_hash(new)
             time.sleep(2)
 
-    def _sanitize_data_for_topo_sync(self, data):
-        """
-        Removes all objects with name or its tenant name that do not match
-        BCF_IDENTIFIER_RE regular expression
-
-        :returns new dict with updated data
-        """
-
-        def _log_unsupported_name(**kwargs):
-            """
-            LOG an error message for objects not synced due to unsupported char
-            in name. Unsupported char is anything that doesn't match
-            BCF_IDENTIFIER_RE regular expression
-            """
-            obj_type = kwargs.pop('obj_type', None)
-            if obj_type == ObjTypeEnum.tenant:
-                obj_id = kwargs.pop('obj_id', 'obj_id not found')
-                obj_name = kwargs.pop('obj_name', 'obj_name not found')
-
-                LOG.warning(_LW('TOPO_SYNC_UNSUPPORTED_CHAR: Tenant with id '
-                                '%(obj_id)s has unsupported char in name: '
-                                '%(obj_name)s. Tenant will not be synced to '
-                                'the controller.'),
-                            {'obj_id': obj_id, 'obj_name': obj_name})
-            else:
-                obj = kwargs.pop('obj', None)
-
-                LOG.warning(_LW('TOPO_SYNC_UNSUPPORTED_CHAR: %(obj_type)s '
-                                'under  tenant %(tenant_name)s has unsupported'
-                                ' char in name: %(obj_name)s. %(obj_type)s '
-                                '\"%(obj_name)s\" will not be synced to the '
-                                'controller.'),
-                            {'obj_type': obj_type,
-                             'tenant_name': obj['tenant_name'],
-                             'obj_name': obj['name']})
-
-        def _valid_name_in_obj(obj):
-            """
-            :returns True if the object name and object's tenant name are both
-            in supported format
-            :returns False otherwise
-            """
-            if ('name' in obj and is_valid_bcf_name(obj['name'])
-                and is_valid_bcf_name(obj['tenant_name'])):
-                return True
-            return False
-
-        new_data = {}
-        if 'tenants' in data:
-            new_data['tenants'] = {}
-            for tenant in data['tenants']:
-                if is_valid_bcf_name(data['tenants'][tenant]):
-                    new_data['tenants'][tenant] = data['tenants'][tenant]
-                else:
-                    _log_unsupported_name(obj_type=ObjTypeEnum.tenant,
-                                          obj_id=tenant,
-                                          obj_name=data['tenants'][tenant])
-
-        if 'networks' in data:
-            new_data['networks'] = []
-            for network in data['networks']:
-                if _valid_name_in_obj(network):
-                    new_data['networks'].append(network)
-                else:
-                    _log_unsupported_name(obj_type=ObjTypeEnum.network,
-                                          obj=network)
-
-        if 'routers' in data:
-            new_data['routers'] = []
-            for router in data['routers']:
-                if _valid_name_in_obj(router):
-                    new_data['routers'].append(router)
-                else:
-                    _log_unsupported_name(obj_type=ObjTypeEnum.router,
-                                          obj=router)
-
-        if 'security-groups' in data:
-            new_data['security-groups'] = []
-            for sg in data['security-groups']:
-                if _valid_name_in_obj(sg):
-                    new_data['security-groups'].append(sg)
-                else:
-                    _log_unsupported_name(obj_type=ObjTypeEnum.security_group,
-                                          obj=sg)
-
-        return new_data
-
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
         context = self.get_context_ref()
@@ -754,7 +667,6 @@ class ServerPool(object):
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
                     if data:
-                        data = self._sanitize_data_for_topo_sync(data)
                         ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
                                                          data, timeout=None)
                         if self.server_failure(ret_ts, ignore_codes):
