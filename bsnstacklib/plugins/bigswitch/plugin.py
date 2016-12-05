@@ -168,6 +168,33 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def l3_bsn_plugin(self):
         return hasattr(self.l3_plugin, "bsn")
 
+    def _validate_names(self, obj, name=None):
+        """
+        :returns
+            True, if obj name, obj's tenant name and name have supported chars
+            False, otherwise
+        """
+        if name and not servermanager.is_valid_bcf_name(name):
+            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '),
+                        {'name': name})
+            return False
+
+        if (obj and 'name' in obj and
+                not servermanager.is_valid_bcf_name(obj['name'])):
+            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '
+                            'Object details: %(obj)s'),
+                        {'name': obj['name'], 'obj': obj})
+            return False
+
+        if (obj and 'tenant_name' in obj and
+                not servermanager.is_valid_bcf_name(obj['tenant_name'])):
+            LOG.warning(_LW('Unsupported characters in TenantName: %(tname)s. '
+                            'Object details: %(obj)s'),
+                        {'tname': obj['tenant_name'], 'obj': obj})
+            return False
+
+        return True
+
     def _get_all_data_auto(self):
         return self._get_all_data(
                 get_floating_ips=self.l3_bsn_plugin,
@@ -189,6 +216,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         for net in all_networks:
             try:
                 mapped_network = self._get_mapped_network_with_subnets(net)
+                if not self._validate_names(mapped_network):
+                    continue
 
                 flips_n_ports = mapped_network
                 if get_floating_ips:
@@ -243,6 +272,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     interfaces = []
                     mapped_router = self._map_tenant_name(router)
                     mapped_router = self._map_state_and_status(mapped_router)
+                    if not self._validate_names(mapped_router):
+                        continue
+
                     router_filter = {
                         'device_owner': [const.DEVICE_OWNER_ROUTER_INTF],
                         'device_id': [router.get('id')]
@@ -269,17 +301,24 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             for sg in sgs:
                 tenant_name = self.servers.keystone_tenants.get(
                     sg['tenant_id'])
-                if tenant_name:
-                    sg['tenant_name'] = tenant_name
-                    new_sgs.append(sg)
-                else:
-                    # If tenant is not known to keystone,
-                    # then skip the security greoup
+                if not tenant_name:
+                    # If tenant is not known to keystone, skip security group
                     continue
+                sg['tenant_name'] = tenant_name
+                if not self._validate_names(sg):
+                    continue
+                new_sgs.append(sg)
 
             data.update({'security-groups': new_sgs})
 
-        data.update({'tenants': self.servers.keystone_tenants})
+        all_tenants_map = self.servers.keystone_tenants
+        tenants = {}
+        for tenant in all_tenants_map:
+            if not self._validate_names(None, name=all_tenants_map[tenant]):
+                continue
+            tenants[tenant] = all_tenants_map[tenant]
+
+        data.update({'tenants': tenants})
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
