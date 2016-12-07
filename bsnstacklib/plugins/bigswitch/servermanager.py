@@ -46,9 +46,7 @@ from bsnstacklib.plugins.bigswitch.i18n import _LI
 from bsnstacklib.plugins.bigswitch.i18n import _LW
 import eventlet
 import eventlet.corolocal
-from keystoneauth1.identity import v3
-from keystoneauth1 import session
-from keystoneclient.v3 import client as ksclient
+from keystoneclient.v2_0 import client as ksclient
 import os
 from oslo_config import cfg
 from oslo_serialization import jsonutils
@@ -84,7 +82,6 @@ SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
 BASE_URI = '/networkService/v2.0'
-KS3_DEFAULT_DOMAIN_ID = 'default'
 ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
@@ -385,8 +382,6 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
-        self.user_domain_id = KS3_DEFAULT_DOMAIN_ID
-        self.project_domain_id = KS3_DEFAULT_DOMAIN_ID
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_url = cfg.CONF.keystone_authtoken.auth_uri
             self.auth_user = cfg.CONF.keystone_authtoken.admin_user
@@ -397,8 +392,8 @@ class ServerPool(object):
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
             self.auth_password = cfg.CONF.RESTPROXY.auth_password
             self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
-        if "v3" not in self.auth_url:
-            self.auth_url = "%s/v3" % self.auth_url
+        if "v2.0" not in self.auth_url:
+            self.auth_url = "%s/v2.0" % self.auth_url
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
@@ -942,15 +937,11 @@ class ServerPool(object):
 
     def _update_tenant_cache(self, reconcile=True):
         try:
-            auth = v3.Password(auth_url=self.auth_url,
-                               username=self.auth_user,
-                               password=self.auth_password,
-                               project_name=self.auth_tenant,
-                               user_domain_id=self.user_domain_id,
-                               project_domain_id=self.project_domain_id)
-            sess = session.Session(auth=auth)
-            keystone_client = ksclient.Client(session=sess)
-            tenants = keystone_client.projects.list()
+            keystone_client = ksclient.Client(auth_url=self.auth_url,
+                                              username=self.auth_user,
+                                              password=self.auth_password,
+                                              tenant_name=self.auth_tenant)
+            tenants = keystone_client.tenants.list()
             new_cached_tenants = {tn.id: tn.name for tn in tenants}
             # Add SERVICE_TENANT to handle hidden network for VRRP
             new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT

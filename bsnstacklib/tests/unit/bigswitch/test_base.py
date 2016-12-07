@@ -36,7 +36,7 @@ CERTFETCH = 'bsnstacklib.plugins.bigswitch.servermanager.ServerPool._fetch_cert'
 SERVER_MANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'
 HTTPCON = 'bsnstacklib.plugins.bigswitch.servermanager.httplib.HTTPConnection'
 SPAWN = 'bsnstacklib.plugins.bigswitch.plugin.eventlet.GreenPool.spawn_n'
-KSCLIENT = 'keystoneclient.v3.client.Client'
+KSCLIENT = 'keystoneclient.v2_0.client.Client'
 BACKGROUND = SERVER_MANAGER + '.ServerPool.start_background_tasks'
 MAP_TENANT_NAME = ('bsnstacklib.plugins.bigswitch.plugin.'
                    'NeutronRestProxyV2Base._map_tenant_name')
