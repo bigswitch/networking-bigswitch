@@ -193,7 +193,6 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     @log_helper.log_method_call
     def remove_router_interface(self, context, router_id, interface_info):
         # Validate args
-        interface_cidr = None
         router = self._get_router(context, router_id)
         tenant_id = router['tenant_id']
 
@@ -204,9 +203,6 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         if 'port_id' in interface_info:
             port = self._get_port(context, interface_info['port_id'])
             interface_id = port['fixed_ips'][0]['subnet_id']
-            subnet = self._get_subnet(context, interface_id)
-            interface_cidr = port["fixed_ips"][0]['ip_address']
-            interface_cidr += "_" + subnet['cidr'].split("/")[1]
         elif 'subnet_id' in interface_info:
             subnet = self._get_subnet(context, interface_info['subnet_id'])
             interface_id = subnet['id']
@@ -220,15 +216,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                             self).remove_router_interface(context,
                                                           router_id,
                                                           interface_info)
-            if interface_cidr:
-                # remove router interface with the interface_cidr on controller
-                self.servers.rest_remove_router_interface_with_cidr(
-                    tenant_id, router_id, interface_id, interface_cidr)
-            else:
-                # remove router interface on the network controller
-                self.servers.rest_remove_router_interface(tenant_id, router_id,
-                                                          interface_id)
 
+            # create router on the network controller
+            self.servers.rest_remove_router_interface(tenant_id, router_id,
+                                                      interface_id)
             return del_ret
 
     # add floating_port_id into the dict for later port mac lookup

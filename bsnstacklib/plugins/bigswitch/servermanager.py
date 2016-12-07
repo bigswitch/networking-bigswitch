@@ -69,7 +69,6 @@ PORTS_PATH = "/tenants/%s/networks/%s/ports/%s"
 ATTACHMENT_PATH = "/tenants/%s/networks/%s/ports/%s/attachment"
 ROUTERS_PATH = "/tenants/%s/routers/%s"
 ROUTER_INTF_PATH = "/tenants/%s/routers/%s/interfaces/%s"
-ROUTER_INTF_IP_PATH = "/tenants/%s/routers/%s/interfaces/%s/ipaddress/%s"
 SECURITY_GROUP_PATH = "/securitygroups/%s"
 TENANT_PATH = "/tenants/%s"
 TOPOLOGY_PATH = "/topology"
@@ -724,13 +723,6 @@ class ServerPool(object):
 
     def rest_remove_router_interface(self, tenant_id, router_id, interface_id):
         resource = ROUTER_INTF_PATH % (tenant_id, router_id, interface_id)
-        errstr = _("Unable to delete remote intf: %s")
-        self.rest_action('DELETE', resource, errstr=errstr)
-
-    def rest_remove_router_interface_with_cidr(self, tenant_id, router_id,
-                                               interface_id, interface_cidr):
-        resource = ROUTER_INTF_IP_PATH % (tenant_id, router_id, interface_id,
-                                          interface_cidr)
         errstr = _("Unable to delete remote intf: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
 

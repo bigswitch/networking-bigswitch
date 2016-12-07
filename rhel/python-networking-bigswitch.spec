@@ -120,7 +120,6 @@ done
 %changelog
 * Tue Nov 22 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.7
   BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
-  BVS-7402: Changes to support for multiple LR workflow
 * Tue Nov 8 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.6
   BVS-7375 bsnstacklib: support keystonev3 in openstack deployments
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.3-1
