@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.2
+Version:        8.40.3
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,9 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Dec 1 2016 Aditya/Sarath Kumar - 8.40.3
+  BVS-6548: Raise exception when creating objects with illegal name chars
+  BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
 * Wed Aug 31 2016 Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com> - 8.40.1
 - BVS-6597: Add support for NFV switch for BSN's ML2 mechanism driver
 - BVS-6743: Update BSN Agent for NFV type compute nodes
