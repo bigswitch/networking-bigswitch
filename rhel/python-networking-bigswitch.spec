@@ -118,7 +118,9 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
-* Thu Dec 1 2016 Sarath Kumar <sarath@bigswitch.com> - 20153.36.3-1
+* Thu Dec 1 2016 Aditya/Sarath Kumar - 20153.36.7
+  BVS-6548: Raise exception when creating objects with illegal name chars
+* Thu Dec 1 2016 Sarath Kumar <sarath@bigswitch.com> - 20153.36.6
   BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.3-1
 - BVS-6563 allow non admin user to assign floating IP
