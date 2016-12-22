@@ -15,6 +15,7 @@
 
 from bsnstacklib.plugins.bigswitch.db import routerrule_db
 from bsnstacklib.plugins.bigswitch.extensions import routerrule
+from bsnstacklib.plugins.bigswitch.i18n import _
 import itertools
 from netaddr import IPNetwork
 from neutron.db import l3_db

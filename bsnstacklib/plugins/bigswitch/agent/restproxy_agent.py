@@ -33,6 +33,7 @@ from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
+from neutron.api.rpc.handlers import securitygroups_rpc as api_sg_rpc
 from neutron.common import config
 from neutron.common import topics
 from neutron import context as q_context
@@ -158,7 +159,7 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
                     security_groups, security_group_member_ips)
 
 
-class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
+class RestProxyAgent(api_sg_rpc.SecurityGroupAgentRpcCallbackMixin):
 
     target = oslo_messaging.Target(version='1.1')
 
@@ -200,7 +201,8 @@ class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
     def _setup_rpc(self):
         self.topic = topics.AGENT
         self.plugin_rpc = agent_rpc.PluginApi(topics.PLUGIN)
-        self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
+        self.sg_plugin_rpc = api_sg_rpc.SecurityGroupServerRpcApi(
+            topics.PLUGIN)
         self.context = q_context.get_admin_context_without_session()
         self.endpoints = [self]
         consumers = [[topics.PORT, topics.UPDATE],

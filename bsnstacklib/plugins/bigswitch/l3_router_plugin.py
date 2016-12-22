@@ -26,10 +26,11 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
-from neutron.db import l3_db
+from neutron.db.models import l3 as l3_db
 from neutron.extensions import l3
 from neutron.plugins.common import constants
 
+from neutron_lib import constants as lib_constants
 from neutron_lib import exceptions
 from neutron_lib.plugins import directory
 
@@ -148,7 +149,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             if fips:
                 raise l3.RouterInUse(router_id=router_id)
 
-            device_owner = l3_db.DEVICE_OWNER_ROUTER_INTF
+            device_owner = lib_constants.DEVICE_OWNER_ROUTER_INTF
             device_filter = {'device_id': [router_id],
                              'device_owner': [device_owner]}
             ports = self.get_ports_count(context.elevated(),

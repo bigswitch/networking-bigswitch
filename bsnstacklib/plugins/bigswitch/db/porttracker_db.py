@@ -23,9 +23,9 @@ LOG = logging.getLogger(__name__)
 def get_port_hostid(context, port_id):
     # REVISIT(kevinbenton): this is a workaround to avoid portbindings_db
     # relational table generation until one of the functions is called.
-    from neutron.db import portbindings_db
+    from neutron.db.models import portbinding
     with context.session.begin(subtransactions=True):
-        query = context.session.query(portbindings_db.PortBindingPort)
+        query = context.session.query(portbinding.PortBindingPort)
         res = query.filter_by(port_id=port_id).first()
     if not res:
         return False
@@ -35,7 +35,7 @@ def get_port_hostid(context, port_id):
 def put_port_hostid(context, port_id, host):
     # REVISIT(kevinbenton): this is a workaround to avoid portbindings_db
     # relational table generation until one of the functions is called.
-    from neutron.db import portbindings_db
+    from neutron.db.models import portbinding
     if not validators.is_attr_set(host):
         LOG.warning(_LW("No host_id in port request to track port location."))
         return
@@ -48,5 +48,5 @@ def put_port_hostid(context, port_id, host):
     LOG.debug("Logging port %(port)s on host_id %(host)s",
               {'port': port_id, 'host': host})
     with context.session.begin(subtransactions=True):
-        location = portbindings_db.PortBindingPort(port_id=port_id, host=host)
+        location = portbinding.PortBindingPort(port_id=port_id, host=host)
         context.session.merge(location)
