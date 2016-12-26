@@ -28,7 +28,6 @@ from oslo_utils import excutils
 from neutron.api import extensions as neutron_extensions
 from neutron.db.models import l3 as l3_db
 from neutron.extensions import l3
-from neutron.plugins.common import constants
 
 from neutron_lib import constants as lib_constants
 from neutron_lib import exceptions
@@ -57,7 +56,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
     @staticmethod
     def get_plugin_type():
-        return constants.L3_ROUTER_NAT
+        return lib_constants.L3
 
     @staticmethod
     def get_plugin_description():
