@@ -15,10 +15,11 @@
 
 from bsnstacklib.plugins.bigswitch.db import routerrule_db
 from bsnstacklib.plugins.bigswitch.extensions import routerrule
+from bsnstacklib.plugins.bigswitch.i18n import _
 import itertools
 from netaddr import IPNetwork
-from neutron.common import exceptions as n_exc
 from neutron.db import l3_db
+from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
 from oslo_log import log as logging
 from sets import Set

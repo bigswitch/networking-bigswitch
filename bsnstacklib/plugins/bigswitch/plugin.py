@@ -58,7 +58,6 @@ from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.api.rpc.handlers import metadata_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc
-from neutron.common import constants as const
 from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
@@ -72,8 +71,8 @@ from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import extradhcpopt_db
 from neutron.db import l3_db
+from neutron.db.models import securitygroup as sg_db
 from neutron.db import models_v2
-from neutron.db import securitygroups_db as sg_db
 from neutron.db import securitygroups_rpc_base as sg_db_rpc
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import external_net
@@ -82,6 +81,7 @@ from neutron.extensions import l3
 from neutron.extensions import portbindings
 from neutron import manager
 from neutron.plugins.common import constants as pconst
+from neutron_lib import constants as const
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.db import porttracker_db

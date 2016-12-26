@@ -26,11 +26,11 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
-from neutron.common import exceptions
 from neutron.db import l3_db
 from neutron.extensions import l3
 from neutron import manager
 from neutron.plugins.common import constants
+from neutron_lib import exceptions
 
 from bsnstacklib.plugins.bigswitch import extensions
 from bsnstacklib.plugins.bigswitch.i18n import _

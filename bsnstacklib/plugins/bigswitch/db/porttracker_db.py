@@ -14,7 +14,7 @@
 #    under the License.
 from oslo_log import log as logging
 
-from neutron.api.v2 import attributes
+from neutron_lib.api import validators
 
 from bsnstacklib.plugins.bigswitch.i18n import _LW
 
@@ -37,7 +37,7 @@ def put_port_hostid(context, port_id, host):
     # REVISIT(kevinbenton): this is a workaround to avoid portbindings_db
     # relational table generation until one of the functions is called.
     from neutron.db import portbindings_db
-    if not attributes.is_attr_set(host):
+    if not validators.is_attr_set(host):
         LOG.warning(_LW("No host_id in port request to track port location."))
         return
     if port_id == '':
