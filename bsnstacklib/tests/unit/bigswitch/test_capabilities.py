@@ -18,7 +18,7 @@ import contextlib
 import mock
 
 from neutron import context
-from neutron.plugins.common import constants
+from neutron_lib import constants
 from neutron_lib.plugins import directory
 
 from bsnstacklib.tests.unit.bigswitch import test_router_db
