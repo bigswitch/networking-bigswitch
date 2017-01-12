@@ -17,7 +17,7 @@ from alembic import context
 from bsnstacklib.plugins.bigswitch.db.migration.alembic_migrations \
     import BSN_VERSION_TABLE
 from logging import config as logging_config
-from neutron.db import model_base
+from neutron_lib.db import model_base
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
 import sqlalchemy as sa
