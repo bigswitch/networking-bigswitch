@@ -156,8 +156,19 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 raise l3.RouterInUse(router_id=router_id)
             super(L3RestProxy, self).delete_router(context, router_id)
 
+            # added check to update router policy for another router for
+            # default routes
+            updated_router = (super(L3RestProxy, self)
+                              .apply_default_post_delete(context, tenant_id))
+
             # delete from network controller
             self.servers.rest_delete_router(tenant_id, router_id)
+            if updated_router:
+                # update BCF after removing the router first
+                LOG.debug(_('Default policies now part of router: %s')
+                          % updated_router)
+                self.server.rest_update_router(tenant_id, updated_router,
+                                               updated_router['id'])
 
     @put_context_in_serverpool
     @log_helper.log_method_call
