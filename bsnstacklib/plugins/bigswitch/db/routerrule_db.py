@@ -19,7 +19,8 @@ from sqlalchemy import orm
 from neutron_lib.db import model_base
 
 
-class BsnRouterRule(model_base.BASEV2):
+class BsnRouterRule(model_base.BASEV2,
+                    model_base.HasTenant):
     __tablename__ = 'bsn_routerrules'
     id = sa.Column(sa.Integer, primary_key=True)
     priority = sa.Column(sa.Integer, nullable=False)
@@ -33,7 +34,7 @@ class BsnRouterRule(model_base.BASEV2):
                                         ondelete="CASCADE"))
 
     class Meta(object):
-        unique_together = ('priority', 'router_id')
+        unique_together = ('priority', 'tenant_id')
 
 
 class BsnNextHop(model_base.BASEV2):
