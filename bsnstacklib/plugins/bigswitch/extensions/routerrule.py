@@ -64,13 +64,21 @@ def convert_to_valid_router_rules(data):
                   attr._validate_subnet(dst),
                   attr._validate_subnet(src),
                   _validate_nexthops(rule['nexthops']),
-                  _validate_action(rule['action'])]
+                  _validate_action(rule['action']),
+                  _validate_priority(rule['priority'])]
         errors = [m for m in errors if m]
         if errors:
             LOG.debug(errors)
             raise nexception.InvalidInput(error_message=errors)
         rules.append(rule)
     return rules
+
+
+def _validate_priority(priority):
+    if int(priority) < 1:
+        msg = _("User must provide valid priority between 1 and 3000. "
+                "%s was provided.") % priority
+        return msg
 
 
 def _validate_nexthops(nexthops):
