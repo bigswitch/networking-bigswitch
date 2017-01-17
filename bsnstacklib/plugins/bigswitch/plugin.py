@@ -79,7 +79,6 @@ from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
-from neutron.plugins.common import constants as pconst
 
 from neutron_lib import constants as const
 from neutron_lib.plugins import directory
@@ -162,7 +161,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     @property
     def l3_plugin(self):
-        return directory.get_plugin(pconst.L3_ROUTER_NAT)
+        return directory.get_plugin(const.L3)
 
     @property
     def l3_bsn_plugin(self):

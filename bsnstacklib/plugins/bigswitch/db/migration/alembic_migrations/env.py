@@ -17,11 +17,11 @@ from alembic import context
 from bsnstacklib.plugins.bigswitch.db.migration.alembic_migrations \
     import BSN_VERSION_TABLE
 from logging import config as logging_config
+from neutron.db import api as db_api
 from neutron_lib.db import model_base
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
 import sqlalchemy as sa
-from sqlalchemy import event
 
 MYSQL_ENGINE = None
 config = context.config
@@ -56,7 +56,7 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-@event.listens_for(sa.Table, 'after_parent_attach')
+@db_api.sqla_listen(sa.Table, 'after_parent_attach')
 def set_storage_engine(target, parent):
     if MYSQL_ENGINE:
         target.kwargs['mysql_engine'] = MYSQL_ENGINE
