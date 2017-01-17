@@ -39,7 +39,8 @@ def clear_db():
             conn.execute(table.delete())
 
 
-class BsnRouterRule(model_base.BASEV2):
+class BsnRouterRule(model_base.BASEV2,
+                    model_base.HasTenant):
     # TODO(wolverineav) do a proper fix for this setup and clear db hack
     _TEST_TABLE_SETUP = None
 
@@ -56,7 +57,7 @@ class BsnRouterRule(model_base.BASEV2):
                                         ondelete="CASCADE"))
 
     class Meta(object):
-        unique_together = ('priority', 'router_id')
+        unique_together = ('priority', 'tenant_id')
 
 
 class BsnNextHop(model_base.BASEV2):
