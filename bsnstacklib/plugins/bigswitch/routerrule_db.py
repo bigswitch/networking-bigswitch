@@ -32,6 +32,7 @@ NextHop = routerrule_db.BsnNextHop
 # Constant for now, can be exposed via properties file
 MAX_PRIORITY = 3000
 MIN_PRIORITY_DIFF = 10
+DEFAULT_RULE_PRIORITY = -1
 
 
 class IPCidr(IPNetwork):
@@ -51,6 +52,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 self._update_router_rules(context,
                                           router_db,
                                           r['router_rules'])
+
             updated = super(RouterRule_db_mixin, self).update_router(
                 context, id, router)
             updated['router_rules'] = self._get_router_rules_by_router_id(
@@ -64,24 +66,176 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             router_db = super(RouterRule_db_mixin, self).create_router(
                 context, router)
             if 'router_rules' in r:
-                self._update_router_rules(context,
-                                          router_db,
-                                          r['router_rules'])
-            else:
-                LOG.debug('No rules in router')
+                LOG.debug('CREATE ROUTER with router from DB %s' % router_db)
+                # create default rules if needed
+                all_rules = (context.session.query(RouterRule)
+                             .filter_by(tenant_id=r['tenant_id'])
+                             .all())
+                LOG.debug('Existing rules for given tenant are %s'
+                          % str(all_rules))
+
+                existing_rule_priorities = [int(old_rule['priority'])
+                                            for old_rule in all_rules]
+                new_prio = MAX_PRIORITY
+                for rule in r['router_rules']:
+                    if self._is_rule_in_set_ignore_priority(all_rules, rule):
+                        pass
+                    else:
+                        while new_prio in existing_rule_priorities:
+                            new_prio = new_prio - 1
+                        new_rule = RouterRule(
+                            priority=new_prio,
+                            tenant_id=r['tenant_id'],
+                            router_id=router_db['id'],
+                            destination=rule['destination'],
+                            source=rule['source'],
+                            action=rule['action'],
+                            nexthops=[NextHop(nexthop=hop)
+                                      for hop in rule['nexthops']])
+                        context.session.add(new_rule)
+                        new_prio = new_prio - 1
+
             router_db['router_rules'] = self._get_router_rules_by_router_id(
                 context, router_db['id'])
+            LOG.debug('final router obj %s' % router_db)
 
         return router_db
 
-    def _is_rule_in_list(self, rule_list, rule):
-        """Check if the given rule is present in the rule_list
+    def delete_router(self, context, router_id):
+        router = super(RouterRule_db_mixin, self).get_router(
+            context, router_id)
+        with context.session.begin(subtransactions=True):
+            if 'router_rules' in router:
+                LOG.debug("Deleting all rules for router_id %s" % router['id'])
+                (context.session.query(RouterRule)
+                 .filter_by(tenant_id=router['tenant_id'])
+                 .filter_by(router_id=router['id'])
+                 .delete(synchronize_session='fetch'))
+                context.session.flush()
+            super(RouterRule_db_mixin, self).delete_router(context, router_id)
 
-        :param rule_list: list of existing rules in dictionary format
-        :param rule: new rule to be added
-        :return boolean:
+    def apply_default_post_delete(self, context, tenant_id):
         """
-        for old_rule in rule_list:
+        After deletion of router, check if defaults need to be applied to
+        another router
+        """
+        with context.session.begin(subtransactions=True):
+            tenant_rules = (context.session.query(RouterRule)
+                            .filter_by(tenant_id=tenant_id).all())
+
+            if not tenant_rules:
+                # tenant doesn't have another router, return
+                LOG.debug("Tenant doesn't have another router, return!")
+                return
+
+            # If the default rules were associated with that router, add it
+            # again with the next available router
+            default_rules = self._get_tenant_default_router_rules(tenant_id)
+            for def_rule in default_rules:
+                if self._is_rule_in_set_ignore_priority(tenant_rules,
+                                                        def_rule):
+                    # either all defaults are removed or none are
+                    # since one rule is present, return, we're good
+                    LOG.debug('def rule %s present, returning' % def_rule)
+                    return
+
+            # default rules not found in existing list and another router
+            # exists add default rules with the next available router
+            new_prio = MAX_PRIORITY
+            existing_router_id = tenant_rules[0]['router_id']
+            existing_prio_list = [int(rule['priority'])
+                                  for rule in tenant_rules]
+            for def_rule in default_rules:
+                while new_prio in existing_prio_list:
+                    new_prio = new_prio - 1
+                new_rule = RouterRule(
+                    priority=new_prio,
+                    tenant_id=tenant_id,
+                    router_id=existing_router_id,
+                    destination=def_rule['destination'],
+                    source=def_rule['source'],
+                    action=def_rule['action'],
+                    nexthops=[NextHop(nexthop=hop)
+                              for hop in def_rule['nexthops']])
+                context.session.add(new_rule)
+                new_prio = new_prio - 1
+
+            # flush before requery
+            context.session.flush()
+            # return the updated router object
+            router = super(RouterRule_db_mixin, self).get_router(
+                context, existing_router_id)
+            router['router_rules'] = self._get_router_rules_by_router_id(
+                context, id)
+            LOG.debug('returning router obj after applying default rules %s'
+                      % router)
+            return router
+
+    def _update_router_rules(self, context, router, rules):
+        """
+        Update router rules at the tenant level. Since at the backend, BCF
+        maintains a single logical router, all routers under the tenant map to
+        a single router on the backend.
+        Hence, we apply policies accordingly.
+        """
+        if len(rules) > cfg.CONF.ROUTER.max_router_rules:
+            raise routerrule.RulesExhausted(
+                router_id=router['id'],
+                quota=cfg.CONF.ROUTER.max_router_rules)
+
+        LOG.debug('Update router ::: %s', router)
+        LOG.debug('Filtering by tenantID %s routerID %s'
+                  % (router['tenant_id'], router['id']))
+        old_rules = (context.session.query(RouterRule)
+                     .filter_by(tenant_id=router['tenant_id'])
+                     .filter_by(router_id=router['id']).all())
+        old_rules_list = self._make_router_rule_list(old_rules)
+        LOG.debug('Existing router rules::: %s', old_rules_list)
+
+        overlapping_rules, deleted_rules, added_rules = \
+            self._get_rule_diff(old_rules_list, rules)
+
+        LOG.debug('Updated_rules %s \n Deleted_rules %s \n Added_rules %s \n'
+                  % (overlapping_rules, deleted_rules, added_rules))
+
+        for rule in overlapping_rules:
+            for old_rule in old_rules:
+                if int(rule['priority']) != old_rule.priority:
+                    continue
+                if self._is_rule_equal(old_rule, rule):
+                    continue
+                old_rule.update(rule)
+
+        for rule in deleted_rules:
+            (context.session.query(RouterRule)
+             .filter_by(tenant_id=router['tenant_id'])
+             .filter_by(priority=rule['priority'])
+             .delete())
+
+        for rule in added_rules:
+            new_rule = RouterRule(
+                priority=rule['priority'],
+                tenant_id=router['tenant_id'],
+                router_id=router['id'],
+                destination=rule['destination'],
+                source=rule['source'],
+                action=rule['action'],
+                nexthops=[NextHop(nexthop=hop)
+                          for hop in rule['nexthops']])
+            context.session.add(new_rule)
+
+        context.session.flush()
+
+    def _is_rule_equal(self, old_rule, rule, ignore_priority=False):
+        """
+        Compare the necessary fields of two given rules for equality
+        """
+        if ignore_priority:
+            if (rule['source'] == old_rule['source']
+                and rule['destination'] == old_rule['destination']
+                and rule['action'] == old_rule['action']):
+                return True
+        else:
             if (rule['source'] == old_rule['source']
                 and rule['destination'] == old_rule['destination']
                 and rule['action'] == old_rule['action']
@@ -89,179 +243,52 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 return True
         return False
 
-    def _get_rule_diff(self, old_rules, new_rules):
-        """Given the set of old rules and new rules, get the diff rule.
+    def _is_rule_in_set_ignore_priority(self, rule_list, rule):
+        """Check if the given rule is present in the rule_list. Ignores the
+        priority of the rule
 
-        :param old_rules: list of old rule objects - dictionary
-        :param new_rules: list of new rule objects - dictionary
-        :return list of rule_dict: the rules present in new_rules but not in
-        old_rules.
+        :param rule_list: list of existing rules in dictionary format
+        :param rule: new rule to be added
+        :return boolean:
         """
-        diff_list = filter(lambda x: not self._is_rule_in_list(old_rules, x),
-                           new_rules)
-        return diff_list
-
-    def _get_same_action_rules(self, rules, action):
-        """Given a list of rules, check and return for all rules with the same
-        action.
-
-        :param rules: list of rules
-        :param action: action of type permit or deny
-        :return list: of rules with same action
-        """
-        existing_rules = filter(lambda x: x.action == action, rules)
-        return existing_rules
-
-    def _rule_a_obstructs_rule_b(self, rule_a, rule_b):
-        """Checks whether rule_a overlaps with rule_b in any way. It doesn't
-        have to be a superset, just an intersection is enough.
-        If nexthops don't match, that is considered as an overlap.
-        """
-        if ((IPCidr(rule_a.source) in IPCidr(rule_b.source)
-             or IPCidr(rule_b.source) in IPCidr(rule_a.source))
-            and (IPCidr(rule_a.destination) in IPCidr(rule_b.destination)
-                 or IPCidr(rule_b.destination) in IPCidr(rule_a.destination))):
-
-            if rule_a.action != rule_b.action:
+        for old_rule in rule_list:
+            if self._is_rule_equal(old_rule, rule, True):
                 return True
-            elif (rule_a.action == rule_b.action == 'permit'
-                  and Set(rule_a.nexthops) != Set(rule_b.nexthops)):
-                return True
-            elif rule_a.action == rule_b.action == 'deny':
-                return False
         return False
 
-    def _rule_a_superset_rule_b(self, rule_a, rule_b):
-        """Check if rule_a covers the source and destination of rule_b.
+    def _is_rule_in_set(self, rule, rule_list):
+        """Check if the given rule is present in the rule_list
 
-        :param rule_a: supposed superset rule
-        :param rule_b: rule to be checked for
-        :return boolean: True if rule_a is superset of rule_b. False otherwise.
+        :param rule_list: list of existing rules in dictionary format
+        :param rule: new rule to be added
+        :return boolean:
         """
-        # for both permit rules, first check nexthops match
-        if rule_a.action == rule_b.action == 'permit':
-            if (Set(nexthop.nexthop for nexthop in rule_a.nexthops) !=
-                    Set(nexthop.nexthop for nexthop in rule_b.nexthops)):
-                return False
-
-        if (IPCidr(rule_b.source) in IPCidr(rule_a.source)
-            and IPCidr(rule_b.destination) in IPCidr(rule_a.destination)):
-            return True
+        for old_rule in rule_list:
+            if self._is_rule_equal(old_rule, rule):
+                return True
         return False
 
-    def _cleanup_priority_get_min(self, context, rules):
-        """Starts priority reassignment from MAX_PRIORITY and gets the new
-        min_priority
-
-        :param context: used to delete rules from the current session
-        :param rules: set of rules to be reassigned the priorities
-        :return min_priority: the new minimum valid priority
+    def _get_rule_diff(self, old_ruleset, new_ruleset):
         """
-        min_priority = MAX_PRIORITY
-        sorted_rules = sorted(rules, key=lambda k: k.priority,
-                              reverse=True)
-        for rule in sorted_rules:
-            rule.update({'priority': min_priority})
-            min_priority = min_priority - MIN_PRIORITY_DIFF
-            if min_priority <= 0:
-                raise Exception("All router rule priorities are exhausted")
-        return min_priority
-
-    def _min_priority(self, rules):
-        """Get the minimum available priority. The difference between existing
-        minimum and current priority is MIN_PRIORITY_DIFF. If existing minimum
-        is <= MIN_PRIORITY_DIFF, returns False in the tuple.
-
-        :param rules: list of existing rules with priorities
-        :return tuple(boolean, min_priority):
-        boolean compaction required, min_priority
+        Given two sets of rules, find overlapping, added and removed rules.
         """
-        min_priority = MAX_PRIORITY
+        existing_priorities = [int(rule['priority']) for rule in old_ruleset]
 
-        sorted_rules = sorted(rules, key=lambda k: k.priority)
-        for rule in sorted_rules:
-            if rule.priority <= MIN_PRIORITY_DIFF:
-                return True, -1
-            else:
-                min_priority = rule.priority - MIN_PRIORITY_DIFF
-                return False, min_priority
+        overlapping_rules = [rule for rule in new_ruleset
+                         if int(rule['priority']) in existing_priorities]
+        overlapping_priorities = [int(rule['priority'])
+                                  for rule in overlapping_rules]
 
-        return False, min_priority
+        added_rules = [rule for rule in new_ruleset
+                       if (not self._is_rule_in_set(rule, old_ruleset)
+                           and int(rule['priority'])
+                           not in overlapping_priorities)]
 
-    def _opposite_rule_exists(self, context, old_rules, new_rule):
-        """Check if rule exists with opposite action and exact same source
-        and destination
-        """
-        sorted_rules = sorted(old_rules, key=lambda k: k.priority,
-                              reverse=True)
-        opposite_action = 'permit' if new_rule.action == 'deny' else 'deny'
-        for old_rule in sorted_rules:
-            if (old_rule.priority >= new_rule.priority
-                and old_rule.source == new_rule.source
-                and old_rule.destination == new_rule.destination
-                and old_rule.action == opposite_action):
+        deleted_rules = [rule for rule in old_ruleset
+                         if not self._is_rule_in_set(rule, new_ruleset) and
+                         int(rule['priority']) not in overlapping_priorities]
 
-                return True, old_rule
-
-        return False, None
-
-    def _identical_rule_exists(self, context, old_rules, new_rule):
-        """Check if rule exists with same action and exact same source
-        and destination
-        """
-        sorted_rules = sorted(old_rules, key=lambda k: k.priority,
-                              reverse=True)
-        for old_rule in sorted_rules:
-            if (old_rule.priority >= new_rule.priority
-                and old_rule.source == new_rule.source
-                and old_rule.destination == new_rule.destination
-                and old_rule.action == new_rule.action):
-
-                return True, old_rule
-
-        return False, None
-
-    def _filter_opposite_rules(self, new_rule, rules):
-        """Get list of rules with opposite action and higher priority i.e.
-        lower priority number
-        """
-        filter_action = 'permit' if new_rule.action == 'deny' else 'deny'
-        filtered_rules = []
-        for rule in rules:
-            if (rule.action == filter_action
-                and rule.priority <= new_rule.priority):
-                filtered_rules.append(rule)
-        return filtered_rules
-
-    def _remove_redundant_rules(self, context, router_id):
-        """Checks for rules which are not required due to new applications and
-        removes those rules
-        """
-        rules = (context.session.query(RouterRule)
-                 .filter_by(router_id=router_id).all())
-        sorted_rules = sorted(rules, key=lambda k: k.priority)
-        persist_list = []
-        for hp_rule, lp_rule in itertools.combinations(sorted_rules, 2):
-            # combinations('ABCD', 2) --> AB AC AD BC BD CD
-            LOG.debug('\n rule_a::: %s nexthops::: %s '
-                      '\n rule_b::: %s nexthops::: %s'
-                      % (hp_rule, Set(hp_rule.nexthops),
-                         lp_rule, Set(hp_rule.nexthops)))
-            # hp_rule is the current rule - high priority rule
-            # if any of the lower priority rules overlap with hp_rule, we need
-            # to persist hp_rule, else remove it
-            # hence do the reverse check with rule_a=lp_rule and rule_b=hp_rule
-            if self._rule_a_obstructs_rule_b(rule_a=lp_rule, rule_b=hp_rule):
-                LOG.debug('%s OBSTRUCTS %s' % (lp_rule, hp_rule))
-                persist_list.append(hp_rule)
-
-        persist_list.append(sorted_rules[-1])
-        LOG.debug('persist rules::: %s' % Set(persist_list))
-        redundant_rules = (Set(sorted_rules) - Set(persist_list))
-
-        for del_rule in redundant_rules:
-            LOG.debug('Removing redundant rule: %s' % del_rule)
-            context.session.delete(del_rule)
+        return overlapping_rules, deleted_rules, added_rules
 
     def _get_tenant_default_router_rules(self, tenant):
         rules = cfg.CONF.ROUTER.tenant_default_router_rule
@@ -287,172 +314,6 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             if tenant_id == tenant:
                 tenant_set.append(parsed_rule)
         return tenant_set if tenant_set else default_set
-
-    def _reset_to_router_default(self, context, router):
-        tenant_id = self._get_tenant_id_for_create(context, router)
-        # set default router rules
-        rules = self._get_tenant_default_router_rules(tenant_id)
-        # delete all existing
-        (context.session.query(RouterRule)
-         .filter_by(router_id=router['id']).delete())
-        min_priority = MAX_PRIORITY
-        for new_rule_dict in rules:
-            if min_priority <= MIN_PRIORITY_DIFF:
-                raise Exception("Exhausted number of rules")
-            new_rule = RouterRule(
-                priority=min_priority,
-                router_id=router['id'],
-                destination=new_rule_dict['destination'],
-                source=new_rule_dict['source'],
-                action=new_rule_dict['action'],
-                nexthops=[NextHop(nexthop=hop)
-                          for hop in new_rule_dict['nexthops']])
-            context.session.add(new_rule)
-            min_priority = min_priority - MIN_PRIORITY_DIFF
-        return
-
-    def _perform_compaction_and_update(self, context, router, rules):
-        """Given the set of rules, generates a diff between existing and
-        new rule set. Add or remove rule based on the diff.
-
-        If new rule is covered by an existing rule, it is ignored. If it
-        nullifies an existing rule, the existing rule is removed.
-
-        If removing a rule nullifies an existing rule, the existing rule is
-        removed.
-        """
-        LOG.debug('Update router rules::: %s', rules)
-        old_rules = (context.session.query(RouterRule)
-                     .filter_by(router_id=router['id']).all())
-        LOG.debug('Existing router rules::: %s', old_rules)
-
-        # reset rules
-        if rules and rules[0]['priority'] == -2:
-            # reset operation
-            return self._reset_to_router_default(context, router)
-
-        # delete rules
-        if len(old_rules) > len(rules):
-            # its a delete operation
-            old_rules_dict = self._make_router_rule_list(old_rules)
-            delete_rules = self._get_rule_diff(rules, old_rules_dict)
-
-            for del_rule in delete_rules:
-                LOG.debug('Removing rule: %s' % del_rule)
-                (context.session.query(RouterRule)
-                 .filter_by(id=del_rule['id']).delete())
-            self._remove_redundant_rules(context, router_id=router['id'])
-            return
-
-        # add rules
-        new_rules_list = self._get_rule_diff(old_rules, rules)
-        if new_rules_list:
-            new_rules_list = sorted(new_rules_list,
-                                    key=lambda k: k['priority'], reverse=True)
-        for new_rule_dict in new_rules_list:
-            old_rules = (context.session.query(RouterRule)
-                         .filter_by(router_id=router['id']).all())
-            if new_rule_dict['priority'] == -1:
-                # totally new rule
-                LOG.debug('Adding new rule %s' % new_rule_dict)
-                # trying to add a new rule with highest priority
-                id_cleanup_needed, min_priority = self._min_priority(old_rules)
-                if id_cleanup_needed:
-                    LOG.debug('Could not get a new min_priority. Compacting '
-                              'and reassigning existing priorities')
-                    min_priority = self._cleanup_priority_get_min(
-                        context, old_rules)
-                    LOG.debug('old_rules after id cleanup %s' % old_rules)
-
-                LOG.debug('New rule priority is %s' % min_priority)
-                new_rule = RouterRule(
-                        priority=min_priority,
-                        router_id=router['id'],
-                        destination=new_rule_dict['destination'],
-                        source=new_rule_dict['source'],
-                        action=new_rule_dict['action'],
-                        nexthops=[NextHop(nexthop=hop)
-                                  for hop in new_rule_dict['nexthops']])
-            else:
-                # add rule with priority specified in the input
-                LOG.debug('Insert rule with specified priority: %s'
-                          % new_rule_dict)
-                new_rule = RouterRule(
-                    priority=new_rule_dict['priority'],
-                    router_id=router['id'],
-                    destination=new_rule_dict['destination'],
-                    source=new_rule_dict['source'],
-                    action=new_rule_dict['action'],
-                    nexthops=[NextHop(nexthop=hop)
-                              for hop in new_rule_dict['nexthops']])
-                context.session.add(new_rule)
-
-            # common processing for new rules
-            # exact opposite exists
-            opp_exists, opp_rule = self._opposite_rule_exists(
-                context, old_rules, new_rule)
-            if opp_exists:
-                # remove opposite
-                LOG.debug('Removing exact opposite rule: %s' % opp_rule)
-                context.session.delete(opp_rule)
-
-            # exact same rule with lower priority
-            identical_exists, identical_rule = self._identical_rule_exists(
-                context, old_rules, new_rule)
-            if identical_exists:
-                LOG.debug('Removing identical rule: %s' % identical_rule)
-                context.session.delete(identical_rule)
-
-            # query again, since some rules may have been deleted
-            old_rules = (context.session.query(RouterRule)
-                         .filter_by(router_id=router['id']).all())
-
-            # lazy flush takes care of the delete
-            same_action_rules = self._get_same_action_rules(
-                old_rules, new_rule.action)
-            # sort same action rules with high->low priority i.e. lower number
-            # first
-            sorted_same_action_rules = sorted(same_action_rules,
-                                              key=lambda k: k['priority'])
-
-            # default is apply_rule
-            apply_rule, rule_obj = True, new_rule
-            for old_rule in sorted_same_action_rules:
-                if self._rule_a_superset_rule_b(rule_a=old_rule,
-                                                rule_b=new_rule):
-                    apply_rule, rule_obj = False, old_rule
-                    LOG.debug('Found existing superset rule: %s' % old_rule)
-                    break
-            if apply_rule:
-                for old_rule in sorted_same_action_rules:
-                    if self._rule_a_superset_rule_b(rule_a=new_rule,
-                                                    rule_b=old_rule):
-                        # remove old_rule
-                        LOG.debug('Found existing rule, subset of new rule: %s'
-                                  % old_rule)
-                        context.session.delete(old_rule)
-                # apply the new rule
-                context.session.add(new_rule)
-            else:
-                reverse_action_rules = self._filter_opposite_rules(rule_obj,
-                                                                   old_rules)
-                for rule in reverse_action_rules:
-                    if self._rule_a_obstructs_rule_b(rule_a=rule,
-                                                     rule_b=rule_obj):
-                        # apply new rule
-                        LOG.debug('Higher priority opposite rule exists, '
-                                  'applying the new rule: %s' % new_rule)
-                        context.session.add(new_rule)
-            # remove redundant rules
-            self._remove_redundant_rules(context, router_id=router['id'])
-
-    def _update_router_rules(self, context, router, rules):
-        if len(rules) > cfg.CONF.ROUTER.max_router_rules:
-            raise routerrule.RulesExhausted(
-                router_id=router['id'],
-                quota=cfg.CONF.ROUTER.max_router_rules)
-        self._perform_compaction_and_update(context, router, rules)
-        context.session.flush()
 
     def _make_router_rule_list(self, router_rules):
         ruleslist = []
