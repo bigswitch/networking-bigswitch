@@ -78,8 +78,8 @@ from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
-from neutron.extensions import portbindings
 
+from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib.plugins import directory
 
