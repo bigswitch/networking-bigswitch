@@ -21,7 +21,7 @@ from oslo_config import cfg
 
 from neutron.agent.common import config as agconfig
 from neutron.common import utils
-from neutron.extensions import portbindings
+from neutron_lib.api.definitions import portbindings
 
 restproxy_opts = [
     cfg.ListOpt('servers', default=['localhost:8800'],

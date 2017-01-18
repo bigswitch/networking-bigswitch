@@ -29,9 +29,9 @@ from neutron.callbacks import resources
 from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
-from neutron.extensions import portbindings
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
+from neutron_lib.api.definitions import portbindings
 from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
