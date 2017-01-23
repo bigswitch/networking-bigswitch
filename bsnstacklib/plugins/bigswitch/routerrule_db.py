@@ -31,7 +31,17 @@ NextHop = routerrule_db.BsnNextHop
 # Constant for now, can be exposed via properties file
 MAX_PRIORITY = 3000
 MIN_PRIORITY_DIFF = 10
-DEFAULT_RULE_PRIORITY = -1
+# a single default rule allowed and priority is 14000
+DEFAULT_RULE_PRIORITY = 14000
+
+
+class RouterRuleException(n_exc.NeutronException):
+    message = _("Error in Router rule operation: %(error_msg)s")
+    status = None
+
+    def __init__(self, **kwargs):
+        self.tenant = kwargs.get('error_msg')
+        super(RouterRuleException, self).__init__(**kwargs)
 
 
 class IPCidr(IPNetwork):
@@ -64,33 +74,32 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         with context.session.begin(subtransactions=True):
             router_db = super(RouterRule_db_mixin, self).create_router(
                 context, router)
-            if 'router_rules' in r:
-                LOG.debug('CREATE ROUTER with router from DB %s' % router_db)
-                # create default rules if needed
-                all_rules = (context.session.query(RouterRule)
-                             .filter_by(tenant_id=r['tenant_id'])
-                             .all())
-                LOG.debug('Existing rules for given tenant are %s'
-                          % str(all_rules))
+            tenant_id = router_db['tenant_id']
+            if 'tenant_id' in r:
+                tenant_id = r['tenant_id']
 
-                existing_rule_priorities = [int(old_rule['priority'])
-                                            for old_rule in all_rules]
-                for rule in r['router_rules']:
-                    if self._is_rule_in_set_ignore_priority(all_rules, rule):
-                        pass
-                    else:
-                        new_prio = self._get_priority(existing_rule_priorities)
-                        new_rule = RouterRule(
-                            priority=new_prio,
-                            tenant_id=r['tenant_id'],
-                            router_id=router_db['id'],
-                            destination=rule['destination'],
-                            source=rule['source'],
-                            action=rule['action'],
-                            nexthops=[NextHop(nexthop=hop)
-                                      for hop in rule['nexthops']])
-                        context.session.add(new_rule)
-                        existing_rule_priorities.append(new_prio)
+            if 'router_rules' in r and len(r['router_rules']) > 0:
+                LOG.debug('CREATE ROUTER with router from DB %s' % router_db)
+                # check if default rule exists
+                existing_def_rule = (context.session.query(RouterRule)
+                                     .filter_by(tenant_id=tenant_id)
+                                     .filter_by(priority=DEFAULT_RULE_PRIORITY)
+                                     .one_or_none())
+                # if not, then create it
+                if not existing_def_rule:
+                    # we only allow one default
+                    rule = r['router_rules'][0]
+                    LOG.debug('Default rule for tenant does not exist.')
+                    new_rule = RouterRule(
+                        priority=DEFAULT_RULE_PRIORITY,
+                        tenant_id=tenant_id,
+                        router_id=router_db['id'],
+                        destination=rule['destination'],
+                        source=rule['source'],
+                        action=rule['action'],
+                        nexthops=[NextHop(nexthop=hop)
+                                  for hop in rule['nexthops']])
+                    context.session.add(new_rule)
 
             router_db['router_rules'] = self._get_router_rules_by_router_id(
                 context, router_db['id'])
@@ -117,61 +126,61 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         another router
         """
         with context.session.begin(subtransactions=True):
+            existing_def_rule = (context.session.query(RouterRule)
+                                 .filter_by(tenant_id=tenant_id)
+                                 .filter_by(priority=DEFAULT_RULE_PRIORITY)
+                                 .one_or_none())
+            if existing_def_rule:
+                LOG.debug('Tenant has default rule after router deletion. '
+                          'No further processing needed.')
+
             tenant_rules = (context.session.query(RouterRule)
                             .filter_by(tenant_id=tenant_id).all())
 
             if not tenant_rules:
                 # tenant doesn't have another router, return
-                LOG.debug("Tenant doesn't have another router, return!")
+                LOG.debug("Tenant doesn't have another router after router "
+                          "deletion. No further processing needed.")
                 return
 
             # If the default rules were associated with that router, add it
             # again with the next available router
-            default_rules = self._get_tenant_default_router_rules(tenant_id)
-            for def_rule in default_rules:
-                if self._is_rule_in_set_ignore_priority(tenant_rules,
-                                                        def_rule):
-                    # either all defaults are removed or none are
-                    # since one rule is present, return, we're good
-                    LOG.debug('Default rule %s present, returning!' % def_rule)
-                    return
-
-            # default rules not found in existing list and another router
-            # exists add default rules with the next available router
-            existing_router_id = tenant_rules[0]['router_id']
-            existing_prio_list = [int(rule['priority'])
-                                  for rule in tenant_rules]
-            for def_rule in default_rules:
-                new_prio = self._get_priority(existing_prio_list)
+            default_rule = self._get_tenant_default_router_rule(tenant_id)
+            if (default_rule and
+                    not self._is_rule_in_set_ignore_priority(tenant_rules,
+                                                             default_rule)):
+                # get the next available router_id
+                existing_router_id = tenant_rules[0]['router_id']
+                # default rule not found in existing set,
+                # insert it with the next available router_id.
                 new_rule = RouterRule(
-                    priority=new_prio,
+                    priority=DEFAULT_RULE_PRIORITY,
                     tenant_id=tenant_id,
                     router_id=existing_router_id,
-                    destination=def_rule['destination'],
-                    source=def_rule['source'],
-                    action=def_rule['action'],
+                    destination=default_rule['destination'],
+                    source=default_rule['source'],
+                    action=default_rule['action'],
                     nexthops=[NextHop(nexthop=hop)
-                              for hop in def_rule['nexthops']])
+                              for hop in default_rule['nexthops']])
                 context.session.add(new_rule)
-                existing_prio_list.append(new_prio)
-
-            # flush before requery
-            context.session.flush()
-            # return the updated router object
-            router = super(RouterRule_db_mixin, self).get_router(
-                context, existing_router_id)
-            router['router_rules'] = self._get_router_rules_by_router_id(
-                context, id)
-            LOG.debug('Returning router obj after applying default rules %s'
-                      % router)
-            return router
+                # flush before requery
+                context.session.flush()
+                # return the updated router object
+                router = super(RouterRule_db_mixin, self).get_router(
+                    context, existing_router_id)
+                router['router_rules'] = self._get_router_rules_by_router_id(
+                    context, id)
+                LOG.debug('Returning router obj after applying default '
+                          'rules %s' % router)
+                return router
 
     def _get_priority(self, existing_rule_priorities):
         new_prio = MAX_PRIORITY
         while new_prio in existing_rule_priorities:
             new_prio = new_prio - 1
         if new_prio < 1:
-            raise("All router rule priorities are exhausted!")
+            raise RouterRuleException(
+                error_msg="All router rule priorities are exhausted!")
         return new_prio
 
     def _update_router_rules(self, context, router, rules):
@@ -293,10 +302,13 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
 
         return overlapping_rules, deleted_rules, added_rules
 
-    def _get_tenant_default_router_rules(self, tenant):
+    def _get_tenant_default_router_rule(self, tenant):
+        """
+        Returns a rule dictionary. Can be empty.
+        """
         rules = cfg.CONF.ROUTER.tenant_default_router_rule
-        default_set = []
-        tenant_set = []
+        default_rule = {}
+        tenant_rule = {}
         for rule in rules:
             items = rule.split(':')
             # put an empty string on the end if nexthops wasn't specified
@@ -313,10 +325,19 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                            'nexthops': [hop for hop in nexthops.split(',')
                                         if hop]}
             if tenant_id == '*':
-                default_set.append(parsed_rule)
+                if default_rule:
+                    # a default rule already exists
+                    raise RouterRuleException(
+                        error_msg='Number of default rules exceeds the '
+                                  'limit of 1!')
+                default_rule = parsed_rule
             if tenant_id == tenant:
-                tenant_set.append(parsed_rule)
-        return tenant_set if tenant_set else default_set
+                if tenant_rule:
+                    raise RouterRuleException(
+                        error_msg='Number of tenant specific router rules '
+                                  'exceeds the limit of 1!')
+                tenant_rule = parsed_rule
+        return tenant_rule if tenant_rule else default_rule
 
     def _make_router_rule_list(self, router_rules):
         ruleslist = []

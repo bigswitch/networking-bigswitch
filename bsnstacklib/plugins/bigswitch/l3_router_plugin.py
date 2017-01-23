@@ -76,8 +76,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         tenant_id = self._get_tenant_id_for_create(context, router["router"])
 
         # set default router rules
-        rules = self._get_tenant_default_router_rules(tenant_id)
-        router['router']['router_rules'] = rules
+        rules = self._get_tenant_default_router_rule(tenant_id)
+        router['router']['router_rules'] = [rules]
 
         with context.session.begin(subtransactions=True):
             # create router in DB
