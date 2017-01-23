@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20153.36.7
+Version:        20153.36.8
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,10 +118,12 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.8
+- OSP-6 support MLR in bsnstacklib
 * Thu Dec 1 2016 Aditya/Sarath Kumar - 20153.36.7
-  BVS-6548: Raise exception when creating objects with illegal name chars
+- BVS-6548: Raise exception when creating objects with illegal name chars
 * Thu Dec 1 2016 Sarath Kumar <sarath@bigswitch.com> - 20153.36.6
-  BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
+- BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
 * Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.3-1
 - BVS-6563 allow non admin user to assign floating IP
 * Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.1-1
