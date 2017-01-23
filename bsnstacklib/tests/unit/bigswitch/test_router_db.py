@@ -655,17 +655,14 @@ class RouterDBTestCase(RouterDBTestBase,
 
     def test_router_rules_config_change(self):
         cfg.CONF.set_override('tenant_default_router_rule',
-                              ['*:any:any:deny',
+                              ['tenant_name:any:any:deny',
                                '*:8.8.8.8/32:any:permit:1.2.3.4'],
                               'ROUTER')
         with self.router() as r:
             body = self._show('routers', r['router']['id'])
-            expected_rules = [{'priority': 3000,
-                               'source': 'any',
-                               'destination': 'any',
-                               'action': 'deny',
-                               'nexthops': []},
-                              {'priority': 2999,
+            # because the specific tenant name won't match, the default rule
+            # is applied with default priority
+            expected_rules = [{'priority': 14000,
                                'source': '8.8.8.8/32',
                                'destination': 'any',
                                'action': 'permit',
