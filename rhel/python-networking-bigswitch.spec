@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.40.0
+Version:        9.40.1
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,5 +118,7 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.1
+- OSP-6 support MLR in bsnstacklib
 * Wed Nov 09 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.0
 - initialize newton branch
