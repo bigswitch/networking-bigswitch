@@ -80,10 +80,13 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             if 'router_rules' in r and len(r['router_rules']) > 0:
                 LOG.debug('CREATE ROUTER with router from DB %s' % router_db)
                 # check if default rule exists
-                existing_def_rule = (context.session.query(RouterRule)
-                                     .filter_by(tenant_id=tenant_id)
-                                     .filter_by(priority=DEFAULT_RULE_PRIORITY)
-                                     .one_or_none())
+                existing_rules = (context.session.query(RouterRule)
+                                  .filter_by(tenant_id=tenant_id)
+                                  .filter_by(priority=DEFAULT_RULE_PRIORITY)
+                                  .all())
+                existing_def_rule = None
+                if existing_rules:
+                    existing_def_rule = existing_rules[0]
                 # if not, then create it
                 if not existing_def_rule:
                     # we only allow one default
@@ -125,10 +128,13 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         another router
         """
         with context.session.begin(subtransactions=True):
-            existing_def_rule = (context.session.query(RouterRule)
-                                 .filter_by(tenant_id=tenant_id)
-                                 .filter_by(priority=DEFAULT_RULE_PRIORITY)
-                                 .one_or_none())
+            existing_rules = (context.session.query(RouterRule)
+                              .filter_by(tenant_id=tenant_id)
+                              .filter_by(priority=DEFAULT_RULE_PRIORITY)
+                              .all())
+            existing_def_rule = None
+            if existing_rules:
+                existing_def_rule = existing_rules[0]
             if existing_def_rule:
                 LOG.debug('Tenant has default rule after router deletion. '
                           'No further processing needed.')
