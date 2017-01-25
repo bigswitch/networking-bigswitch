@@ -55,6 +55,9 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 context, id, router)
             updated['router_rules'] = self._get_router_rules_by_router_id(
                 context, id)
+            updated['router_tenant_rules'] = \
+                self._get_router_rules_by_tenant_id(context,
+                                                    router_db['tenant_id'])
 
         return updated
 
@@ -110,10 +113,12 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 context.session.flush()
             super(RouterRule_db_mixin, self).delete_router(context, router_id)
 
-    def apply_default_post_delete(self, context, tenant_id):
+    def update_policies_post_delete(self, context, tenant_id):
         """
-        After deletion of router, check if defaults need to be applied to
-        another router
+        After deletion of router, check if another router exists for the
+        tenant.
+        If yes, update the policies to remove any existing policies for the
+        deleted router.
         """
         with context.session.begin(subtransactions=True):
             tenant_rules = (context.session.query(RouterRule)
@@ -124,24 +129,23 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 LOG.debug("Tenant doesn't have another router, return!")
                 return
 
+            existing_def_rule = None
+            for rule in tenant_rules:
+                if rule['priority'] == DEFAULT_RULE_PRIORITY:
+                    LOG.debug('Tenant has default rule after router deletion.'
+                              ' %s' % rule)
+                    existing_def_rule = rule
+
+            # get the next available router_id
+            existing_router_id = tenant_rules[0]['router_id']
+
             # If the default rules were associated with that router, add it
             # again with the next available router
-            default_rules = self._get_tenant_default_router_rules(tenant_id)
-            for def_rule in default_rules:
-                if self._is_rule_in_set_ignore_priority(tenant_rules,
-                                                        def_rule):
-                    # either all defaults are removed or none are
-                    # since one rule is present, return, we're good
-                    LOG.debug('Default rule %s present, returning!' % def_rule)
-                    return
-
-            # default rules not found in existing list and another router
-            # exists add default rules with the next available router
-            existing_router_id = tenant_rules[0]['router_id']
-            existing_prio_list = [int(rule['priority'])
-                                  for rule in tenant_rules]
-            for def_rule in default_rules:
-                new_prio = self._get_priority(existing_prio_list)
+            if not existing_def_rule:
+                default_rule = self._get_tenant_default_router_rule(tenant_id)
+                # insert the default rule
+                # default rule not found in existing set,
+                # insert it with the next available router_id.
                 new_rule = RouterRule(
                     priority=new_prio,
                     tenant_id=tenant_id,
@@ -152,17 +156,18 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                     nexthops=[NextHop(nexthop=hop)
                               for hop in def_rule['nexthops']])
                 context.session.add(new_rule)
-                existing_prio_list.append(new_prio)
+                # flush before requery
+                context.session.flush()
 
-            # flush before requery
-            context.session.flush()
             # return the updated router object
             router = super(RouterRule_db_mixin, self).get_router(
                 context, existing_router_id)
             router['router_rules'] = self._get_router_rules_by_router_id(
                 context, id)
-            LOG.debug('Returning router obj after applying default rules %s'
-                      % router)
+            router['router_tenant_rules'] = \
+                self._get_router_rules_by_tenant_id(context, tenant_id)
+            LOG.debug('Returning router obj after applying default '
+                      'rules %s' % router)
             return router
 
     def _get_priority(self, existing_rule_priorities):
@@ -332,6 +337,11 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
     def _get_router_rules_by_router_id(self, context, id):
         query = context.session.query(RouterRule)
         router_rules = query.filter_by(router_id=id).all()
+        return self._make_router_rule_list(router_rules)
+
+    def _get_router_rules_by_tenant_id(self, context, tenant_id):
+        query = context.session.query(RouterRule)
+        router_rules = query.filter_by(tenant_id=tenant_id).all()
         return self._make_router_rule_list(router_rules)
 
     def _get_tenant_id_for_create(self, context, resource):
