@@ -131,6 +131,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # update router on network controller
             self.servers.rest_update_router(tenant_id, router, router_id)
 
+            # pop router_tenant_rules
+            if 'router_tenant_rules' in new_router:
+                del new_router['router_tenant_rules']
+
             # return updated router
             return new_router
 
@@ -160,7 +164,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # added check to update router policy for another router for
             # default routes
             updated_router = (super(L3RestProxy, self)
-                              .apply_default_post_delete(context, tenant_id))
+                              .update_policies_post_delete(context, tenant_id))
 
             # delete from network controller
             self.servers.rest_delete_router(tenant_id, router_id)
