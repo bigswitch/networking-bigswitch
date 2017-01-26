@@ -105,6 +105,9 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
 
             router_db['router_rules'] = self._get_router_rules_by_router_id(
                 context, router_db['id'])
+            router_db['router_tenant_rules'] = \
+                self._get_router_rules_by_tenant_id(context,
+                                                    router_db['tenant_id'])
             LOG.debug('Router created as %s' % router_db)
 
         return router_db
@@ -130,14 +133,21 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         deleted router.
         """
         with context.session.begin(subtransactions=True):
-            tenant_rules = (context.session.query(RouterRule)
-                            .filter_by(tenant_id=tenant_id).all())
+            upstream_routers = super(RouterRule_db_mixin, self).get_routers(
+                context, filters={"tenant_id": [tenant_id]})
 
-            if not tenant_rules:
+            LOG.debug('upstream_routers are: %s' % upstream_routers)
+            if not upstream_routers:
                 # tenant doesn't have another router, return
                 LOG.debug("Tenant doesn't have another router after router "
                           "deletion. No further processing needed.")
                 return
+
+            # get the next available router_id
+            existing_router_id = upstream_routers[0]['id']
+
+            tenant_rules = (context.session.query(RouterRule)
+                            .filter_by(tenant_id=tenant_id).all())
 
             existing_def_rule = None
             for rule in tenant_rules:
@@ -145,9 +155,6 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                     LOG.debug('Tenant has default rule after router deletion.'
                               ' %s' % rule)
                     existing_def_rule = rule
-
-            # get the next available router_id
-            existing_router_id = tenant_rules[0]['router_id']
 
             # If the default rules were associated with that router, add it
             # again with the next available router
@@ -173,7 +180,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             router = super(RouterRule_db_mixin, self).get_router(
                 context, existing_router_id)
             router['router_rules'] = self._get_router_rules_by_router_id(
-                context, id)
+                context, existing_router_id)
             router['router_tenant_rules'] = \
                 self._get_router_rules_by_tenant_id(context, tenant_id)
             LOG.debug('Returning router obj after applying default '
