@@ -45,6 +45,11 @@ def upgrade():
     # set the tenant_id column nullable to false
     op.alter_column('bsn_routerrules', 'tenant_id',
                     existing_type=sa.String(length=255), nullable=False)
+    # update default rule priority. only to be executed if the constraint
+    # addition succeeds in the previous statement.
+    connection.execute("UPDATE bsn_routerrules "
+                       "SET priority = 14000 "
+                       "WHERE priority = 3000;")
 
     # drop the existing unique key constraint
     op.drop_constraint('unique_prio_rid', 'bsn_routerrules', type_='unique')
