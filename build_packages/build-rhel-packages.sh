@@ -2,12 +2,24 @@
 
 DOCKER_IMAGE=$DOCKER_REGISTRY'/horizon-bsn-builder:latest'
 BUILD_OS=centos7-x86_64
-CURR_VERSION=$(awk '/^version/{print $3}' setup.cfg)
 
 docker pull $DOCKER_IMAGE
 
 BUILDDIR=$(mktemp -d)
 mkdir -p $BUILDDIR/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+# update spec file with correct version number and changelog
+# NOTE update refs/tags/10.*.* according to version string for each branch
+# latest version
+CURR_VERSION=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
+# get changelog for tags
+CHANGE_LOG=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
+# replace newline chars with \n
+CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
+# remove timestamp from changelog string
+CHANGE_LOG=`echo "$CHANGE_LOG" | sed -E "s/[0-9]{2}:[0-9]{2}:[0-9]{2}\ //g"`
+# replace variables in spec file
+sed -i -e "s/\${version_number}/$version_number/" -e "s/\${change_log}/$CHANGE_LOG/" rhel/python-networking-bigswitch.spec
 
 cp dist/* $BUILDDIR/SOURCES/
 cp rhel/*.service $BUILDDIR/SOURCES/
