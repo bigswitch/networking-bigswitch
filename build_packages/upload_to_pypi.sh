@@ -1,7 +1,10 @@
 #!/bin/bash -eux
 # install twine, to be added to infra puppet script
 sudo -H pip install twine
-CURR_VERSION=$(awk '/^version/{print $3}' setup.cfg)
+
+# get version info from tags
+git fetch --tags
+CURR_VERSION=$(git describe --tags)
 
 # get pypi and gpg creds in place
 mv $PYPIRC_FILE ~/.pypirc
