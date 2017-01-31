@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.42.7
+Version:        ${version_number}
 Release:        1%{?dist}
 Epoch:          2
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,52 +120,4 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
-* Thu Jul 06 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.7
-- EXT-78: mitaka to newton upgrade has stale conf file
-- update build script to fix SNI warning during upload to pypi
-* Wed Jul 05 2017 Sarath Kumar <sarath@bigswitch.com> - 9.42.6
-- OSP-112: increase the keystone_sync interval
-- OSP-112: make DB lock owner check and Hash update single transaction
-* Mon Jun 26 2017 Sarath Kumar <sarath@bigswitch.com> - 9.42.5
-- OSP-112: dbdeadlock in scaling P+V setup
-* Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.4
-- OSP-36: update translation to one from plugin
-- OSP-103: fix testpath with special char in tenant/segment
-- cleanup: move function call debug log msg into decorator
-- BVS-5916: special character error message update
-- OSP-64: in case of sriov, do not get interface list from redhat utils
-- OSP-68: handle VM detach operation
-- OSP-76: perform delete on secondary network regardless
-- OSP-72: cleanup popping of subnet name
-- OSP-72: allow subnets without name instead of raising error
-- Revert "OSP-45: improve error visibility on GUI"
-* Wed May 03 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.3
-- OSP-29: allow LACP convergence when only one link is up
-* Mon May 01 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.2
-- BVS-8259: skip upstream method override
-* Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.1
-- OSP-43: skip pci passthrough during topo-sync
-- BVS-5916: ensure special chars are handled for tenant as well
-- OSP-37: remove the misleading log message
-- BVS-5916: add more special characters
-- OSP-67: Dont create BCF segment for secondary active segment
-* Tue Apr 18 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.0
-- OSP-51: include all l3_router_plugin methods
-- Update version to 9.42.x for controller compatibility
-* Thu Apr 13 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.7
-- OSP-21: fix dangling move of files
-* Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.6
-- BVS-5916: handle special characters in object names
-* Thu Mar 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.5
-- OSP-51: add/remove router_interface transaction hack
-- OSP-50: make amends for rename tenant to project
-* Wed Mar 22 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.4
-- ensure keystone_auth is correctly fetched
-* Wed Mar 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.3
-- Revert "Revert OSP-6 support MLR in bsnstacklib"
-* Tue Feb 28 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.2
-- Revert OSP-6 support MLR in bsnstacklib
-* Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.1
-- OSP-6 support MLR in bsnstacklib
-* Wed Nov 09 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.0
-- initialize newton branch
+${change_log}
