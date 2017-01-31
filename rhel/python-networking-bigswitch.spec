@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.11
+Version:        ${version_number}
 Release:        1%{?dist}
 Epoch:          2
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,43 +120,4 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
-* Thu Jul 06 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.11
-- update build script to fix SNI warning during upload to pypi
-- mitaka is EOL-ed. update URL in test-requirement.txt
-- OSP-112: increase the keystone_sync interval
-- OSP-112: make DB lock owner check and Hash update single transaction
-* Mon Jun 26 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.10
-- OSP-112: dbdeadlock in scaling P+V setup
-* Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.9
-- OSP-36: update translation to one from plugin
-- OSP-103: fix testpath with special char in tenant/segment
-- BVS-5916: special character error message update
-- OSP-72: cleanup popping of subnet name
-- OSP-72: allow subnets without name instead of raising error
-- OSP-29: allow LACP convergence when only one link is up
-- BVS-5916: add more special characters
-* Tue May 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.8
-- BVS-5916: ensure special chars are handled for tenant as well
-* Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.7
-- BVS-5916: handle special characters in object names
-* Wed Mar 1 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.6
-- BVS-7525: bsnstacklib: don't sync dangling objects to BCF
-* Mon Feb 14 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.5
-- OSP-33: allow uuid style names for openstack objects
-- OSP-22 update existing policy number with 14000
-- OSP-20 send updated tenant rules during topo sync
-- OSP-14 ensure router update doesn't overwrite existing policies
-* Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.4
-- OSP-6 support MLR in bsnstacklib
-* Thu Dec 1 2016 Aditya/Sarath Kumar - 8.40.3
-- BVS-6548: Raise exception when creating objects with illegal name chars
-- BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
-* Wed Aug 31 2016 Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com> - 8.40.1
-- BVS-6597: Add support for NFV switch for BSN's ML2 mechanism driver
-- BVS-6743: Update BSN Agent for NFV type compute nodes
-* Tue Jun 28 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.36.1
-- BVS-6563 allow non admin user to assign floating IP
-* Sat Jun 18 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.36.0
-- BVS-6440: allow duplicate testpath names across tenants
-* Mon Jun 06 2016 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.0.0
-- initialize mitaka with build automation
+${change_log}
