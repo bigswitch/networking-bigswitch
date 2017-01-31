@@ -2,14 +2,20 @@
 # install twine, to be added to infra puppet script
 sudo -H pip install urllib3[secure]
 sudo -H pip install twine
-CURR_VERSION=$(awk '/^version/{print $3}' setup.cfg)
+
+# get version info from tags
+git fetch --tags
+# TODO update refs/tags/10.*.* according to version string for each branch
+CURR_VERSION=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
+CURR_SUBJECT=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(subject)" --count=1`
 
 # get pypi and gpg creds in place
 mv $PYPIRC_FILE ~/.pypirc
 tar -zxvf $GNUPG_TAR -C ~/
 
 echo 'CURR_VERSION=' $CURR_VERSION
-git tag -f -s $CURR_VERSION -m $CURR_VERSION -u "Big Switch Networks"
+echo 'CURR_SUBJECT=' $CURR_SUBJECT
+git tag -f -s $CURR_VERSION -m "${CURR_SUBJECT}" -u "Big Switch Networks"
 
 python setup.py sdist
 
