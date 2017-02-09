@@ -21,7 +21,7 @@ from neutron_lib.db import model_base
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session
 import sqlalchemy as sa
-from sqlalchemy import event
+from sqlalchemy import event  # noqa
 
 MYSQL_ENGINE = None
 config = context.config
