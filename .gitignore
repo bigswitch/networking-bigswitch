@@ -8,7 +8,7 @@ dist/
 doc/build
 *.DS_Store
 *.pyc
-bsnstacklib.egg-info/
+networking_bigswitch.egg-info/
 neutron.egg-info/
 neutron/vcsversion.py
 neutron/versioninfo
