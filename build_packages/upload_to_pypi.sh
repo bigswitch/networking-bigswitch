@@ -14,9 +14,9 @@ python setup.py sdist
 
 # force success. but always check if pip install fails
 twine upload dist/* -r pypi -s -i "Big Switch Networks" || true
-# delay of 5 seconds
-sleep 5
-sudo -H pip install --upgrade bsnstacklib==$CURR_VERSION
+# delay of 10 seconds
+sleep 10
+sudo -H pip install --upgrade networking-bigswitch==$CURR_VERSION
 if [ "$?" -eq "0" ]
 then
   echo "PYPI upload successful."
@@ -24,7 +24,7 @@ else
   echo "PYPI upload FAILED. Check the logs."
 fi
 # remove the package
-sudo -H pip uninstall -y bsnstacklib
+sudo -H pip uninstall -y networking-bigswitch
 
 # remove pypi and gpg creds
 rm ~/.pypirc
