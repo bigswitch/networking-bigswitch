@@ -1,4 +1,5 @@
-%global pypi_name bsnstacklib
+%global pypi_name networking-bigswitch
+%global pypi_name_underscore networking_bigswitch
 %global rpm_name networking-bigswitch
 %global rpm_prefix openstack-neutron-bigswitch
 %global docpath doc/build/html
@@ -85,6 +86,7 @@ done
 %files
 %license LICENSE
 %{python2_sitelib}/%{pypi_name}
+%{python2_sitelib}/%{pypi_name_underscore}
 %{python2_sitelib}/*.egg-info
 
 %config %{_sysconfdir}/neutron/policy.d/bsn_plugin_policy.json
