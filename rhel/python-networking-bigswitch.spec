@@ -1,4 +1,4 @@
-%global pypi_name bsnstacklib
+%global pypi_name networking_bigswitch
 %global rpm_name networking-bigswitch
 %global rpm_prefix openstack-neutron-bigswitch
 %global docpath doc/build/html
