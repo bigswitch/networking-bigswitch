@@ -114,7 +114,7 @@ function run_tests {
     if [ "$testopts" = "" ] && [ "$testargs" = "" ]; then
       # Default to running all tests if specific test is not
       # provided.
-      testargs="discover ./bsnstacklib/tests"
+      testargs="discover ./networking_bigswitch/tests"
     fi
     ${wrapper} python -m testtools.run $testopts $testargs
 
@@ -134,7 +134,7 @@ function run_tests {
   set +e
   testargs=`echo "$testargs" | sed -e's/^\s*\(.*\)\s*$/\1/'`
   TESTRTESTS="$TESTRTESTS --testr-args='--subunit $testopts $testargs'"
-  OS_TEST_PATH=`echo $testargs|grep -o 'bsnstacklib\.tests[^[:space:]:]\+'|tr . /`
+  OS_TEST_PATH=`echo $testargs|grep -o 'networking_bigswitch\.tests[^[:space:]:]\+'|tr . /`
   if [ -n "$OS_TEST_PATH" ]; then
       os_test_dir=$(dirname "$OS_TEST_PATH")
   else
@@ -156,7 +156,7 @@ function run_tests {
     echo "Generating coverage report in covhtml/"
     # Don't compute coverage for common code, which is tested elsewhere
     ${wrapper} coverage combine
-    ${wrapper} coverage html --include='bsnstacklib/*' --omit='bsnstacklib/openstack/common/*' -d covhtml -i
+    ${wrapper} coverage html --include='networking_bigswitch/*' --omit='networking_bigswitch/openstack/common/*' -d covhtml -i
   fi
 
   return $RESULT
