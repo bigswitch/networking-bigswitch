@@ -93,7 +93,7 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 
 # RE pattern for checking BCF supported names
-BCF_IDENTIFIER_RE = re.compile(r"[a-zA-Z][-.0-9a-zA-Z_]*")
+BCF_IDENTIFIER_UUID_RE = re.compile(r"[0-9a-zA-Z][-.0-9a-zA-Z_]*")
 
 
 class TenantIDNotFound(exceptions.NeutronException):
@@ -109,7 +109,7 @@ class UnsupportedNameException(exceptions.NeutronException):
     """
     Exception class to be raised when encountering object names with
     unsupported names. Namely those that do not conform to the regular
-    expression BCF_IDENTIFIER_RE
+    expression BCF_IDENTIFIER_UUID_RE
 
     :keyword obj_type
     :keyword obj_id
@@ -124,7 +124,7 @@ class UnsupportedTenantNameInObjectException(exceptions.NeutronException):
     """
     Exception class to be raised when objects have tenant names with
     unsupported characters. Namely those that do not conform to the regular
-    expression BCF_IDENTIFIER_RE
+    expression BCF_IDENTIFIER_UUID_RE
 
     :keyword obj_type
     :keyword obj_id
@@ -195,10 +195,10 @@ class ObjTypeEnum(Enum):
 
 def is_valid_bcf_name(name):
     """
-    :returns True if name matches BCF_IDENTIFIER_RE
+    :returns True if name matches BCF_IDENTIFIER_UUID_RE
     :returns False otherwise
     """
-    match_obj = BCF_IDENTIFIER_RE.match(name)
+    match_obj = BCF_IDENTIFIER_UUID_RE.match(name)
     if match_obj and match_obj.group(0) == name:
         return True
     return False
