@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20153.36.8
+Version:        20153.36.9
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,11 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Mon Feb 14 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.9
+- OSP-33: allow uuid style names for openstack objects
+- OSP-22 update existing policy number with 14000
+- OSP-20 send updated tenant rules during topo sync
+- OSP-14 ensure router update doesn't overwrite existing policies
 * Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.8
 - OSP-6 support MLR in bsnstacklib
 * Thu Dec 1 2016 Aditya/Sarath Kumar - 20153.36.7
