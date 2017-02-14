@@ -1,0 +1,8 @@
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 14 Feb 2017 17:24:22 +0000
+Reviewed-on: https://review.openstack.org/433787
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/newton
