@@ -312,15 +312,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             sgs = plugin.get_security_groups(admin_context) or []
             new_sgs = []
             for sg in sgs:
-                tenant_name = self.servers.keystone_tenants.get(
-                    sg['tenant_id'])
-                if not tenant_name:
-                    # If tenant is not known to keystone, skip security group
+                try:
+                    mapped_sg = self._map_tenant_name(sg)
+                    if not self._validate_names(mapped_sg):
+                        continue
+                    new_sgs.append(mapped_sg)
+                except servermanager.TenantIDNotFound:
+                    # if tenant name is not known to keystone, skip the sg
                     continue
-                sg['tenant_name'] = tenant_name
-                if not self._validate_names(sg):
-                    continue
-                new_sgs.append(sg)
 
             data.update({'security-groups': new_sgs})
 
@@ -384,15 +383,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     # BVS-7525: the 'tenant_id' in a floating-ip represents the
                     # tenant to which it is allocated. Validate that the
                     # tenant exists
-                    if flip.get('tenant_id'):
-                        self._map_tenant_name(flip)
+                    mapped_flip = self._map_tenant_name(flip)
+                    if mapped_flip.get('floating_port_id'):
+                        fport = self.get_port(context, mapped_flip['floating_port_id'])
+                        mapped_flip['floating_mac_address'] = fport.get('mac_address')
+                    floating_ips.append(mapped_flip)
                 except servermanager.TenantIDNotFound:
                     # if tenant name is not known to keystone, skip it
                     continue
-                if flip.get('floating_port_id'):
-                    fport = self.get_port(context, flip['floating_port_id'])
-                    flip['floating_mac_address'] = fport.get('mac_address')
-                floating_ips.append(flip)
+
             network['floatingips'] = floating_ips
 
         return network
