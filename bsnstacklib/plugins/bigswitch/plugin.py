@@ -359,14 +359,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
                                         data, errstr, timeout=timeout)
 
-    def _format_network_name(self, net_name):
-        return net_name.replace(' ', '-')
+    def _format_resource_name(self, name):
+        return name.replace(' ', '-')
 
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
                                  servermanager.SERVICE_TENANT)
-        # network name may contain space. Replace space with -
-        resource['name'] = self._format_network_name(resource['name'])
+        if resource.get('name'):
+            # resource name may contain space. Replace space with -
+            resource['name'] = self._format_resource_name(resource['name'])
 
     def _get_network_with_floatingips(self, network, context=None):
         if context is None:
@@ -377,11 +378,22 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if self.l3_plugin:
             fl_ips = self.l3_plugin.get_floatingips(context,
                                                     filters=net_filter) or []
+            floating_ips = []
             for flip in fl_ips:
+                try:
+                    # BVS-7525: the 'tenant_id' in a floating-ip represents the
+                    # tenant to which it is allocated. Validate that the
+                    # tenant exists
+                    if flip.get('tenant_id'):
+                        self._map_tenant_name(flip)
+                except servermanager.TenantIDNotFound:
+                    # if tenant name is not known to keystone, skip it
+                    continue
                 if flip.get('floating_port_id'):
                     fport = self.get_port(context, flip['floating_port_id'])
                     flip['floating_mac_address'] = fport.get('mac_address')
-            network['floatingips'] = fl_ips
+                floating_ips.append(flip)
+            network['floatingips'] = floating_ips
 
         return network
 
@@ -479,7 +491,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
-            mapped_network['name'] = self._format_network_name(
+            mapped_network['name'] = self._format_resource_name(
                 mapped_network['name'])
             self.bsn_create_tenant(servermanager.SERVICE_TENANT,
                                    context=context)
@@ -495,7 +507,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
-            net_fl_ips['name'] = self._format_network_name(
+            net_fl_ips['name'] = self._format_resource_name(
                 net_fl_ips['name'])
         self.servers.rest_update_network(tenant_id, net_id, net_fl_ips)
 
@@ -623,7 +635,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
                 e.status == httplib.NOT_FOUND and
                 servermanager.NXNETWORK in e.reason):
-                LOG.error(_LE("Iconsistency with backend controller "
+                LOG.error(_LE("Inconsistency with backend controller "
                               "triggering full synchronization."))
                 # args depend on if we are operating in ML2 driver
                 # or as the full plugin
