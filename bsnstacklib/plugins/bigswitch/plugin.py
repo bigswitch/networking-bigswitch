@@ -487,8 +487,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if default_group:
             # VRRP tenant doesn't have tenant_id
             self.bsn_create_security_group(sg=default_group[0])
-        mapped_network = self._get_mapped_network_with_subnets(network,
-                                                               context)
+
+        try:
+            mapped_network = self._get_mapped_network_with_subnets(network,
+                                                                   context)
+        except servermanager.TenantIDNotFound as e:
+            LOG.warning(_LW("Skipping create network %s as %s"),
+                        network.get('id'), e)
+            return
+
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
@@ -501,10 +508,17 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _send_update_network(self, network, context=None):
         net_id = network['id']
         tenant_id = network['tenant_id']
-        mapped_network = self._get_mapped_network_with_subnets(network,
-                                                               context)
-        net_fl_ips = self._get_network_with_floatingips(mapped_network,
-                                                        context)
+
+        try:
+            mapped_network = self._get_mapped_network_with_subnets(network,
+                                                                   context)
+            net_fl_ips = self._get_network_with_floatingips(mapped_network,
+                                                            context)
+        except servermanager.TenantIDNotFound as e:
+            LOG.warning(_LW("Skipping update network %s as %s"),
+                        net_id, e)
+            return
+
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
