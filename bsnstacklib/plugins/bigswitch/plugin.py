@@ -257,7 +257,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if get_routers and self.l3_plugin:
             routers = []
             all_routers = self.l3_plugin.get_routers(admin_context) or []
-            tenant_rules = {}
             for router in all_routers:
                 try:
                     # Add tenant_id of the external gateway network
@@ -289,23 +288,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         interfaces.append(intf_details)
                     mapped_router['interfaces'] = interfaces
 
-                    # consolidate policies on per tenant basis
-                    if 'router_rules' in router:
-                        if router['tenant_id'] not in tenant_rules:
-                            tenant_rules[router['tenant_id']] = []
-                        tenant_rules[router['tenant_id']].extend(
-                            mapped_router['router_rules'])
-
                     routers.append(mapped_router)
                 except servermanager.TenantIDNotFound:
                     # if tenant name is not known to keystone, skip the network
                     continue
-
-            # append router_tenant_rules to each router
-            for router in routers:
-                if router['tenant_id'] in tenant_rules:
-                    router['router_tenant_rules'] = tenant_rules[
-                        router['tenant_id']]
 
             data.update({'routers': routers})
 
