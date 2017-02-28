@@ -36,6 +36,7 @@ from neutron_lib.plugins import directory
 from bsnstacklib.plugins.bigswitch import extensions
 from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
+from bsnstacklib.plugins.bigswitch.i18n import _LW
 from bsnstacklib.plugins.bigswitch import plugin as cplugin
 from bsnstacklib.plugins.bigswitch import routerrule_db
 from bsnstacklib.plugins.bigswitch import servermanager
@@ -83,8 +84,13 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # create router in DB
             new_router = super(L3RestProxy, self).create_router(context,
                                                                 router)
-            mapped_router = self._map_tenant_name(new_router)
-            mapped_router = self._map_state_and_status(mapped_router)
+            try:
+                mapped_router = self._map_tenant_name(new_router)
+                mapped_router = self._map_state_and_status(mapped_router)
+            except servermanager.TenantIDNotFound as e:
+                LOG.warning(_LW("Skipping create for router %s as %s"),
+                            router["router"].get('id'), e)
+                return
             # populate external tenant_id if it is absent for external network,
             # This is a new work flow in kilo that user can specify external
             # network when creating a router
@@ -116,7 +122,12 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         with context.session.begin(subtransactions=True):
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
-            router = self._update_ext_gateway_info(context, new_router)
+            try:
+                router = self._update_ext_gateway_info(context, new_router)
+            except servermanager.TenantIDNotFound as e:
+                LOG.warning(_LW("Skipping update for router %s as %s"),
+                            router_id, e)
+                return
             # pop router_tenant_rules from upstream object
             if 'router_tenant_rules' in new_router:
                 del new_router['router_tenant_rules']
@@ -160,7 +171,12 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 # update BCF after removing the router first
                 LOG.debug('Default policies now part of router: %s'
                           % updated_router)
-                router = self._update_ext_gateway_info(context, updated_router)
+                try:
+                    router = self._update_ext_gateway_info(context, updated_router)
+                except servermanager.TenantIDNotFound as e:
+                    LOG.warning(_LW("Skipping delete router %s as %s"),
+                                router_id, e)
+                    return
                 self.servers.rest_update_router(tenant_id, router,
                                                 router['id'])
 
@@ -179,9 +195,15 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                                                              interface_info)
             port = self._get_port(context, new_intf_info['port_id'])
             subnet_id = new_intf_info['subnet_id']
-            # we will use the port's subnet id as interface's id
-            intf_details = self._get_router_intf_details(context,
-                                                         subnet_id)
+
+            try:
+                # we will use the port's subnet id as interface's id
+                intf_details = self._get_router_intf_details(context,
+                                                             subnet_id)
+            except servermanager.TenantIDNotFound as e:
+                LOG.warning(_LW("Skipping add iface on router %s as %s"),
+                            router_id, e)
+                return
 
             # get gateway_ip from port instead of gateway_ip
             if port.get("fixed_ips"):

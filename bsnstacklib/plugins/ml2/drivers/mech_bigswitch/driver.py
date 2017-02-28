@@ -256,8 +256,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                 context._plugin_context, context.current['id'],
                 const.PORT_STATUS_ACTIVE)
 
-        # create port on the network controller
-        port = self._prepare_port_for_controller(context)
+        try:
+            # create port on the network controller
+            port = self._prepare_port_for_controller(context)
+        except servermanager.TenantIDNotFound as e:
+            LOG.warning(_LW("Skipping create port %s as %s"),
+                        context.current.get('id'), e)
+            return
+
         if port:
             # For vhostuser type ports, membership rule and endpoint was
             # created during bind_port, so skip this
@@ -275,7 +281,13 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         # update port on the network controller
-        port = self._prepare_port_for_controller(context)
+        try:
+            port = self._prepare_port_for_controller(context)
+        except servermanager.TenantIDNotFound as e:
+            LOG.warning(_LW("Skipping update port %s as %s"),
+                        context.current.get('id'), e)
+            return
+
         if port:
             # For vhostuser type ports, membership rule and endpoint was
             # created during bind_port, so skip this
@@ -313,7 +325,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self.servers.rest_delete_port(tenant_id, net["id"], port['id'])
 
     def _prepare_port_for_controller(self, context):
-        # make a copy so the context isn't changed for other drivers
+        """
+        Make a copy so the context isn't changed for other drivers
+        :exception can throw servermanager.TenantIDNotFound
+        """
         port = copy.deepcopy(context.current)
         net = context.network.current
         port['network'] = net
