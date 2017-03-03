@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20153.36.9
+Version:        20153.36.10
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Wed March 1, 2017 Sarath Kumar <sarath@bigswitch.com> - 20153.36.10
+- BVS-7525: bsnstacklib: don't sync dangling objects to BCF
 * Mon Feb 14 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.9
 - OSP-33: allow uuid style names for openstack objects
 - OSP-22 update existing policy number with 14000
