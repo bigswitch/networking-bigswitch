@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20154.36.7
+Version:        20154.36.10
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Wed Mar 1 2017 Sarath Kumar <sarath@bigswitch.com> - 20153.36.10
+  BVS-7525: bsnstacklib: don't sync dangling objects to BCF
 * Tue Nov 22 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.7
   BVS-7488 bsnstacklib: set MTU of all IVS (and related) interfaces to Jumbo
 * Tue Nov 8 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.6
