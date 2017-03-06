@@ -20,8 +20,8 @@ This module manages configuration options
 from oslo_config import cfg
 
 from neutron.agent.common import config as agconfig
-from neutron.common import utils
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.utils import net
 
 restproxy_opts = [
     cfg.ListOpt('servers', default=['localhost:8800'],
@@ -65,7 +65,7 @@ restproxy_opts = [
     cfg.IntOpt('thread_pool_size', default=4,
                help=_("Maximum number of threads to spawn to handle large "
                       "volumes of port creations.")),
-    cfg.StrOpt('neutron_id', default='neutron-' + utils.get_hostname(),
+    cfg.StrOpt('neutron_id', default='neutron-' + net.get_hostname(),
                deprecated_name='quantum_id',
                help=_("User defined identifier for this Neutron deployment")),
     cfg.BoolOpt('add_meta_server_route', default=True,
