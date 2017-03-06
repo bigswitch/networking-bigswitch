@@ -28,6 +28,7 @@ from oslo_utils import excutils
 from neutron.api import extensions as neutron_extensions
 from neutron.db.models import l3 as l3_db
 from neutron.extensions import l3
+from neutron.plugins.common import constants
 
 from neutron_lib import constants as lib_constants
 from neutron_lib import exceptions
@@ -56,7 +57,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
     @staticmethod
     def get_plugin_type():
-        return lib_constants.L3
+        return constants.L3_ROUTER_NAT
 
     @staticmethod
     def get_plugin_description():
@@ -76,8 +77,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         tenant_id = self._get_tenant_id_for_create(context, router["router"])
 
         # set default router rules
-        rules = self._get_tenant_default_router_rule(tenant_id)
-        router['router']['router_rules'] = [rules]
+        rules = self._get_tenant_default_router_rules(tenant_id)
+        router['router']['router_rules'] = rules
 
         with context.session.begin(subtransactions=True):
             # create router in DB
@@ -97,9 +98,6 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                     if ext_net:
                         mapped_router['external_gateway_info']['tenant_id'] = (
                             ext_net.get('tenant_id'))
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
 
             self.servers.rest_create_router(tenant_id, mapped_router)
 
@@ -116,10 +114,21 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         with context.session.begin(subtransactions=True):
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
-            router = self._update_ext_gateway_info(context, new_router)
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
+            if new_router.get(l3.EXTERNAL_GW_INFO):
+                ext_net_id = new_router[l3.EXTERNAL_GW_INFO].get('network_id')
+                ext_net = self.get_network(context, ext_net_id)
+                ext_tenant_id = ext_net.get('tenant_id')
+                if ext_tenant_id:
+                    new_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                        ext_tenant_id)
+            router = self._map_tenant_name(new_router)
+            router = self._map_state_and_status(router)
+            # look up the network on this side to save an expensive query on
+            # the backend controller.
+            if router and router.get('external_gateway_info'):
+                router['external_gateway_info']['network'] = self.get_network(
+                    context.elevated(),
+                    router['external_gateway_info']['network_id'])
             # update router on network controller
             self.servers.rest_update_router(tenant_id, router, router_id)
 
@@ -149,20 +158,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 raise l3.RouterInUse(router_id=router_id)
             super(L3RestProxy, self).delete_router(context, router_id)
 
-            # added check to update router policy for another router for
-            # default routes
-            updated_router = (super(L3RestProxy, self)
-                              .update_policies_post_delete(context, tenant_id))
-
             # delete from network controller
             self.servers.rest_delete_router(tenant_id, router_id)
-            if updated_router:
-                # update BCF after removing the router first
-                LOG.debug('Default policies now part of router: %s'
-                          % updated_router)
-                router = self._update_ext_gateway_info(context, updated_router)
-                self.servers.rest_update_router(tenant_id, router,
-                                                router['id'])
 
     @put_context_in_serverpool
     @log_helper.log_method_call
@@ -317,24 +314,6 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         for fip in query:
             context.session.delete(fip)
             self._delete_port(context.elevated(), fip['floating_port_id'])
-
-    def _update_ext_gateway_info(self, context, updated_router):
-        if updated_router.get(l3.EXTERNAL_GW_INFO):
-            ext_net_id = updated_router[l3.EXTERNAL_GW_INFO].get('network_id')
-            ext_net = self.get_network(context, ext_net_id)
-            ext_tenant_id = ext_net.get('tenant_id')
-            if ext_tenant_id:
-                updated_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
-                    ext_tenant_id)
-        router = self._map_tenant_name(updated_router)
-        router = self._map_state_and_status(router)
-        # look up the network on this side to save an expensive query on
-        # the backend controller.
-        if router and router.get('external_gateway_info'):
-            router['external_gateway_info']['network'] = self.get_network(
-                context.elevated(),
-                router['external_gateway_info']['network_id'])
-        return router
 
     def _send_floatingip_update(self, context):
         try:
