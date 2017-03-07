@@ -25,7 +25,7 @@ from oslo_utils import importutils
 from bsnstacklib.plugins.bigswitch.db import consistency_db
 from bsnstacklib.plugins.bigswitch import servermanager
 from bsnstacklib.tests.unit.bigswitch import test_restproxy_plugin as test_rp
-from neutron import context
+from neutron_lib import context
 from neutron_lib.plugins import directory
 
 SERVERMANAGER = 'bsnstacklib.plugins.bigswitch.servermanager'

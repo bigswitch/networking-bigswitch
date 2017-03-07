@@ -20,12 +20,12 @@ import functools
 import mock
 from oslo_serialization import jsonutils
 
-from neutron import context as neutron_context
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.db import test_db_base_plugin_v2
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.api.definitions import portbindings
+from neutron_lib import context as neutron_context
 from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config

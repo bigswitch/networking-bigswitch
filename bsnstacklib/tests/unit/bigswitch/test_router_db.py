@@ -28,11 +28,11 @@ from bsnstacklib.plugins.bigswitch.extensions import routerrule
 from bsnstacklib.plugins.bigswitch import routerrule_db  # noqa
 from bsnstacklib.tests.unit.bigswitch import fake_server
 from bsnstacklib.tests.unit.bigswitch import test_base as bsn_test_base
-from neutron import context
 from neutron.extensions import l3
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3
+from neutron_lib import context
 from neutron_lib.plugins import directory
 
 
