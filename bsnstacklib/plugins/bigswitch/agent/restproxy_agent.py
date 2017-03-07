@@ -36,9 +36,9 @@ from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc as api_sg_rpc
 from neutron.common import config
 from neutron.common import topics
-from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
 from neutron_lib import constants as q_const
+from neutron_lib import context as q_context
 
 from bsnstacklib.plugins.bigswitch import config as pl_config
 from bsnstacklib.plugins.bigswitch.i18n import _LE

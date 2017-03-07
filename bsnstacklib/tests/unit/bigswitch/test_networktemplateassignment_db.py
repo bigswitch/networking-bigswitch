@@ -16,9 +16,8 @@
 
 
 from bsnstacklib.plugins.bigswitch.db import network_template_db
-
-from neutron import context
 from neutron.tests.unit import testlib_api
+from neutron_lib import context
 
 
 class TestNetworkTemplateAssignmentDbMixin(testlib_api.SqlTestCase):
