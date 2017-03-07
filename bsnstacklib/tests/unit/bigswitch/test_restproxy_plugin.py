@@ -19,13 +19,13 @@ import mock
 from oslo_config import cfg
 import webob.exc
 
-from neutron import context
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.db import test_allowedaddresspairs_db as test_addr_pair
 from neutron.tests.unit.db import test_db_base_plugin_v2 as test_plugin
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
+from neutron_lib import context
 from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config

@@ -62,7 +62,6 @@ from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils
-from neutron import context as qcontext
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
@@ -81,6 +80,7 @@ from neutron.extensions import l3
 
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
+from neutron_lib import context as qcontext
 from neutron_lib.plugins import directory
 
 from bsnstacklib.plugins.bigswitch import config as pl_config

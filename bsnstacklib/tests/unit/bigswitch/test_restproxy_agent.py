@@ -24,7 +24,7 @@ from bsnstacklib.plugins.bigswitch import config as pl_config
 
 OVSBRIDGE = 'neutron.agent.common.ovs_lib.OVSBridge'
 PLUGINAPI = 'neutron.agent.rpc.PluginApi'
-CONTEXT = 'neutron.context'
+CONTEXT = 'neutron_lib.context'
 CONSUMERCREATE = 'neutron.agent.rpc.create_consumers'
 SGRPC = 'neutron.agent.securitygroups_rpc'
 AGENTMOD = 'bsnstacklib.plugins.bigswitch.agent.restproxy_agent'
