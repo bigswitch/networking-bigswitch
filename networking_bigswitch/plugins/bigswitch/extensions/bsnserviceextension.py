@@ -119,6 +119,28 @@ RESOURCE_ATTRIBUTE_MAP = {
         'save_test': {'allow_post': False, 'allow_put': True,
                      'is_visible': True},
     },
+    'tenantpolicies': {
+        'id': {'allow_post': False, 'allow_put': False,
+               'is_visible': True},
+        'tenant_id': {'allow_post': True, 'allow_put': False,
+                      'validate': {'type:string': None},
+                      'is_visible': True},
+        'priority': {'allow_post': True, 'allow_put': False,
+                     'validate': {'type:integer': None},
+                     'is_visible': True},
+        'source': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'destination': {'allow_post': True, 'allow_put': True,
+                        'validate': {'type:string': None},
+                        'is_visible': True},
+        'action': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'nexthops': {'allow_post': True, 'allow_put': True,
+                     'validate': {'type:string': None},
+                     'is_visible': True},
+    },
 }
 
 
@@ -264,4 +286,27 @@ class BSNServicePluginBase(object):
 
     @abc.abstractmethod
     def delete_reachabilityquicktest(self, context, id):
+        pass
+
+    # Tenant router policies
+    @abc.abstractmethod
+    def get_tenantpolicies(self, context, filters=None, fields=None,
+                           sorts=None, limit=None, marker=None,
+                           page_reverse=False):
+        pass
+
+    @abc.abstractmethod
+    def get_tenantpolicy(self, context, id, fields=None):
+        pass
+
+    @abc.abstractmethod
+    def create_tenantpolicy(self, context, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def update_tenantpolicy(self, context, id, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def delete_tenantpolicy(self, context, id):
         pass
