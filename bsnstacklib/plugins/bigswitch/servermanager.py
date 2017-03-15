@@ -405,6 +405,10 @@ class ServerPool(object):
         elif "v3" not in self.auth_url:
             self.auth_url = "%s/v3" % self.auth_url
 
+        # populate auth_user if None
+        if self.auth_user is None:
+            self.auth_user = cfg.CONF.RESTPROXY.auth_user
+
         self.base_uri = base_uri
         self.name = name
         self.contexts = {}
