@@ -208,6 +208,26 @@ def is_valid_bcf_name(name):
     return False
 
 
+def get_config_file_value(conf, group, name):
+    """Fetch value from config file when not available as part of GroupAttr
+
+    :rtype: String
+    :param conf: oslo config cfg.CONF
+    :param group: name of the group
+    :param name: property name to be retrieved
+    """
+    try:
+
+        value_list = conf._namespace._get_file_value([(group,
+                                                       name)])
+        return value_list[0]
+    except KeyError:
+        LOG.warning(_LW("Config does not have property %(name)s "
+                        "in group %(group)s"),
+                    {'name': name, 'group': group})
+        return ''
+
+
 class ServerProxy(object):
     """REST server proxy to a network controller."""
 
@@ -389,9 +409,12 @@ class ServerPool(object):
         self.user_domain_id = KS3_DEFAULT_DOMAIN_ID
         self.project_domain_id = KS3_DEFAULT_DOMAIN_ID
         if 'keystone_authtoken' in cfg.CONF:
-            self.auth_url = cfg.CONF.keystone_authtoken.auth_uri
-            self.auth_user = cfg.CONF.keystone_authtoken.admin_user
-            self.auth_password = cfg.CONF.keystone_authtoken.admin_password
+            self.auth_user = get_config_file_value(
+                cfg.CONF, 'keystone_authtoken', 'username')
+            self.auth_password = get_config_file_value(
+                cfg.CONF, 'keystone_authtoken', 'password')
+            self.auth_url = get_config_file_value(
+                cfg.CONF, 'keystone_authtoken', 'auth_url')
             self.auth_tenant = cfg.CONF.keystone_authtoken.admin_tenant_name
         else:
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
