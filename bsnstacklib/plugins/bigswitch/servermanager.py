@@ -90,6 +90,7 @@ ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
 SERVICE_TENANT = 'VRRP_Service'
+KS_AUTH_GROUP_NAME = 'keystone_authtoken'
 # error messages
 NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
@@ -206,6 +207,25 @@ def is_valid_bcf_name(name):
     if match_obj and match_obj.group(0) == name:
         return True
     return False
+
+
+def get_keystoneauth_cfg(conf, name):
+    """Fetch value of keystone_authtoken group from config file when not
+    available as part of GroupAttr.
+
+    :rtype: String
+    :param conf: oslo config cfg.CONF
+    :param name: property name to be retrieved
+    """
+    try:
+
+        value_list = conf._namespace._get_file_value([(KS_AUTH_GROUP_NAME,
+                                                       name)])
+        return value_list[0]
+    except KeyError as e:
+        LOG.warning(_LW("Config does not have property %(name)s "
+                        "in group keystone_authtoken"), {'name': name})
+        raise e
 
 
 class ServerProxy(object):
@@ -389,10 +409,19 @@ class ServerPool(object):
         self.user_domain_id = KS3_DEFAULT_DOMAIN_ID
         self.project_domain_id = KS3_DEFAULT_DOMAIN_ID
         if 'keystone_authtoken' in cfg.CONF:
-            self.auth_url = cfg.CONF.keystone_authtoken.auth_uri
-            self.auth_user = cfg.CONF.keystone_authtoken.admin_user
-            self.auth_password = cfg.CONF.keystone_authtoken.admin_password
-            self.auth_tenant = cfg.CONF.keystone_authtoken.admin_tenant_name
+            self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
+            self.auth_password = get_keystoneauth_cfg(cfg.CONF, 'password')
+            self.auth_url = get_keystoneauth_cfg(cfg.CONF, 'auth_url')
+            self.auth_tenant = get_keystoneauth_cfg(cfg.CONF, 'project_name')
+            try:
+                self.user_domain_id = get_keystoneauth_cfg(
+                    cfg.CONF, 'user_domain_id')
+                self.project_domain_id = get_keystoneauth_cfg(
+                    cfg.CONF, 'project_domain_id')
+            except KeyError:
+                # its okay if we don't have domain ID in config
+                # we have defaults set
+                pass
         else:
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
