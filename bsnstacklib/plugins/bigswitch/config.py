@@ -19,7 +19,7 @@ This module manages configuration options
 
 from oslo_config import cfg
 
-from neutron.agent.common import config as agconfig
+from neutron.conf.agent import common as agconfig
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.utils import net
 

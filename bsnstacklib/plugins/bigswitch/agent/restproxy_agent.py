@@ -97,9 +97,8 @@ class IVSBridge(object):
         except RuntimeError:
             resp = self.run_vsctl(['show'], True)
             # get rid of stats and blank lines
-            ports = filter(
-                lambda x: 'packets=' not in x and x.strip(),
-                resp.split('ivs:')[1].split('ports:')[1].splitlines())
+            lines = resp.split('ivs:')[1].split('ports:')[1].splitlines()
+            ports = [x for x in lines if 'packets=' not in x and x.strip()]
             port_names = map(lambda x: x.strip().split(' ')[1], ports)
         LOG.debug("Ports on IVS: %s", port_names)
         return port_names
