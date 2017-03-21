@@ -45,7 +45,7 @@ def upgrade():
     connection.execute("UPDATE bsn_routerrules bsn "
                        "INNER JOIN routers upstream "
                        "ON bsn.router_id = upstream.id "
-                       "SET bsn.tenant_id = upstream.tenant_id;")
+                       "SET bsn.tenant_id = upstream.project_id;")
 
     # set the tenant_id column nullable to false
     op.alter_column('bsn_routerrules', 'tenant_id',
