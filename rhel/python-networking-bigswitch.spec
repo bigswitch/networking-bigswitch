@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        10.0.2
+Version:        10.0.3
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Wed Mar 22 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.3
+- ensure keystone_auth is correctly fetched
 * Tue Mar 21 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.2
 - ensure MLR changes are included
 * Fri Mar 10 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.1
