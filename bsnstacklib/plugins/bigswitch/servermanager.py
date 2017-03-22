@@ -91,6 +91,7 @@ HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
 SERVICE_TENANT = 'VRRP_Service'
 KS_AUTH_GROUP_NAME = 'keystone_authtoken'
+KS_AUTH_NONE = ''
 # error messages
 NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
@@ -408,20 +409,17 @@ class ServerPool(object):
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
         self.user_domain_id = KS3_DEFAULT_DOMAIN_ID
         self.project_domain_id = KS3_DEFAULT_DOMAIN_ID
+        self.user_domain_id = KS_AUTH_NONE
+        self.project_domain_id = KS_AUTH_NONE
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
             self.auth_password = get_keystoneauth_cfg(cfg.CONF, 'password')
             self.auth_url = get_keystoneauth_cfg(cfg.CONF, 'auth_url')
             self.auth_tenant = get_keystoneauth_cfg(cfg.CONF, 'project_name')
-            try:
-                self.user_domain_id = get_keystoneauth_cfg(
-                    cfg.CONF, 'user_domain_name')
-                self.project_domain_id = get_keystoneauth_cfg(
-                    cfg.CONF, 'project_domain_name')
-            except KeyError:
-                # its okay if we don't have domain ID in config
-                # we have defaults set
-                pass
+            self.project_domain_name = get_keystoneauth_cfg(
+                cfg.CONF, 'project_domain_name')
+            self.user_domain_name = get_keystoneauth_cfg(
+                cfg.CONF, 'user_domain_name')
         else:
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
@@ -984,12 +982,24 @@ class ServerPool(object):
 
     def _update_tenant_cache(self, reconcile=True):
         try:
-            auth = v3.Password(auth_url=self.auth_url,
-                               username=self.auth_user,
-                               password=self.auth_password,
-                               project_name=self.auth_tenant,
-                               user_domain_id=self.user_domain_id,
-                               project_domain_id=self.project_domain_id)
+            if self.project_domain_name is not KS_AUTH_NONE:
+                # if project/user _domain_name is available as part of
+                # keystone_authtoken use it
+                auth = v3.Password(auth_url=self.auth_url,
+                                   username=self.auth_user,
+                                   password=self.auth_password,
+                                   project_name=self.auth_tenant,
+                                   user_domain_name=self.user_domain_name,
+                                   project_domain_name=self.project_domain_name
+                                   )
+            else:
+                # else use the defaults set in project/user _domain_id
+                auth = v3.Password(auth_url=self.auth_url,
+                                   username=self.auth_user,
+                                   password=self.auth_password,
+                                   project_name=self.auth_tenant,
+                                   user_domain_id=self.user_domain_id,
+                                   project_domain_id=self.project_domain_id)
             sess = session.Session(auth=auth)
             keystone_client = ksclient.Client(session=sess)
             tenants = keystone_client.projects.list()
