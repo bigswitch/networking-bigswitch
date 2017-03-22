@@ -414,10 +414,12 @@ class ServerPool(object):
             self.auth_url = get_keystoneauth_cfg(cfg.CONF, 'auth_url')
             self.auth_tenant = get_keystoneauth_cfg(cfg.CONF, 'project_name')
             try:
-                self.user_domain_id = get_keystoneauth_cfg(
+                user_domain_id = get_keystoneauth_cfg(
                     cfg.CONF, 'user_domain_name')
-                self.project_domain_id = get_keystoneauth_cfg(
+                self.user_domain_id = user_domain_id.lower()
+                project_domain_id = get_keystoneauth_cfg(
                     cfg.CONF, 'project_domain_name')
+                self.project_domain_id = project_domain_id.lower()
             except KeyError:
                 # its okay if we don't have domain ID in config
                 # we have defaults set
