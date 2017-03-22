@@ -85,12 +85,12 @@ SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
 BASE_URI = '/networkService/v2.0'
-KS3_DEFAULT_DOMAIN_ID = 'default'
 ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
 SERVICE_TENANT = 'VRRP_Service'
 KS_AUTH_GROUP_NAME = 'keystone_authtoken'
+KS_AUTH_DOMAIN_DEFAULT = 'default'
 # error messages
 NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
@@ -406,27 +406,27 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
-        self.user_domain_id = KS3_DEFAULT_DOMAIN_ID
-        self.project_domain_id = KS3_DEFAULT_DOMAIN_ID
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
             self.auth_password = get_keystoneauth_cfg(cfg.CONF, 'password')
             self.auth_url = get_keystoneauth_cfg(cfg.CONF, 'auth_url')
             self.auth_tenant = get_keystoneauth_cfg(cfg.CONF, 'project_name')
-            try:
-                self.user_domain_id = get_keystoneauth_cfg(
-                    cfg.CONF, 'user_domain_name')
-                self.project_domain_id = get_keystoneauth_cfg(
-                    cfg.CONF, 'project_domain_name')
-            except KeyError:
-                # its okay if we don't have domain ID in config
-                # we have defaults set
-                pass
+            self.project_domain_name = get_keystoneauth_cfg(
+                cfg.CONF, 'project_domain_name')
+            self.user_domain_name = get_keystoneauth_cfg(
+                cfg.CONF, 'user_domain_name')
         else:
+            # this is for UT only
+            LOG.warning(_LW("keystone_authtoken not found in "
+                            "/etc/neutron/neutron.conf. "
+                            "Please check config file"))
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
             self.auth_password = cfg.CONF.RESTPROXY.auth_password
             self.auth_tenant = cfg.CONF.RESTPROXY.auth_tenant
+            self.project_domain_name = KS_AUTH_DOMAIN_DEFAULT
+            self.user_domain_name = KS_AUTH_DOMAIN_DEFAULT
+
 
         # Use Keystonev3 URL for authentication
         if "v2.0" in self.auth_url:
@@ -988,8 +988,8 @@ class ServerPool(object):
                                username=self.auth_user,
                                password=self.auth_password,
                                project_name=self.auth_tenant,
-                               user_domain_id=self.user_domain_id,
-                               project_domain_id=self.project_domain_id)
+                               user_domain_name=self.user_domain_name,
+                               project_domain_name=self.project_domain_name)
             sess = session.Session(auth=auth)
             keystone_client = ksclient.Client(session=sess)
             tenants = keystone_client.projects.list()
