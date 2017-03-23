@@ -172,6 +172,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
         with context.session.begin(subtransactions=True):
             # create interface in DB
+            # TODO(wolverineav): hack until fixed at right place
+            setattr(context, 'GUARD_TRANSACTION', False)
             new_intf_info = super(L3RestProxy,
                                   self).add_router_interface(context,
                                                              router_id,
@@ -216,6 +218,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
         with context.session.begin(subtransactions=True):
             # remove router in DB
+            # TODO(wolverineav): hack until fixed at right place
+            setattr(context, 'GUARD_TRANSACTION', False)
             del_ret = super(L3RestProxy,
                             self).remove_router_interface(context,
                                                           router_id,

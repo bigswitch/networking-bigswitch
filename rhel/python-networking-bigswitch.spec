@@ -119,6 +119,7 @@ done
 
 %changelog
 * Thu Mar 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.5
+- OSP-51: add/remove router_interface transaction hack
 - OSP-50: make amends for rename tenant to project
 * Wed Mar 22 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.4
 - ensure keystone_auth is correctly fetched
