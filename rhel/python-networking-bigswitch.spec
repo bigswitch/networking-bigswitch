@@ -119,6 +119,8 @@ done
 
 %changelog
 * Mon Mar 06 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.0
+- OSP-51: add/remove router_interface transaction hack
+- OSP-50: make amends for rename tenant to project
 - Revert OSP-6 support MLR in bsnstacklib
 * Mon Jan 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.0.0b2
 - OSP-6 support MLR in bsnstacklib
