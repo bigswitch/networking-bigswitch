@@ -84,10 +84,11 @@ class NetworkTemplateDbMixin(common_db_mixin.CommonDbMixin):
         return self._make_networktemplate_dict(networktemplate)
 
 
-class NetworkTemplateAssignment(model_base.BASEV2, model_base.HasId):
+class NetworkTemplateAssignment(model_base.BASEV2,
+                                model_base.HasId,
+                                model_base.HasProject):
     __tablename__ = 'networktemplateassignments'
     __table_args__ = {'extend_existing': True}
-    tenant_id = sa.Column(sa.String(255), nullable=False, unique=True)
     template_id = sa.Column(sa.Integer, sa.ForeignKey('networktemplates.id'),
                             nullable=False)
     stack_id = sa.Column(sa.String(255), nullable=False)
