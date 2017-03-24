@@ -169,7 +169,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _validate_names(self, obj, name=None):
         """
-        :returns
+        :returns:
             True, if obj name, obj's tenant name and name have supported chars
             False, otherwise
         """

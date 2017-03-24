@@ -200,8 +200,8 @@ class ObjTypeEnum(Enum):
 
 def is_valid_bcf_name(name):
     """
-    :returns True if name matches BCF_IDENTIFIER_UUID_RE
-    :returns False otherwise
+    :returns: True if name matches BCF_IDENTIFIER_UUID_RE
+    :returns: False otherwise
     """
     match_obj = BCF_IDENTIFIER_UUID_RE.match(name)
     if match_obj and match_obj.group(0) == name:
