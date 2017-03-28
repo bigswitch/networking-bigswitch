@@ -21,6 +21,7 @@ OUTDIR=$(readlink -m "pkg/$BUILD_OS/$GIT_BRANCH/$CURR_VERSION")
 rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
 mv $BUILDDIR/SRPMS/*.rpm "$OUTDIR"
 mv $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
+cp dist/*.tar.gz "$OUTDIR"
 git log > "$OUTDIR/gitlog.txt"
 touch "$OUTDIR/build-$CURR_VERSION"
 ln -snf $(basename $OUTDIR) $OUTDIR/../latest
