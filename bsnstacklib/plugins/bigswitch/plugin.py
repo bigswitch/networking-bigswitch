@@ -432,6 +432,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             sg = self.get_security_group(context, sg_id)
 
         if sg:
+            # remove description as its not used
+            if 'description' in sg:
+                sg['description'] = ''
             self._tenant_check_for_security_group(sg)
             # skip the security group if its tenant is unknown
             if sg['tenant_name']:
