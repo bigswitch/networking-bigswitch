@@ -317,6 +317,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     mapped_sg = self._map_tenant_name(sg)
                     if not self._validate_names(mapped_sg):
                         continue
+                    if 'description' in mapped_sg:
+                        mapped_sg['description'] = ''
                     new_sgs.append(mapped_sg)
                 except servermanager.TenantIDNotFound:
                     # if tenant name is not known to keystone, skip the sg
@@ -433,6 +435,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             sg = self.get_security_group(context, sg_id)
 
         if sg:
+            # remove description as its not used
+            if 'description' in sg:
+                sg['description'] = ''
             self._tenant_check_for_security_group(sg)
             # skip the security group if its tenant is unknown
             if sg['tenant_name']:
