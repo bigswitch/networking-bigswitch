@@ -81,6 +81,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
         with context.session.begin(subtransactions=True):
             # create router in DB
+            # TODO(wolverineav): hack until fixed at right place
+            setattr(context, 'GUARD_TRANSACTION', False)
             new_router = super(L3RestProxy, self).create_router(context,
                                                                 router)
             mapped_router = self._map_tenant_name(new_router)
@@ -147,6 +149,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                                          filters=device_filter)
             if ports:
                 raise l3.RouterInUse(router_id=router_id)
+            # TODO(wolverineav): hack until fixed at right place
+            setattr(context, 'GUARD_TRANSACTION', False)
             super(L3RestProxy, self).delete_router(context, router_id)
 
             # added check to update router policy for another router for
