@@ -87,8 +87,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.vswitch_host_cache = {}
         self.setup_sg_rpc_callbacks()
-        self.unsupported_vnic_types = [portbindings.VNIC_DIRECT,
-                                       portbindings.VNIC_DIRECT_PHYSICAL]
 
         LOG.debug("Initialization done")
 
@@ -244,9 +242,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if self._is_port_sriov(context.current):
+            LOG.debug("SR-IOV port, nothing to do")
             return
 
         # If bsn_l3 plugin and it is a gateway port, bind to ivs.
@@ -275,11 +272,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def update_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
-            return
-
         # update port on the network controller
         try:
             port = self._prepare_port_for_controller(context)
@@ -295,8 +287,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                 return
 
             try:
+                # For SR-IOV ports, we shouldn't update the port status
+                update_status = not self._is_port_sriov(port)
                 self.async_port_create(port["network"]["tenant_id"],
-                                       port["network"]["id"], port)
+                                       port["network"]["id"], port,
+                                       update_status)
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception() as ctxt:
                     if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
@@ -311,11 +306,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def delete_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
-            return
-
         # delete port on the network controller
         port = context.current
         net = context.network.current
@@ -335,21 +325,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         port['bound_segment'] = context.top_bound_segment
         prepped_port = self._map_tenant_name(port)
         prepped_port = self._map_state_and_status(prepped_port)
-        if (portbindings.HOST_ID not in prepped_port or
-            prepped_port[portbindings.HOST_ID] == ''):
-            LOG.warning(_LW("Ignoring port notification to controller because "
-                            "of missing host ID."))
-            # in ML2, controller doesn't care about ports without
-            # the host_id set
-            return False
-
-        # Update HOST_ID if vif_details has VIF_DET_BSN_VSWITCH_HOST_ID
-        vif_details = prepped_port[portbindings.VIF_DETAILS]
-        if vif_details:
-            host_id = vif_details.get(VIF_DET_BSN_VSWITCH_HOST_ID)
-            if host_id:
-                prepped_port[portbindings.HOST_ID] = host_id
-
+        prepped_port = self._map_port_hostid(prepped_port, net)
         return prepped_port
 
     def _bind_port_nfvswitch(self, context, segment, host_id):
@@ -454,9 +430,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                          portbindings.OVS_HYBRID_PLUG: False})
                     return
 
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if self._is_port_sriov(context.current):
+            LOG.debug("SR-IOV port, nothing to do")
             return
 
         # A compute node can have multiple vswitches. They are differentiated
