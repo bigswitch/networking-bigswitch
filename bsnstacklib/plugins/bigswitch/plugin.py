@@ -765,6 +765,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # Consume from all consumers in threads
         self.conn.consume_in_threads()
 
+    @db.context_manager.writer
     @put_context_in_serverpool
     def create_network(self, context, network):
         """Create a network.
@@ -794,21 +795,21 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         self._warn_on_state_status(network['network'])
 
-        with context.session.begin(subtransactions=True):
-            self._ensure_default_security_group(
-                context,
-                network['network']["tenant_id"]
-            )
-            # create network in DB
-            new_net = super(NeutronRestProxyV2, self).create_network(context,
-                                                                     network)
-            self._process_l3_create(context, new_net, network['network'])
-            # create network on the network controller
-            self._send_create_network(new_net, context)
+        self._ensure_default_security_group(
+            context,
+            network['network']["tenant_id"]
+        )
+        # create network in DB
+        new_net = super(NeutronRestProxyV2, self).create_network(context,
+                                                                 network)
+        self._process_l3_create(context, new_net, network['network'])
+        # create network on the network controller
+        self._send_create_network(new_net, context)
 
         # return created network
         return new_net
 
+    @db.context_manager.writer
     @put_context_in_serverpool
     def update_network(self, context, net_id, network):
         """Updates the properties of a particular Virtual Network.
@@ -837,18 +838,17 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         self._warn_on_state_status(network['network'])
 
-        session = context.session
-        with session.begin(subtransactions=True):
-            new_net = super(NeutronRestProxyV2, self).update_network(
-                context, net_id, network)
-            self._process_l3_update(context, new_net, network['network'])
+        new_net = super(NeutronRestProxyV2, self).update_network(
+            context, net_id, network)
+        self._process_l3_update(context, new_net, network['network'])
 
-            # update network on network controller
-            self._send_update_network(new_net, context)
+        # update network on network controller
+        self._send_update_network(new_net, context)
         return new_net
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @utils.synchronized('bsn-port-barrier')
+    @db.context_manager.writer
     @put_context_in_serverpool
     def delete_network(self, context, net_id):
         """Delete a network.
@@ -865,12 +865,12 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         # Validate args
         orig_net = super(NeutronRestProxyV2, self).get_network(context, net_id)
-        with context.session.begin(subtransactions=True):
-            self._process_l3_delete(context, net_id)
-            ret_val = super(NeutronRestProxyV2, self).delete_network(context,
-                                                                     net_id)
-            self._send_delete_network(orig_net, context)
-            return ret_val
+
+        self._process_l3_delete(context, net_id)
+        ret_val = super(NeutronRestProxyV2, self).delete_network(context,
+                                                                 net_id)
+        self._send_delete_network(orig_net, context)
+        return ret_val
 
     @put_context_in_serverpool
     def create_port(self, context, port):
