@@ -62,6 +62,7 @@ from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils
+from neutron.plugins.common import constants as pconst
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
@@ -246,6 +247,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                             continue
                         mapped_port = self._map_tenant_name(port)
                         mapped_port = self._map_state_and_status(mapped_port)
+                        mapped_port = self._map_port_hostid(mapped_port, net)
+                        if not mapped_port:
+                            continue
+
                         mapped_port['attachment'] = {
                             'id': port.get('device_id'),
                             'mac': port.get('mac_address'),
@@ -559,6 +564,80 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         return resource
 
+    def _is_port_sriov(self, port):
+        """Check if port is an SR-IOV port
+
+        :return: True, if port is an SR-IOV port
+                 False, otherwise
+        """
+        vnic_type = port.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in pl_config.VNIC_TYPE_SRIOV:
+            return True
+        return False
+
+    def _get_sriov_port_hostid(self, port, network):
+        """Return the HostID for the given SR-IOV port
+
+        For SR-IOV port, we configure 'memeber interface-group $HOSTID' on BCF.
+        In Active-Active mode, this is done ONLY for ports belonging to the
+        ACTIVE physnet. In Active-Backup mode, this is done for all ports.
+        HostID = $(H)-$(PHYSNET), which corresponds to interface-groups on BCF.
+
+        :return: HostID, if membership-rule needs to be configured on BCF
+                 None, otherwise
+        """
+        network_type = network.get(pl_config.PROVIDER_NETWORK_TYPE)
+        if not network_type or network_type != pconst.TYPE_VLAN:
+            return None
+
+        physnet = network.get(pl_config.PROVIDER_PHYSNET)
+        if not physnet:
+            return None
+
+        if pl_config.SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR in physnet:
+            # Active-Active mode, configure BCF only for ACTIVE physnet
+            if not physnet.endswith(pl_config.SRIOV_ACTIVE_PHYSNET):
+                return None
+
+        bsn_host_id = port.get(portbindings.HOST_ID) + '-' + physnet
+        return bsn_host_id
+
+    def _map_port_hostid(self, port, network):
+        """Update the HOST_ID of a given port based on it's type
+
+        Perform basic sanity checks and update the HOST_ID of the port
+        :return: port, if port is of relevance to BCF
+                 False, otherwise
+        """
+        prepped_port = copy.copy(port)
+        if (portbindings.HOST_ID not in prepped_port or
+            prepped_port[portbindings.HOST_ID] == ''):
+            LOG.debug("Ignoring port notification to controller because of "
+                      "missing host ID.")
+            return False
+
+        # Update HOST_ID (to be used by BCF).
+        # - For SR-IOV it is a function of HostID & physnet info
+        # - For IVS and NFVSwitch, this is a param in vif_details
+        if self._is_port_sriov(prepped_port):
+            vif_type = prepped_port.get(portbindings.VIF_TYPE)
+            if not vif_type or vif_type == portbindings.VIF_TYPE_UNBOUND:
+                # Port not bound yet, nothing to do
+                return False
+
+            hostid = self._get_sriov_port_hostid(prepped_port, network)
+            if not hostid:
+                return False
+            prepped_port[portbindings.HOST_ID] = hostid
+        else:
+            vif_details = prepped_port.get(portbindings.VIF_DETAILS)
+            if vif_details:
+                hostid = vif_details.get(pl_config.VIF_DET_BSN_VSWITCH_HOST_ID)
+                if hostid:
+                    prepped_port[portbindings.HOST_ID] = hostid
+
+        return prepped_port
+
     def _warn_on_state_status(self, resource):
         if resource.get('admin_state_up', True) is False:
             LOG.warning(_LW("Setting admin_state_up=False is not supported "
@@ -638,7 +717,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             port['network']['tenant_id'] = (
                 port['network']['tenant_id'] or servermanager.SERVICE_TENANT)
 
-    def async_port_create(self, tenant_id, net_id, port):
+    def async_port_create(self, tenant_id, net_id, port, update_status=True):
         try:
             tenant_id = tenant_id or servermanager.SERVICE_TENANT
             rest_port = copy.deepcopy(port)
@@ -671,6 +750,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     # creating on the backend, everything is already consistent
                     pass
                 return
+
+        if not update_status:
+            return
+
         new_status = (const.PORT_STATUS_ACTIVE if port['state'] == 'UP'
                       else const.PORT_STATUS_DOWN)
         try:
