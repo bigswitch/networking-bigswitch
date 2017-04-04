@@ -108,8 +108,16 @@ VIF_TYPES = [
     'midonet', 'ib_hostdev', 'hw_web', 'vrouter',
 ]
 
+PROVIDER_NETWORK_TYPE = 'provider:network_type'
+PROVIDER_PHYSNET = 'provider:physical_network'
 VIF_DET_BSN_VSWITCH_HOST_ID = "bsn_vswitch_host_id"
 VHOST_USER_SOCKET_DIR = "/run/vhost/"
+
+# SR-IOV related constants
+VNIC_TYPE_SRIOV = [portbindings.VNIC_DIRECT,
+                   portbindings.VNIC_DIRECT_PHYSICAL]
+SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR = 'BSN-ACTIVE-'
+SRIOV_ACTIVE_PHYSNET = SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR + '1'
 
 
 class VSwitchType(enumerate):
