@@ -120,7 +120,9 @@ class UnsupportedNameException(exceptions.NeutronException):
     :keyword obj_name
     """
     message = _("Object of type %(obj_type)s and id %(obj_id)s has unsupported"
-                " character in name \"%(obj_name)s\"")
+                " character in name \"%(obj_name)s\". It should begin with an"
+                "alphanumeric character [0-9a-zA-Z] and can contain space,"
+                "underscore, apostrophe and double-quotes.")
     status = None
 
 
@@ -137,7 +139,9 @@ class UnsupportedTenantNameInObjectException(exceptions.NeutronException):
     """
     message = _("Object of type %(obj_type)s, id %(obj_id)s and name "
                 "%(obj_name)s has unsupported character in its tenant name "
-                "\"%(tenant_name)s\"")
+                "\"%(tenant_name)s\". It should begin with an"
+                "alphanumeric character [0-9a-zA-Z] and can contain space,"
+                "underscore, apostrophe and double-quotes.")
     status = None
 
 
