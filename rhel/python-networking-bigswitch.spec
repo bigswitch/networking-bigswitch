@@ -5,7 +5,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        20154.36.10
+Version:        20154.36.11
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -118,6 +118,9 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 20153.36.11
+- BVS-5916: handle special characters in object names
+- OSP-45: improve error visibility on GUI
 * Wed Mar 1 2017 Sarath Kumar <sarath@bigswitch.com> - 20153.36.10
   BVS-7525: bsnstacklib: don't sync dangling objects to BCF
 * Tue Nov 22 2016 Sarath Kumar <sarath@bigswitch.com> - 20154.36.7
