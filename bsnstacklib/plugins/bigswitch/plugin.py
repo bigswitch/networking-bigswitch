@@ -372,7 +372,13 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                         data, errstr, timeout=timeout)
 
     def _format_resource_name(self, name):
-        return name.replace(' ', '-')
+        return (name
+                # always replace underscores first, since other replacements
+                # contain underscores as part of replacement
+                .replace('_', '__')
+                .replace(' ', '_s')
+                .replace('\'', '_a')
+                .replace('\"', '_d'))
 
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
