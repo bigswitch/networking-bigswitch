@@ -121,6 +121,7 @@ done
 
 %changelog
 * Mon Mar 06 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.0
+- BVS-5916: handle special characters in object names
 - OSP-51: add/remove router_interface transaction hack
 - OSP-50: make amends for rename tenant to project
 - Revert OSP-6 support MLR in bsnstacklib
