@@ -88,6 +88,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.vswitch_host_cache = {}
         self.setup_sg_rpc_callbacks()
+        self.unsupported_vnic_types = [portbindings.VNIC_DIRECT_PHYSICAL]
 
         LOG.debug("Initialization done")
 
@@ -243,6 +244,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         if self._is_port_sriov(context.current):
             LOG.debug("SR-IOV port, nothing to do")
             return
@@ -273,6 +279,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def update_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         # update port on the network controller
         try:
             port = self._prepare_port_for_controller(context)
@@ -307,6 +318,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def delete_port_postcommit(self, context):
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
+
         # delete port on the network controller
         port = context.current
         net = context.network.current
@@ -430,6 +446,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                         {portbindings.CAP_PORT_FILTER: False,
                          portbindings.OVS_HYBRID_PLUG: False})
                     return
+
+        vnic_type = context.current.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in self.unsupported_vnic_types:
+            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+            return
 
         if self._is_port_sriov(context.current):
             LOG.debug("SR-IOV port, nothing to do")
