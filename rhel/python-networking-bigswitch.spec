@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Sun Apr 09 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.5
+- BVS-5916: handle special characters in object names
 * Tue Mar 28 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.4
 - OSP-51: add/remove router_interface transaction hack
 - OSP-50: make amends for rename tenant to project
