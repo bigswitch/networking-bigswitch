@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.40.7
+Version:        9.42.0
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,9 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Tue Apr 18 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.0
+- OSP-51: include all l3_router_plugin methods
+- Update version to 9.42.x for controller compatibility
 * Thu Apr 13 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.7
 - OSP-21: fix dangling move of files
 * Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.40.6
