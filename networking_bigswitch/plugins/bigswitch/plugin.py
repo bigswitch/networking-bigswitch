@@ -91,6 +91,7 @@ from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import servermanager
+from networking_bigswitch.plugins.bigswitch.utils import Util
 from networking_bigswitch.plugins.bigswitch import version
 
 LOG = logging.getLogger(__name__)
@@ -331,7 +332,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         continue
                     if 'description' in mapped_sg:
                         mapped_sg['description'] = ''
-                    mapped_sg['name'] = self._format_resource_name(
+                    mapped_sg['name'] = Util.format_resource_name(
                         mapped_sg['name'])
                     new_sgs.append(mapped_sg)
                 except servermanager.TenantIDNotFound:
@@ -375,21 +376,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
                                         data, errstr, timeout=timeout)
 
-    def _format_resource_name(self, name):
-        return (name
-                # always replace underscores first, since other replacements
-                # contain underscores as part of replacement
-                .replace('_', '__')
-                .replace(' ', '_s')
-                .replace('\'', '_a')
-                .replace('\"', '_d'))
-
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
                                  servermanager.SERVICE_TENANT)
         if resource.get('name'):
             # resource name may contain space. Replace space with -
-            resource['name'] = self._format_resource_name(resource['name'])
+            resource['name'] = Util.format_resource_name(resource['name'])
 
     def _get_network_with_floatingips(self, network, context=None):
         if context is None:
@@ -455,7 +447,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             sg = self.get_security_group(context, sg_id)
 
         if sg:
-            sg['name'] = self._format_resource_name(sg['name'])
+            sg['name'] = Util.format_resource_name(sg['name'])
             # remove description as its not used
             if 'description' in sg:
                 sg['description'] = ''
@@ -519,7 +511,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
-            mapped_network['name'] = self._format_resource_name(
+            mapped_network['name'] = Util.format_resource_name(
                 mapped_network['name'])
             self.bsn_create_tenant(servermanager.SERVICE_TENANT,
                                    context=context)
@@ -535,7 +527,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
-            net_fl_ips['name'] = self._format_resource_name(
+            net_fl_ips['name'] = Util.format_resource_name(
                 net_fl_ips['name'])
         self.servers.rest_update_network(tenant_id, net_id, net_fl_ips)
 
