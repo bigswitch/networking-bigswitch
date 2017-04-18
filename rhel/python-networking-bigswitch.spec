@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.7
+Version:        8.40.8
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Tue May 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.8
+- BVS-5916: ensure special chars are handled for tenant as well
 * Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.7
 - BVS-5916: handle special characters in object names
 * Wed Mar 1 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.6
