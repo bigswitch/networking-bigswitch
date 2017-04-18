@@ -238,6 +238,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     net_ports = plugin.get_ports(admin_context,
                                                  filters=net_filter) or []
                     for port in net_ports:
+                        if not self._is_port_supported(port):
+                            continue
                         # skip L3 router ports since the backend
                         # implements the router
                         if (self.l3_bsn_plugin and
@@ -569,6 +571,17 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         resource.pop('status', None)
 
         return resource
+
+    def _is_port_supported(self, port):
+        """Check if the vnic-type is supported
+
+        :return: True, if port is supported
+                 False, otherwise
+        """
+        vnic_type = port.get(portbindings.VNIC_TYPE)
+        if vnic_type and vnic_type in pl_config.UNSUPPORTED_VNIC_TYPES:
+            return False
+        return True
 
     def _is_port_sriov(self, port):
         """Check if port is an SR-IOV port
