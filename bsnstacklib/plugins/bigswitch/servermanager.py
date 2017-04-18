@@ -44,6 +44,7 @@ from bsnstacklib.plugins.bigswitch.i18n import _
 from bsnstacklib.plugins.bigswitch.i18n import _LE
 from bsnstacklib.plugins.bigswitch.i18n import _LI
 from bsnstacklib.plugins.bigswitch.i18n import _LW
+from bsnstacklib.plugins.bigswitch.utils import Util
 import eventlet
 import eventlet.corolocal
 from keystoneclient.v2_0 import client as ksclient
@@ -632,6 +633,9 @@ class ServerPool(object):
             # remove the auth token so it's not present in debug logs on the
             # backend controller
             cdict.pop('auth_token', None)
+            if ('tenant_name' in cdict and cdict['tenant_name']):
+                cdict['tenant_name'] = Util.format_resource_name(
+                    cdict['tenant_name'])
             headers[REQ_CONTEXT_HEADER] = jsonutils.dumps(cdict)
         hash_handler = cdb.HashHandler()
         good_first = sorted(self.servers, key=lambda x: x.failed)
@@ -955,7 +959,8 @@ class ServerPool(object):
                                               password=self.auth_password,
                                               tenant_name=self.auth_tenant)
             tenants = keystone_client.tenants.list()
-            new_cached_tenants = {tn.id: tn.name for tn in tenants}
+            new_cached_tenants = {tn.id: Util.format_resource_name(tn.name)
+                                  for tn in tenants}
             # Add SERVICE_TENANT to handle hidden network for VRRP
             new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT
 
