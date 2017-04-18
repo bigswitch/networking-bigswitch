@@ -114,10 +114,10 @@ VIF_DET_BSN_VSWITCH_HOST_ID = "bsn_vswitch_host_id"
 VHOST_USER_SOCKET_DIR = "/run/vhost/"
 
 # SR-IOV related constants
+UNSUPPORTED_VNIC_TYPES = [portbindings.VNIC_DIRECT_PHYSICAL]
 VNIC_TYPE_SRIOV = [portbindings.VNIC_DIRECT]
 SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR = 'BSN-ACTIVE-'
 SRIOV_ACTIVE_PHYSNET = SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR + '1'
-
 
 class VSwitchType(enumerate):
     """Enums declaring the different Virtual Switch types
