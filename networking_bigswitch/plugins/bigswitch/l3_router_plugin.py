@@ -365,4 +365,4 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         except exceptions.TooManyExternalNetworks:
             # get_external_network can raise errors when multiple external
             # networks are detected, which isn't supported by the Plugin
-            LOG.error(_LE("NeutronRestProxyV2: too many external networks"))
+            pass
