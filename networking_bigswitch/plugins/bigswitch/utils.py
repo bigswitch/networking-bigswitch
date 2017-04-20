@@ -36,4 +36,7 @@ class Util(object):
                 # contain underscores as part of replacement
                 .replace('_', '__')
                 .replace(' ', '_s')
-                .replace('\'', '_a'))
+                .replace('\'', '_a')
+                .replace('/', '_f')
+                .replace('[', '_l')
+                .replace(']', '_r'))
