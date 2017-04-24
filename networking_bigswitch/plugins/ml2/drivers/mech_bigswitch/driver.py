@@ -88,7 +88,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Track hosts running IVS to avoid excessive calls to the backend
         self.vswitch_host_cache = {}
         self.setup_sg_rpc_callbacks()
-        self.unsupported_vnic_types = [portbindings.VNIC_DIRECT_PHYSICAL]
 
         LOG.debug("Initialization done")
 
@@ -244,9 +243,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if not self._is_port_supported(context.current):
+            LOG.debug("Ignoring unsupported vnic type")
             return
 
         if self._is_port_sriov(context.current):
@@ -279,9 +277,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def update_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if not self._is_port_supported(context.current):
+            LOG.debug("Ignoring unsupported vnic type")
             return
 
         # update port on the network controller
@@ -318,9 +315,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def delete_port_postcommit(self, context):
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if not self._is_port_supported(context.current):
+            LOG.debug("Ignoring unsupported vnic type")
             return
 
         # delete port on the network controller
@@ -447,9 +443,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                          portbindings.OVS_HYBRID_PLUG: False})
                     return
 
-        vnic_type = context.current.get(portbindings.VNIC_TYPE)
-        if vnic_type and vnic_type in self.unsupported_vnic_types:
-            LOG.debug("Ignoring unsupported vnic_type %s" % vnic_type)
+        if not self._is_port_supported(context.current):
+            LOG.debug("Ignoring unsupported vnic type")
             return
 
         if self._is_port_sriov(context.current):
