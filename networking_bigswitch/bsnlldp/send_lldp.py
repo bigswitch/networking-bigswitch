@@ -169,8 +169,11 @@ def validate_num_bits_of_int(int_value, num_bits, name=None):
     mask = pow(2, num_bits) - 1
     if (int_value & mask) != int_value:
         name = name if name else "The integer value"
-        raise ValueError("%s must be %d-bit long. Given: %d (%s)"
-                % (name, num_bits, int_value, hex(int_value)))
+        msg = ("{name} must be {num_bits}-bit long. Given: {int_value} "
+               "({hex_value})".format(**{'name': name, 'num_bits': num_bits,
+                                         'int_value': int_value,
+                                         'hex_value': hex(int_value)}))
+        raise ValueError(msg)
 
 
 def raw_bytes_of_hex_str(hex_str):
