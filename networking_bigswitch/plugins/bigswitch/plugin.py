@@ -774,7 +774,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @utils.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
-        session = db.get_session()
+        session = db.get_writer_session()
         try:
             port = session.query(models_v2.Port).filter_by(id=port_id).one()
             port['status'] = status
@@ -943,8 +943,10 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self._send_update_network(new_net, context)
         return new_net
 
-    # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
-    @utils.synchronized('bsn-port-barrier')
+    # NOTE(wolverineav): workaround for eventlet/mysql deadlock not required,
+    # since upstream doesn't call delete on port table directly. It calls
+    # delete_port() which already has the bsn-port-barrier
+    # @utils.synchronized('bsn-port-barrier')
     @db.context_manager.writer
     @put_context_in_serverpool
     def delete_network(self, context, net_id):
@@ -1061,6 +1063,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 self._extend_port_dict_binding(context, port)
         return [self._fields(port, fields) for port in ports]
 
+    @db.context_manager.writer
     @put_context_in_serverpool
     def update_port(self, context, port_id, port):
         """Update values of a port.
@@ -1095,42 +1098,44 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         # Validate Args
         orig_port = super(NeutronRestProxyV2, self).get_port(context, port_id)
-        with context.session.begin(subtransactions=True):
-            # Update DB
-            new_port = super(NeutronRestProxyV2,
-                             self).update_port(context, port_id, port)
-            ctrl_update_required = False
-            if addr_pair.ADDRESS_PAIRS in port['port']:
-                ctrl_update_required |= (
-                    self.update_address_pairs_on_port(context, port_id, port,
-                                                      orig_port, new_port))
-            self._update_extra_dhcp_opts_on_port(context, port_id, port,
-                                                 new_port)
-            old_host_id = porttracker_db.get_port_hostid(context,
-                                                         orig_port['id'])
-            if (portbindings.HOST_ID in port['port']
-                and 'id' in new_port):
-                host_id = port['port'][portbindings.HOST_ID]
-                porttracker_db.put_port_hostid(context, new_port['id'],
-                                               host_id)
-                if old_host_id != host_id:
-                    ctrl_update_required = True
 
-            if (new_port.get("device_id") != orig_port.get("device_id") and
-                orig_port.get("device_id")):
+        # Update DB
+        new_port = super(NeutronRestProxyV2,
+                         self).update_port(context, port_id, port)
+        ctrl_update_required = False
+        if addr_pair.ADDRESS_PAIRS in port['port']:
+            ctrl_update_required |= (
+                self.update_address_pairs_on_port(context, port_id, port,
+                                                  orig_port, new_port))
+        self._update_extra_dhcp_opts_on_port(context, port_id, port,
+                                             new_port)
+        old_host_id = porttracker_db.get_port_hostid(context,
+                                                     orig_port['id'])
+        if (portbindings.HOST_ID in port['port']
+            and 'id' in new_port):
+            host_id = port['port'][portbindings.HOST_ID]
+            porttracker_db.put_port_hostid(context, new_port['id'],
+                                           host_id)
+            if old_host_id != host_id:
                 ctrl_update_required = True
 
-            if ctrl_update_required:
-                # tenant_id must come from network in case network is shared
-                net_tenant_id = self._get_port_net_tenantid(context, new_port)
-                new_port = self._extend_port_dict_binding(context, new_port)
-                mapped_port = self._map_tenant_name(new_port)
-                mapped_port = self._map_state_and_status(mapped_port)
-                self.servers.rest_update_port(net_tenant_id,
-                                              new_port["network_id"],
-                                              mapped_port)
-            need_port_update_notify = self.update_security_group_on_port(
-                context, port_id, port, orig_port, new_port)
+        if (new_port.get("device_id") != orig_port.get("device_id") and
+            orig_port.get("device_id")):
+            ctrl_update_required = True
+
+        if ctrl_update_required:
+            # tenant_id must come from network in case network is shared
+            net_tenant_id = self._get_port_net_tenantid(context, new_port)
+            new_port = self._extend_port_dict_binding(context, new_port)
+            mapped_port = self._map_tenant_name(new_port)
+            mapped_port = self._map_state_and_status(mapped_port)
+            self.servers.rest_update_port(net_tenant_id,
+                                          new_port["network_id"],
+                                          mapped_port)
+        need_port_update_notify = self.update_security_group_on_port(
+            context, port_id, port, orig_port, new_port)
+
+        # TODO(wolverineav) post_update to be moved to separate method
         need_port_update_notify |= self.is_security_group_member_updated(
             context, orig_port, new_port)
 
@@ -1142,6 +1147,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @utils.synchronized('bsn-port-barrier')
+    @db.context_manager.writer
     @put_context_in_serverpool
     def delete_port(self, context, port_id, l3_port_check=True):
         """Delete a port.
@@ -1159,17 +1165,18 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # and l3-router.  If so, we should prevent deletion.
         if l3_port_check and self.l3_plugin:
             self.l3_plugin.prevent_l3_port_deletion(context, port_id)
-        with context.session.begin(subtransactions=True):
-            if self.l3_plugin:
-                router_ids = self.l3_plugin.disassociate_floatingips(
-                    context, port_id, do_notify=False)
-            port = super(NeutronRestProxyV2, self).get_port(context, port_id)
-            # Tenant ID must come from network in case the network is shared
-            tenid = self._get_port_net_tenantid(context, port)
-            self.ipam.delete_port(context, port_id)
-            tenid = tenid or servermanager.SERVICE_TENANT
-            self.servers.rest_delete_port(tenid, port['network_id'], port_id)
 
+        if self.l3_plugin:
+            router_ids = self.l3_plugin.disassociate_floatingips(
+                context, port_id, do_notify=False)
+        port = super(NeutronRestProxyV2, self).get_port(context, port_id)
+        # Tenant ID must come from network in case the network is shared
+        tenid = self._get_port_net_tenantid(context, port)
+        self.ipam.delete_port(context, port_id)
+        tenid = tenid or servermanager.SERVICE_TENANT
+        self.servers.rest_delete_port(tenid, port['network_id'], port_id)
+
+        # TODO(wolverineav) post_update to be moved to separate method
         if self.l3_plugin:
             # now that we've left db transaction, we are safe to notify
             self.l3_plugin.notify_routers_updated(context, router_ids)
