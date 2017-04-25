@@ -215,6 +215,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         all_networks = plugin.get_networks(admin_context) or []
         for net in all_networks:
             try:
+                if self._skip_bcf_network_event(net):
+                    LOG.info(_LI('Skipping segment create for Network: %(n)s'),
+                             {'n': net.get('name')})
+                    continue
+
                 mapped_network = self._get_mapped_network_with_subnets(net)
                 if not self._validate_names(mapped_network):
                     continue
@@ -504,8 +509,26 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         network['segmentation_types'] = getattr(self, "segmentation_types", "")
         return network
 
+    def _skip_bcf_network_event(self, network):
+        '''Check if the network event needs to be sent to BCF
+
+        return true, if event should be skipped, i.e. not be sent to BCF
+               false, otherwise
+       '''
+        pnet = network.get(pl_config.PROVIDER_PHYSNET)
+        if pnet and pl_config.SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR in pnet:
+            # Configure BCF segment only for networks on ACTIVE physnet
+            if not pnet.endswith(pl_config.SRIOV_ACTIVE_PHYSNET):
+                return True
+        return False
+
     def _send_create_network(self, network, context=None):
         tenant_id = network['tenant_id']
+        if self._skip_bcf_network_event(network):
+            LOG.info(_LI('Skipping BCF segment create for Network: %(name)s'),
+                     {'name': network.get('name')})
+            return
+
         if context is None:
             context = qcontext.get_admin_context()
         filters = {'name': ['default'], 'tenant_id': [tenant_id]}
@@ -528,6 +551,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _send_update_network(self, network, context=None):
         net_id = network['id']
         tenant_id = network['tenant_id']
+        if self._skip_bcf_network_event(network):
+            LOG.info(_LI('Skipping BCF segment update for Network: %(name)s'),
+                     {'name': network.get('name')})
+            return
+
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
@@ -541,6 +569,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _send_delete_network(self, network, context=None):
         net_id = network['id']
+        if self._skip_bcf_network_event(network):
+            LOG.info(_LI('Skipping BCF segment delete for Network: %(name)s'),
+                     {'name': network.get('name')})
+            return
         tenant_id = network['tenant_id'] or servermanager.SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
 
