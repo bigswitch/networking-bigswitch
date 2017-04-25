@@ -11,7 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import contextlib
+
 import httplib
 import socket
 import ssl
@@ -90,19 +90,18 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl = directory.get_plugin()
         pl.servers.capabilities = []
         self.watch_p.stop()
-        with contextlib.nested(
-            mock.patch('eventlet.sleep'),
+        with\
+            mock.patch('eventlet.sleep') as smock,\
             mock.patch(
                 SERVERMANAGER + '.ServerPool.rest_call',
                 side_effect=servermanager.RemoteRestError(
                     reason='Failure to trigger except clause.'
                 )
-            ),
+            ) as rmock,\
             mock.patch(
                 SERVERMANAGER + '.LOG.exception',
                 side_effect=KeyError('Failure to break loop')
-            )
-        ) as (smock, rmock, lmock):
+            ) as lmock:
             # should return immediately without consistency capability
             pl.servers._consistency_watchdog()
             self.assertFalse(smock.called)
@@ -281,13 +280,13 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         sp = servermanager.ServerPool()
         with mock.patch(HTTPCON, return_value=None):
             resp = sp.servers[0].rest_call('GET', '/')
-            self.assertEqual(resp, (0, None, None, None))
+            self.assertIsNone(resp)
         # verify same behavior on ssl class
         sp.servers[0].currentcon = False
         sp.servers[0].ssl = True
         with mock.patch(HTTPSCON, return_value=None):
             resp = sp.servers[0].rest_call('GET', '/')
-            self.assertEqual(resp, (0, None, None, None))
+            self.assertIsNone(resp)
 
     def test_reconnect_cached_connection(self):
         self.skipTest("cached connections are currently disabled because "
@@ -339,7 +338,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         with mock.patch(HTTPCON) as conmock:
             conmock.return_value.request.side_effect = socket.timeout()
             resp = sp.servers[0].rest_call('GET', '/')
-            self.assertEqual(resp, (0, None, None, None))
+            self.assertIsNone(resp)
 
     def test_cert_get_fail(self):
         pl = directory.get_plugin()
@@ -354,12 +353,12 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists, 3 children don't, and host cert does
-        with contextlib.nested(
+        with\
             mock.patch('os.path.exists', side_effect=[True, False, False,
-                                                      False, True]),
-            mock.patch('os.makedirs'),
-            mock.patch(SERVERMANAGER + '.ServerPool._combine_certs_to_file')
-        ) as (exmock, makemock, combmock):
+                                                      False, True]) as exmock,\
+            mock.patch('os.makedirs') as makemock,\
+            mock.patch(SERVERMANAGER + '.ServerPool._combine_certs_to_file') \
+                as combmock:
             # will raise error because no certs found
             self.assertIn(
                 'example.org',
@@ -402,11 +401,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_retry_on_unavailable(self):
         pl = directory.get_plugin()
-        with contextlib.nested(
+        with\
             mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                       return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)),
-            mock.patch(SERVERMANAGER + '.time.sleep')
-        ) as (srestmock, tmock):
+                       return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0))\
+                as srestmock,\
+                mock.patch(SERVERMANAGER + '.time.sleep') as tmock:
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
             rest_call = [mock.call('GET', '/', '', None, False, reconnect=True,
@@ -467,12 +466,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_no_sync_without_keystone(self):
         pl = directory.get_plugin()
-        with contextlib.nested(
+        with\
             mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
-                       return_value=(False)),
+                       return_value=(False)),\
             mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                       return_value=(httplib.CONFLICT, 0, 0, 0))
-        ) as (fmock, srestmock):
+                       return_value=(httplib.CONFLICT, 0, 0, 0)) as srestmock:
             # making a call should trigger a conflict sync
             pl.servers.rest_call('GET', '/', '', None, [])
             srestmock.assert_called_once_with(
@@ -484,7 +482,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
                 return_value=(False)):
             # making a call should trigger a conflict sync
-            self.assertEqual(None, pl._send_all_data())
+            self.assertIsNone(pl._send_all_data())
 
     def test_floating_calls(self):
         pl = directory.get_plugin()
@@ -685,11 +683,10 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         handler1 = consistency_db.HashHandler()
         handler1.read_for_update()  # lock the table
         handler2 = consistency_db.HashHandler()
-        with contextlib.nested(
-            mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME'),
+        with\
+            mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME') as mlock,\
             mock.patch.object(handler2, '_optimistic_update_hash_record',
-                              side_effect=[False, True])
-        ) as (mlock, oplock):
+                              side_effect=[False, True]) as oplock:
             # handler2 will go through 2 iterations since the lock will fail on
             # the first attempt
             mlock.__lt__.side_effect = [False, True, False, True]
