@@ -26,6 +26,7 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
+from neutron.db import api as db
 from neutron.db.models import l3 as l3_db
 from neutron.extensions import l3
 
@@ -68,6 +69,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         super(L3RestProxy, self).__init__()
         self.servers = servermanager.ServerPool.get_instance()
 
+    @db.context_manager.writer
     @put_context_in_serverpool
     @log_helper.log_method_call
     def create_router(self, context, router):
@@ -79,35 +81,35 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         rules = self._get_tenant_default_router_rule(tenant_id)
         router['router']['router_rules'] = [rules]
 
-        with context.session.begin(subtransactions=True):
-            # create router in DB
-            # TODO(wolverineav): hack until fixed at right place
-            setattr(context, 'GUARD_TRANSACTION', False)
-            new_router = super(L3RestProxy, self).create_router(context,
-                                                                router)
-            mapped_router = self._map_tenant_name(new_router)
-            mapped_router = self._map_state_and_status(mapped_router)
-            # populate external tenant_id if it is absent for external network,
-            # This is a new work flow in kilo that user can specify external
-            # network when creating a router
-            if (mapped_router and mapped_router.get('external_gateway_info')):
-                ext_gw_info = mapped_router.get('external_gateway_info')
-                ext_net_id = ext_gw_info.get('network_id')
-                ext_tenant_id = ext_gw_info.get("tenant_id")
-                if ext_net_id and (not ext_tenant_id):
-                    ext_net = self.get_network(context, ext_net_id)
-                    if ext_net:
-                        mapped_router['external_gateway_info']['tenant_id'] = (
-                            ext_net.get('tenant_id'))
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
+        # create router in DB
+        # TODO(wolverineav): hack until fixed at right place
+        setattr(context, 'GUARD_TRANSACTION', False)
+        new_router = super(L3RestProxy, self).create_router(context,
+                                                            router)
+        mapped_router = self._map_tenant_name(new_router)
+        mapped_router = self._map_state_and_status(mapped_router)
+        # populate external tenant_id if it is absent for external network,
+        # This is a new work flow in kilo that user can specify external
+        # network when creating a router
+        if (mapped_router and mapped_router.get('external_gateway_info')):
+            ext_gw_info = mapped_router.get('external_gateway_info')
+            ext_net_id = ext_gw_info.get('network_id')
+            ext_tenant_id = ext_gw_info.get("tenant_id")
+            if ext_net_id and (not ext_tenant_id):
+                ext_net = self.get_network(context, ext_net_id)
+                if ext_net:
+                    mapped_router['external_gateway_info']['tenant_id'] = (
+                        ext_net.get('tenant_id'))
+        # pop router_tenant_rules from upstream object
+        if 'router_tenant_rules' in new_router:
+            del new_router['router_tenant_rules']
 
-            self.servers.rest_create_router(tenant_id, mapped_router)
+        self.servers.rest_create_router(tenant_id, mapped_router)
 
-            # return created router
-            return new_router
+        # return created router
+        return new_router
 
+    @db.context_manager.writer
     @put_context_in_serverpool
     @log_helper.log_method_call
     def update_router(self, context, router_id, router):
@@ -115,58 +117,58 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
         orig_router = super(L3RestProxy, self).get_router(context, router_id)
         tenant_id = orig_router["tenant_id"]
-        with context.session.begin(subtransactions=True):
-            new_router = super(L3RestProxy,
-                               self).update_router(context, router_id, router)
-            router = self._update_ext_gateway_info(context, new_router)
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
-            # update router on network controller
-            self.servers.rest_update_router(tenant_id, router, router_id)
 
-            # return updated router
-            return new_router
+        new_router = super(L3RestProxy,
+                           self).update_router(context, router_id, router)
+        router = self._update_ext_gateway_info(context, new_router)
+        # pop router_tenant_rules from upstream object
+        if 'router_tenant_rules' in new_router:
+            del new_router['router_tenant_rules']
+        # update router on network controller
+        self.servers.rest_update_router(tenant_id, router, router_id)
 
+        # return updated router
+        return new_router
+
+    @db.context_manager.writer
     @put_context_in_serverpool
     @log_helper.log_method_call
     def delete_router(self, context, router_id):
-        with context.session.begin(subtransactions=True):
-            orig_router = self._get_router(context, router_id)
-            tenant_id = orig_router["tenant_id"]
+        orig_router = self._get_router(context, router_id)
+        tenant_id = orig_router["tenant_id"]
 
-            # Ensure that the router is not used
-            router_filter = {'router_id': [router_id]}
-            fips = self.get_floatingips_count(context.elevated(),
-                                              filters=router_filter)
-            if fips:
-                raise l3.RouterInUse(router_id=router_id)
+        # Ensure that the router is not used
+        router_filter = {'router_id': [router_id]}
+        fips = self.get_floatingips_count(context.elevated(),
+                                          filters=router_filter)
+        if fips:
+            raise l3.RouterInUse(router_id=router_id)
 
-            device_owner = lib_constants.DEVICE_OWNER_ROUTER_INTF
-            device_filter = {'device_id': [router_id],
-                             'device_owner': [device_owner]}
-            ports = self.get_ports_count(context.elevated(),
-                                         filters=device_filter)
-            if ports:
-                raise l3.RouterInUse(router_id=router_id)
-            # TODO(wolverineav): hack until fixed at right place
-            setattr(context, 'GUARD_TRANSACTION', False)
-            super(L3RestProxy, self).delete_router(context, router_id)
+        device_owner = lib_constants.DEVICE_OWNER_ROUTER_INTF
+        device_filter = {'device_id': [router_id],
+                         'device_owner': [device_owner]}
+        ports = self.get_ports_count(context.elevated(),
+                                     filters=device_filter)
+        if ports:
+            raise l3.RouterInUse(router_id=router_id)
+        # TODO(wolverineav): hack until fixed at right place
+        setattr(context, 'GUARD_TRANSACTION', False)
+        super(L3RestProxy, self).delete_router(context, router_id)
 
-            # added check to update router policy for another router for
-            # default routes
-            updated_router = (super(L3RestProxy, self)
-                              .update_policies_post_delete(context, tenant_id))
+        # added check to update router policy for another router for
+        # default routes
+        updated_router = (super(L3RestProxy, self)
+                          .update_policies_post_delete(context, tenant_id))
 
-            # delete from network controller
-            self.servers.rest_delete_router(tenant_id, router_id)
-            if updated_router:
-                # update BCF after removing the router first
-                LOG.debug('Default policies now part of router: %s'
-                          % updated_router)
-                router = self._update_ext_gateway_info(context, updated_router)
-                self.servers.rest_update_router(tenant_id, router,
-                                                router['id'])
+        # delete from network controller
+        self.servers.rest_delete_router(tenant_id, router_id)
+        if updated_router:
+            # update BCF after removing the router first
+            LOG.debug('Default policies now part of router: %s'
+                      % updated_router)
+            router = self._update_ext_gateway_info(context, updated_router)
+            self.servers.rest_update_router(tenant_id, router,
+                                            router['id'])
 
     @put_context_in_serverpool
     @log_helper.log_method_call
