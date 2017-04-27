@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.42.0
+Version:        9.42.1
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,12 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.1
+- OSP-43: skip pci passthrough during topo-sync
+- BVS-5916: ensure special chars are handled for tenant as well
+- OSP-37: remove the misleading log message
+- BVS-5916: add more special characters
+- OSP-67: Dont create BCF segment for secondary active segment
 * Tue Apr 18 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.0
 - OSP-51: include all l3_router_plugin methods
 - Update version to 9.42.x for controller compatibility
