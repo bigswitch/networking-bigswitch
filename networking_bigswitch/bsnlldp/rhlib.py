@@ -133,24 +133,26 @@ def get_uplinks_and_chassisid():
 
     intfs = []
     chassis_id = "00:00:00:00:00:00"
+    at_least_one_nic_ready = False
     while True:
+        # get active interfaces from os_net_config
         active_intfs = utils.ordered_active_nics()
         intf_len = len(active_intfs)
-        if len(active_intfs) != 0:
+        if intf_len != 0:
             chassis_id = get_mac_str(active_intfs[0])
         intfs = []
-        all_nics_are_ready = True
         for index in intf_indexes:
             try:
                 idx = int(index)
-                if idx >= intf_len:
-                    all_nics_are_ready = False
-                    break
-                intfs.append(active_intfs[idx])
+                if idx < intf_len:
+                    intfs.append(active_intfs[idx])
+                    at_least_one_nic_ready = True
             except ValueError:
                 intfs.append(index)
-        if all_nics_are_ready:
+                at_least_one_nic_ready = True
+        if at_least_one_nic_ready:
             break
-        LOG.syslog("LLDP gets partial active uplinks %s" % intfs)
+        # if no nics found active, retry in a sec
+        LOG.syslog("LLDP has no active uplinks %s" % intfs)
         time.sleep(1)
     return intfs, chassis_id

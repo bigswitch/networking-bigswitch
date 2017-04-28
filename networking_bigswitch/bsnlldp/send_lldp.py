@@ -341,6 +341,23 @@ def send_lldp():
         interval = args.interval
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
+        if "red hat" in platform_os.strip().lower():
+            # refresh interface list, since a new link may have come up
+            new_intfs, new_chassisid = get_uplinks_and_chassisid()
+            if (intfs, chassisid) != (new_intfs, new_chassisid):
+                # something changed, update it
+                LOG.syslog("LLDP interfaces updated from %(old_intfs)s"
+                           " to %(new_intfs)s" %
+                           {'old_intfs': ','.join(intfs),
+                            'new_intfs': ','.join(new_intfs)})
+                LOG.syslog("LLDP chassisid updated from %(old_chassisid)s"
+                           " to %(new_chassisid)s" %
+                           {'old_chassisid': chassisid,
+                            'new_chassisid': new_chassisid})
+                # update vars to identify diff next time
+                intfs, chassisid = new_intfs, new_chassisid
+                senders, frames = _generate_senders_frames(
+                    intfs, chassisid, args)
         for idx, s in enumerate(senders):
             try:
                 s.send(frames[idx])
