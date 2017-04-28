@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.42.2
+Version:        9.42.3
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Wed May 03 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.3
+- OSP-29: allow LACP convergence when only one link is up
 * Mon May 01 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.2
 - BVS-8259: skip upstream method override
 * Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.1
