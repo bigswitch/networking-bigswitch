@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.42.1
+Version:        9.42.2
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.2
+- OSP-29: allow LACP convergence when only one link is up
 * Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.1
 - OSP-43: skip pci passthrough during topo-sync
 - BVS-5916: ensure special chars are handled for tenant as well
