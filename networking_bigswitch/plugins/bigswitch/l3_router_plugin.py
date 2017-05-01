@@ -322,19 +322,6 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         self._send_floatingip_update(context)
         return router_ids
 
-    # overriding method from l3_db as original method calls
-    # self.delete_floatingip() which in turn calls self.delete_port() which
-    # is locked with 'bsn-port-barrier'
-    @put_context_in_serverpool
-    def delete_disassociated_floatingips(self, context, network_id):
-        query = self._model_query(context, l3_db.FloatingIP)
-        query = query.filter_by(floating_network_id=network_id,
-                                fixed_port_id=None,
-                                router_id=None)
-        for fip in query:
-            context.session.delete(fip)
-            self._delete_port(context.elevated(), fip['floating_port_id'])
-
     def _update_ext_gateway_info(self, context, updated_router):
         if updated_router.get(l3.EXTERNAL_GW_INFO):
             ext_net_id = updated_router[l3.EXTERNAL_GW_INFO].get('network_id')
