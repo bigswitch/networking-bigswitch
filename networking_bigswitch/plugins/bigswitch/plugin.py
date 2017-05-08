@@ -224,14 +224,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 mapped_network = self._get_mapped_network_with_subnets(net)
                 if not self._validate_names(mapped_network):
                     continue
-                # validate names for subnet as well
-                if 'subnets' in mapped_network:
-                    new_subnets = []
-                    for subnet in mapped_network['subnets']:
-                        if not self._validate_names(subnet):
-                            continue
-                        new_subnets.append(subnet)
-                    mapped_network['subnets'] = new_subnets
 
                 flips_n_ports = mapped_network
                 if get_floating_ips:
