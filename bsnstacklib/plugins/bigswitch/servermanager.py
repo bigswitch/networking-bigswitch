@@ -195,7 +195,6 @@ class ObjTypeEnum(Enum):
     network = "network"
     router = "router"
     security_group = "security_group"
-    subnet = "subnet"
     tenant = "tenant"
 
 
@@ -864,10 +863,6 @@ class ServerPool(object):
     def rest_create_network(self, tenant_id, network):
         self._check_and_raise_exception_unsupported_name(ObjTypeEnum.network,
                                                          network)
-        if 'subnets' in network:
-            for subnet in network['subnets']:
-                self._check_and_raise_exception_unsupported_name(
-                    ObjTypeEnum.subnet, subnet)
         resource = NET_RESOURCE_PATH % tenant_id
         data = {"network": network}
         errstr = _("Unable to create remote network: %s")
@@ -876,10 +871,6 @@ class ServerPool(object):
     def rest_update_network(self, tenant_id, net_id, network):
         self._check_and_raise_exception_unsupported_name(ObjTypeEnum.network,
                                                          network)
-        if 'subnets' in network:
-            for subnet in network['subnets']:
-                self._check_and_raise_exception_unsupported_name(
-                    ObjTypeEnum.subnet, subnet)
         resource = NETWORKS_PATH % (tenant_id, net_id)
         data = {"network": network}
         errstr = _("Unable to update remote network: %s")
