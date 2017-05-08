@@ -228,11 +228,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         new_subnets.append(subnet)
                     mapped_network['subnets'] = new_subnets
 
-                # OSP-45: remove name to avoid NSAPI error in convertToAscii
-                if 'subnets' in mapped_network:
-                    for subnet in mapped_network['subnets']:
-                        subnet.pop('name', None)
-
                 flips_n_ports = mapped_network
                 if get_floating_ips:
                     flips_n_ports = self._get_network_with_floatingips(
@@ -495,6 +490,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             context, network['id'])
         # include ML2 segmentation types
         network['segmentation_types'] = getattr(self, "segmentation_types", "")
+        # OSP-45: remove name to avoid NSAPI error in convertToAscii
+        for subnet in (subnets or []):
+            subnet.pop('name', None)
         return network
 
     def _send_create_network(self, network, context=None):
@@ -509,10 +507,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
-        # OSP-45: remove name to avoid NSAPI error in convertToAscii
-        if 'subnets' in mapped_network:
-            for subnet in mapped_network['subnets']:
-                subnet.pop('name', None)
+
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
@@ -527,10 +522,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         tenant_id = network['tenant_id']
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
-        # OSP-45: remove name to avoid NSAPI error in convertToAscii
-        if 'subnets' in mapped_network:
-            for subnet in mapped_network['subnets']:
-                subnet.pop('name', None)
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
                                                         context)
         if not tenant_id:
