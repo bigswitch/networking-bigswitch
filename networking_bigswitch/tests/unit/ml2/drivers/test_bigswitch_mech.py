@@ -110,11 +110,10 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "virtual"}]),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock, port):
+                       return_value=[{"fabric-role": "virtual"}]) as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
             rmock.assert_called_once_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
@@ -125,15 +124,14 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_bind_nfvswitch_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
         vhost_sock = "vhost0"
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "nfvswitch"}]),
-            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),
+                       return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
+            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
             mock.patch(SERVER_POOL + '.rest_get_port',
                        return_value=[{'attachment-point':
-                                      {'interface': vhost_sock}}]),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock1, _, _, port):
+                                      {'interface': vhost_sock}}]),\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
             rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
@@ -176,11 +174,10 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                 return None
             return [{"fabric-role": "virtual"}]
 
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       side_effect=side_effects),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock, port):
+                       side_effect=side_effects) as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
             rmock.assert_called_with('hostname')
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
