@@ -559,10 +559,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _send_delete_network(self, network, context=None):
         net_id = network['id']
-        if self._skip_bcf_network_event(network):
-            LOG.info(_LI('Skipping BCF segment delete for Network: %(name)s'),
-                     {'name': network.get('name')})
-            return
         tenant_id = network['tenant_id'] or servermanager.SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
 
