@@ -122,6 +122,7 @@ done
 %changelog
 * Mon May 22 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.7
 - fix UTs in ocata
+- OSP-76: perform delete on secondary network regardless
 * Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.6
 - OSP-43: skip pci passthrough during topo-sync
 - OSP-37: remove the misleading log message
