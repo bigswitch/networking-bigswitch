@@ -610,6 +610,26 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             return True
         return False
 
+    def _is_port_sriov_vm_detach(self, port):
+        """
+        We allow empty host_id field during update_port_postcommit. This is a
+        check to see if the port is SRIOV port and a case of VM detach.
+
+        If yes, we send a delete_port to the BCF controller for that port.
+        Otherwise return false and do nothing for the port.
+
+        :param port:
+        :return: boolean value specifying if port is sriov_vm_detach case
+        """
+        # if port is SRIOV and unbound, it is VM detach
+        if self._is_port_sriov(port):
+            vif_type = port.get(portbindings.VIF_TYPE)
+            if not vif_type:
+                return False
+            elif vif_type == portbindings.VIF_TYPE_UNBOUND:
+                return True
+        return False
+
     def _get_sriov_port_hostid(self, port, network):
         """Return the HostID for the given SR-IOV port
 
@@ -639,7 +659,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type
-
         Perform basic sanity checks and update the HOST_ID of the port
         :return: port, if port is of relevance to BCF
                  False, otherwise
