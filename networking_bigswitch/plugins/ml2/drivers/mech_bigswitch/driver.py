@@ -283,11 +283,22 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
         # update port on the network controller
         try:
-            port = self._prepare_port_for_controller(context)
+            port = self._prepare_port_for_controller(context, omit_hostid=True)
         except servermanager.TenantIDNotFound as e:
             LOG.warning(_LW("Skipping update port %(port)s as %(exp)s"),
                         {'port': context.current.get('id'), 'exp': e})
             return
+
+        if self._is_port_sriov_vm_detach(port, context.network.current):
+            # remove port from BCF and return
+            LOG.debug("update_port_postcommmit called for SRIOV port VM "
+                      "detach case.")
+            self.servers.rest_delete_port(port["network"]["tenant_id"],
+                                          port["network"]["id"],
+                                          port["id"])
+            return
+        else:
+            port = self._map_port_hostid(port, context.network.current)
 
         if port:
             # For vhostuser type ports, membership rule and endpoint was
@@ -327,9 +338,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             tenant_id = plugin.SERVICE_TENANT
         self.servers.rest_delete_port(tenant_id, net["id"], port['id'])
 
-    def _prepare_port_for_controller(self, context):
+    def _prepare_port_for_controller(self, context, omit_hostid=False):
         """
         Make a copy so the context isn't changed for other drivers
+        :param omit_hostid boolean value that specifies if host_id population
+               is to be skipped
         :exception can throw servermanager.TenantIDNotFound
         """
         port = copy.deepcopy(context.current)
@@ -338,6 +351,10 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         port['bound_segment'] = context.top_bound_segment
         prepped_port = self._map_tenant_name(port)
         prepped_port = self._map_state_and_status(prepped_port)
+        # OSP-68 allow empty host_id for sriov ports in case of VM detach
+        if omit_hostid:
+            return prepped_port
+
         prepped_port = self._map_port_hostid(prepped_port, net)
         return prepped_port
 
