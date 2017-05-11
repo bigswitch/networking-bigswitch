@@ -614,6 +614,55 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             return True
         return False
 
+    def _sriov_port_validation_active_active(self, port, network):
+        """
+        For SR-IOV port, we configure 'memeber interface-group $HOSTID' on BCF.
+        In Active-Active mode, this is done ONLY for ports belonging to the
+        ACTIVE physnet. In Active-Backup mode, this is done for all ports.
+
+        :param port:
+        :param network:
+        :return: boolean value whether it passed or failed
+        """
+        network_type = network.get(pl_config.PROVIDER_NETWORK_TYPE)
+        if not network_type or network_type != pconst.TYPE_VLAN:
+            return False
+
+        physnet = network.get(pl_config.PROVIDER_PHYSNET)
+        if not physnet:
+            return False
+
+        if pl_config.SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR in physnet:
+            # Active-Active mode, configure BCF only for ACTIVE physnet
+            if not physnet.endswith(pl_config.SRIOV_ACTIVE_PHYSNET):
+                return False
+
+        return True
+
+    def _is_port_sriov_vm_detach(self, port, network):
+        """
+        We allow empty host_id field during update_port_postcommit. This is a
+        check to see if the port is SRIOV port and a case of VM detach.
+
+        If yes, we send a delete_port to the BCF controller for that port.
+        Otherwise return false and do nothing for the port.
+
+        :param port:
+        :param network:
+        :return: boolean value specifying if port is sriov_vm_detach case
+        """
+        # if port is SRIOV and unbound, it is VM detach
+        if self._is_port_sriov(port):
+            if not self._sriov_port_validation_active_active(port, network):
+                return False
+
+            vif_type = port.get(portbindings.VIF_TYPE)
+            if not vif_type:
+                return False
+            elif vif_type == portbindings.VIF_TYPE_UNBOUND:
+                return True
+        return False
+
     def _get_sriov_port_hostid(self, port, network):
         """Return the HostID for the given SR-IOV port
 
@@ -625,25 +674,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         :return: HostID, if membership-rule needs to be configured on BCF
                  None, otherwise
         """
-        network_type = network.get(pl_config.PROVIDER_NETWORK_TYPE)
-        if not network_type or network_type != pconst.TYPE_VLAN:
+        if not self._sriov_port_validation_active_active(port, network):
             return None
-
         physnet = network.get(pl_config.PROVIDER_PHYSNET)
-        if not physnet:
-            return None
-
-        if pl_config.SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR in physnet:
-            # Active-Active mode, configure BCF only for ACTIVE physnet
-            if not physnet.endswith(pl_config.SRIOV_ACTIVE_PHYSNET):
-                return None
-
         bsn_host_id = port.get(portbindings.HOST_ID) + '-' + physnet
         return bsn_host_id
 
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type
-
         Perform basic sanity checks and update the HOST_ID of the port
         :return: port, if port is of relevance to BCF
                  False, otherwise
