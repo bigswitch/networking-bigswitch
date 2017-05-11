@@ -640,11 +640,26 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type
 
-        Perform basic sanity checks and update the HOST_ID of the port
+        Perform basic sanity checks and update the HOST_ID of the port.
+
+        Except in case of SRIOV - port without host_id is allowed if its
+        unbound. Since that corresponds to either unattached SRIOV port create
+        or VM detach operation.
         :return: port, if port is of relevance to BCF
                  False, otherwise
         """
         prepped_port = copy.copy(port)
+
+        # if port is SRIOV, allow since it might be unbound port
+        if self._is_port_sriov(prepped_port):
+            vif_type = prepped_port.get(portbindings.VIF_TYPE)
+            if not vif_type:
+                return False
+            elif vif_type == portbindings.VIF_TYPE_UNBOUND:
+                # Port not bound yet, nothing to do
+                return prepped_port
+
+        # continue for non-SRIOV port or SRIOV vif_type is not VIF_TYPE_UNBOUND
         if (portbindings.HOST_ID not in prepped_port or
             prepped_port[portbindings.HOST_ID] == ''):
             LOG.debug("Ignoring port notification to controller because of "
