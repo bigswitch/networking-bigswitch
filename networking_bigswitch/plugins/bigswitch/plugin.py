@@ -943,8 +943,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self._send_update_network(new_net, context)
         return new_net
 
-    # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
-    @utils.synchronized('bsn-port-barrier')
     @db.context_manager.writer
     @put_context_in_serverpool
     def delete_network(self, context, net_id):
