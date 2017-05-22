@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        10.0.6
+Version:        10.0.7
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Mon May 22 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.7
+- fix UTs in ocata
 * Thu Apr 27 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 10.0.6
 - OSP-43: skip pci passthrough during topo-sync
 - OSP-37: remove the misleading log message
