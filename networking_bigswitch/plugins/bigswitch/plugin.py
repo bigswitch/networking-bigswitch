@@ -128,11 +128,10 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
         """Get port from database with security group info."""
 
         LOG.debug("get_port_and_sgs() called for port_id %s", port_id)
-        session = context.session
         sg_binding_port = sg_db.SecurityGroupPortBinding.port_id
 
-        with session.begin(subtransactions=True):
-            query = session.query(
+        with db.context_manager.reader.using(context):
+            query = context.session.query(
                 models_v2.Port,
                 sg_db.SecurityGroupPortBinding.security_group_id
             )
@@ -424,7 +423,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if context is None:
             context = qcontext.get_admin_context()
         # start a sub-transaction to avoid breaking parent transactions
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             subnets = self._get_subnets_by_network(context,
                                                    net_id)
         subnets_details = []
@@ -849,7 +848,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @utils.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
-        session = db.get_session()
+        session = db.get_writer_session()
         try:
             port = session.query(models_v2.Port).filter_by(id=port_id).one()
             port['status'] = status
@@ -965,7 +964,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         """
         self._warn_on_state_status(network['network'])
 
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             self._ensure_default_security_group(
                 context,
                 network['network']["tenant_id"]
@@ -1006,8 +1005,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         """
         self._warn_on_state_status(network['network'])
 
-        session = context.session
-        with session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             new_net = super(NeutronRestProxyV2, self).update_network(
                 context, net_id, network)
             self._process_l3_update(context, new_net, network['network'])
@@ -1032,7 +1030,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         """
         # Validate args
         orig_net = super(NeutronRestProxyV2, self).get_network(context, net_id)
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             self._process_l3_delete(context, net_id)
             ret_val = super(NeutronRestProxyV2, self).delete_network(context,
                                                                      net_id)
@@ -1067,7 +1065,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: RemoteRestError
         """
         # Update DB in new session so exceptions rollback changes
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             self._ensure_default_security_group_on_port(context, port)
             sgids = self._get_security_groups_on_port(context, port)
             # non-router port status is set to pending. it is then updated
@@ -1115,14 +1113,14 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         return new_port
 
     def get_port(self, context, id, fields=None):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.reader.using(context):
             port = super(NeutronRestProxyV2, self).get_port(context, id,
                                                             fields)
             self._extend_port_dict_binding(context, port)
         return self._fields(port, fields)
 
     def get_ports(self, context, filters=None, fields=None):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.reader.using(context):
             ports = super(NeutronRestProxyV2, self).get_ports(context, filters,
                                                               fields)
             for port in ports:
@@ -1161,7 +1159,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         # Validate Args
         orig_port = super(NeutronRestProxyV2, self).get_port(context, port_id)
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # Update DB
             new_port = super(NeutronRestProxyV2,
                              self).update_port(context, port_id, port)
@@ -1223,7 +1221,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # and l3-router.  If so, we should prevent deletion.
         if l3_port_check and self.l3_plugin:
             self.l3_plugin.prevent_l3_port_deletion(context, port_id)
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             if self.l3_plugin:
                 router_ids = self.l3_plugin.disassociate_floatingips(
                     context, port_id, do_notify=False)
@@ -1257,7 +1255,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     def update_subnet(self, context, id, subnet):
         self._warn_on_state_status(subnet['subnet'])
 
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # update subnet in DB
             new_subnet = super(NeutronRestProxyV2,
                                self).update_subnet(context, id, subnet)
@@ -1272,7 +1270,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     def delete_subnet(self, context, id):
         orig_subnet = super(NeutronRestProxyV2, self).get_subnet(context, id)
         net_id = orig_subnet['network_id']
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # delete subnet in DB
             super(NeutronRestProxyV2, self).delete_subnet(context, id)
             orig_net = super(NeutronRestProxyV2, self).get_network(context,
