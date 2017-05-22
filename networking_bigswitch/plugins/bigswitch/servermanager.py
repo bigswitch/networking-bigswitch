@@ -123,8 +123,9 @@ class UnsupportedNameException(exceptions.NeutronException):
     """
     message = _("Object of type %(obj_type)s and id %(obj_id)s has unsupported"
                 " character in name \"%(obj_name)s\". It should begin with an"
-                "alphanumeric character [0-9a-zA-Z] and can contain space,"
-                "underscore, apostrophe and double-quotes.")
+                " alphanumeric character [0-9a-zA-Z] and can contain space,"
+                " underscore, apostrophe, forward slash, opening and closing"
+                " square brackets.")
     status = None
 
 
