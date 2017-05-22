@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
 import mock
 
 from neutron_lib import constants as lib_consts
@@ -33,14 +32,13 @@ HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
 class CapabilitiesTests(test_router_db.RouterDBTestBase):
 
     def test_floating_ip_capability(self):
-        with contextlib.nested(
+        with\
             mock.patch(SERVERRESTCALL,
-                       return_value=(200, None, '["floatingip"]', None)),
+                       return_value=(200, None, '["floatingip"]', None)),\
             mock.patch(SERVERPOOL + '.rest_create_floatingip',
-                       return_value=(200, None, None, None)),
+                       return_value=(200, None, None, None)) as mock_create,\
             mock.patch(SERVERPOOL + '.rest_delete_floatingip',
-                       return_value=(200, None, None, None))
-        ) as (mock_rest, mock_create, mock_delete):
+                       return_value=(200, None, None, None)) as mock_delete:
             with self.floatingip_with_assoc() as fip:
                 # we have to grab the floating ip object from the service
                 # plugin since we send extra information not returned to the
@@ -56,12 +54,11 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
             )
 
     def test_floating_ip_capability_neg(self):
-        with contextlib.nested(
+        with\
             mock.patch(SERVERRESTCALL,
-                       return_value=(200, None, '[""]', None)),
+                       return_value=(200, None, '[""]', None)),\
             mock.patch(SERVERPOOL + '.rest_update_network',
-                       return_value=(200, None, None, None))
-        ) as (mock_rest, mock_netupdate):
+                       return_value=(200, None, None, None)) as mock_netupdate:
             with self.floatingip_with_assoc() as fip:
                 pass
             updates = [call[0][2]['floatingips']
