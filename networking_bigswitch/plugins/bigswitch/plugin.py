@@ -425,7 +425,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if context is None:
             context = qcontext.get_admin_context()
         # start a sub-transaction to avoid breaking parent transactions
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             subnets = self._get_subnets_by_network(context,
                                                    net_id)
         subnets_details = []
@@ -774,7 +774,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @utils.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
-        session = db.get_session()
+        session = db.get_writer_session()
         try:
             port = session.query(models_v2.Port).filter_by(id=port_id).one()
             port['status'] = status
@@ -1093,7 +1093,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         # Validate Args
         orig_port = super(NeutronRestProxyV2, self).get_port(context, port_id)
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # Update DB
             new_port = super(NeutronRestProxyV2,
                              self).update_port(context, port_id, port)
@@ -1157,7 +1157,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # and l3-router.  If so, we should prevent deletion.
         if l3_port_check and self.l3_plugin:
             self.l3_plugin.prevent_l3_port_deletion(context, port_id)
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             if self.l3_plugin:
                 router_ids = self.l3_plugin.disassociate_floatingips(
                     context, port_id, do_notify=False)
