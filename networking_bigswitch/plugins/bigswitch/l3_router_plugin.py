@@ -26,6 +26,7 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
+from neutron.db import api as db
 from neutron.db.models import l3 as l3_db
 from neutron.extensions import l3
 
@@ -79,7 +80,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         rules = self._get_tenant_default_router_rule(tenant_id)
         router['router']['router_rules'] = [rules]
 
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # create router in DB
             # TODO(wolverineav): hack until fixed at right place
             setattr(context, 'GUARD_TRANSACTION', False)
@@ -115,7 +116,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
         orig_router = super(L3RestProxy, self).get_router(context, router_id)
         tenant_id = orig_router["tenant_id"]
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
             router = self._update_ext_gateway_info(context, new_router)
@@ -131,7 +132,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     @put_context_in_serverpool
     @log_helper.log_method_call
     def delete_router(self, context, router_id):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             orig_router = self._get_router(context, router_id)
             tenant_id = orig_router["tenant_id"]
 
@@ -175,7 +176,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         router = self._get_router(context, router_id)
         tenant_id = router['tenant_id']
 
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # create interface in DB
             # TODO(wolverineav): hack until fixed at right place
             setattr(context, 'GUARD_TRANSACTION', False)
@@ -221,7 +222,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             msg = _("Either subnet_id or port_id must be specified")
             raise exceptions.BadRequest(resource='router', msg=msg)
 
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # remove router in DB
             # TODO(wolverineav): hack until fixed at right place
             setattr(context, 'GUARD_TRANSACTION', False)
@@ -247,7 +248,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     @put_context_in_serverpool
     @log_helper.log_method_call
     def create_floatingip(self, context, floatingip):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # create floatingip in DB
             new_fl_ip = super(L3RestProxy,
                               self).create_floatingip(context, floatingip)
@@ -271,7 +272,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     @put_context_in_serverpool
     @log_helper.log_method_call
     def update_floatingip(self, context, id, floatingip):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # update floatingip in DB
             new_fl_ip = super(L3RestProxy,
                               self).update_floatingip(context, id, floatingip)
@@ -293,7 +294,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     @put_context_in_serverpool
     @log_helper.log_method_call
     def delete_floatingip(self, context, id):
-        with context.session.begin(subtransactions=True):
+        with db.context_manager.writer.using(context):
             # delete floating IP in DB
             old_fip = super(L3RestProxy, self).get_floatingip(context, id)
             super(L3RestProxy, self).delete_floatingip(context, id)
