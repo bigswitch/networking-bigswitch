@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
 import mock
 from oslo_config import cfg
 import webob.exc
@@ -204,13 +203,12 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
     def test_create404_triggers_sync(self):
         # allow async port thread for this patch
         self.spawn_p.stop()
-        with contextlib.nested(
-            self.subnet(),
+        with\
+            self.subnet() as s,\
             patch(HTTPCON, create=True,
-                  new=fake_server.HTTPConnectionMock404),
+                  new=fake_server.HTTPConnectionMock404),\
             patch(bsn_test_base.RESTPROXY_PKG_PATH
-                  + '.NeutronRestProxyV2._send_all_data')
-        ) as (s, mock_http, mock_send_all):
+                  + '.NeutronRestProxyV2._send_all_data') as mock_send_all:
             with self.port(subnet=s, device_id='somedevid') as p:
                 # wait for the async port thread to finish
                 plugin = directory.get_plugin()
@@ -327,11 +325,10 @@ class TestBigSwitchProxyNetworksV2(test_plugin.TestNetworksV2,
     def test_notify_on_security_group_change(self):
         plugin = directory.get_plugin()
         with self.port() as p:
-            with contextlib.nested(
-                mock.patch.object(plugin, 'notifier'),
+            with\
+                mock.patch.object(plugin, 'notifier') as n_mock,\
                 mock.patch.object(plugin, 'is_security_group_member_updated',
-                                  return_value=True)
-            ) as (n_mock, s_mock):
+                                  return_value=True):
                 # any port update should trigger a notification due to s_mock
                 data = {'port': {'name': 'aNewName'}}
                 self.new_update_request(
