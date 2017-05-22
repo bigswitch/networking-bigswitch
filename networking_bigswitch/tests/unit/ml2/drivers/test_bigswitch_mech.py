@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
 import functools
 
 import mock
@@ -110,11 +109,11 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "virtual"}]),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock, port):
+                       return_value=[{"fabric-role": "virtual"}]) as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+
             rmock.assert_called_once_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
@@ -125,15 +124,15 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_bind_nfvswitch_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
         vhost_sock = "vhost0"
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "nfvswitch"}]),
-            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),
+                       return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
+            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
             mock.patch(SERVER_POOL + '.rest_get_port',
                        return_value=[{'attachment-point':
-                                      {'interface': vhost_sock}}]),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock1, _, _, port):
+                                      {'interface': vhost_sock}}]),\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+
             rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
@@ -152,13 +151,13 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_nfvswitch_port_nosock_fail(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "nfvswitch"}]),
-            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),
-            mock.patch(SERVER_POOL + '.rest_get_port', return_value=None),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock1, _, _, port):
+                       return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
+            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
+            mock.patch(SERVER_POOL + '.rest_get_port', return_value=None),\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+
             rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('hostname', p[portbindings.HOST_ID])
@@ -176,11 +175,11 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                 return None
             return [{"fabric-role": "virtual"}]
 
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       side_effect=side_effects),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock, port):
+                       side_effect=side_effects) as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+
             rmock.assert_called_with('hostname')
             p = port['port']
             self.assertEqual('ACTIVE', p['status'])
@@ -190,12 +189,12 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_dont_bind_non_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with contextlib.nested(
+        with\
             mock.patch(SERVER_POOL + '.rest_get_switch',
                        side_effect=servermanager.RemoteRestError(
-                           reason='No such switch', status=404)),
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        ) as (rmock, port):
+                           reason='No such switch', status=404)) as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+
             rmock.assert_called_with('hostname')
             p = port['port']
             self.assertNotEqual(pl_config.VIF_TYPE_IVS,
@@ -206,37 +205,38 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_dont_bind_vnic_type_direct(self):
         host_arg = {portbindings.HOST_ID: 'hostname',
                     portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT}
-        with contextlib.nested(
-            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True),
+        with\
+            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True) as rmock,\
             self.port(arg_list=(portbindings.HOST_ID, portbindings.VNIC_TYPE),
-                      **host_arg)
-        ) as (rmock, _):
+                      **host_arg):
+
             # bind_port() shall ignore this call
             rmock.assert_not_called()
 
     def test_dont_bind_vnic_type_direct_physical(self):
         host_arg = {portbindings.HOST_ID: 'hostname',
                     portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT_PHYSICAL}
-        with contextlib.nested(
-            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True),
+        with\
+            mock.patch(SERVER_POOL + '.rest_get_switch',
+                       return_value=True) as rmock,\
             self.port(arg_list=(portbindings.HOST_ID, portbindings.VNIC_TYPE),
-                      **host_arg)
-        ) as (rmock, _):
+                      **host_arg):
+
             # bind_port() shall ignore this call
             rmock.assert_not_called()
 
     def test_bind_port_cache(self):
-        with contextlib.nested(
-            self.subnet(),
+        with\
+            self.subnet() as sub,\
             mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "virtual"}])
-        ) as (sub, rmock):
+                       return_value=[{"fabric-role": "virtual"}]) as rmock:
+
             makeport = functools.partial(self.port, **{
                 'subnet': sub, 'arg_list': (portbindings.HOST_ID,),
                 portbindings.HOST_ID: 'hostname'})
 
-            with contextlib.nested(makeport(), makeport(),
-                                   makeport()) as ports:
+            with (makeport(), makeport(), makeport()) as ports:
+
                 # response from first should be cached
                 rmock.assert_called_once_with('hostname.' + PHYS_NET)
                 for port in ports:
@@ -245,8 +245,8 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             rmock.reset_mock()
             # expired cache should result in new calls
             mock.patch(DRIVER_MOD + '.CACHE_VSWITCH_TIME', new=0).start()
-            with contextlib.nested(makeport(), makeport(),
-                                   makeport()) as ports:
+            with (makeport(), makeport(), makeport()) as ports:
+
                 self.assertEqual(3, rmock.call_count)
                 for port in ports:
                     self.assertEqual(pl_config.VIF_TYPE_IVS,
@@ -255,14 +255,15 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_create404_triggers_background_sync(self):
         # allow the async background thread to run for this test
         self.spawn_p.stop()
-        with contextlib.nested(
-            mock.patch(SERVER_POOL + '.rest_create_port',
-                       side_effect=servermanager.RemoteRestError(
-                           reason=servermanager.NXNETWORK, status=404)),
-            mock.patch(DRIVER + '._send_all_data'),
+        with\
+            mock.patch(
+                SERVER_POOL + '.rest_create_port',
+                side_effect=servermanager.RemoteRestError(
+                    reason=servermanager.NXNETWORK, status=404)),\
+            mock.patch(DRIVER + '._send_all_data') as mock_send_all,\
             self.port(**{'device_id': 'devid', 'binding:host_id': 'host',
-                         'arg_list': ('binding:host_id',)})
-        ) as (mock_http, mock_send_all, p):
+                         'arg_list': ('binding:host_id',)}) as p:
+
             # wait for thread to finish
             mm = directory.get_plugin().mechanism_manager
             bigdriver = mm.mech_drivers['bsn_ml2'].obj
@@ -278,13 +279,15 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
         self.spawn_p.start()
 
     def test_udpate404_triggers_background_sync(self):
-        with contextlib.nested(
-            mock.patch(DRIVER + '.async_port_create',
-                       side_effect=servermanager.RemoteRestError(
-                           reason=servermanager.NXNETWORK, status=404)),
-            mock.patch(DRIVER + '._send_all_data'),
-            self.port()
-        ) as (mock_update, mock_send_all, p):
+        with\
+            mock.patch(
+                DRIVER + '.async_port_create',
+                side_effect=servermanager.RemoteRestError(
+                    reason=servermanager.NXNETWORK,
+                    status=404)),\
+            mock.patch(DRIVER + '._send_all_data') as mock_send_all,\
+            self.port() as p:
+
             plugin = directory.get_plugin()
             context = neutron_context.get_admin_context()
             plugin.update_port(context, p['port']['id'],
@@ -301,11 +304,11 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             ])
 
     def test_backend_request_contents(self):
-        with contextlib.nested(
-            mock.patch(SERVER_POOL + '.rest_create_port'),
+        with\
+            mock.patch(SERVER_POOL + '.rest_create_port') as mock_rest,\
             self.port(**{'device_id': 'devid', 'binding:host_id': 'host',
-                         'arg_list': ('binding:host_id',)})
-        ) as (mock_rest, p):
+                         'arg_list': ('binding:host_id',)}):
+
             # make sure basic expected keys are present in the port body
             pb = mock_rest.mock_calls[0][1][2]
             self.assertEqual('host', pb['binding:host_id'])
@@ -319,18 +322,18 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             portbindings.HOST_ID: ext_id,
             'device_owner': bsn_driver.EXTERNAL_PORT_OWNER
         }
-        with contextlib.nested(
-            mock.patch(SERVER_POOL + '.rest_create_port'),
-            self.port(arg_list=(portbindings.HOST_ID,), **port_kwargs)
-        ) as (rmock, port):
+        with\
+            mock.patch(SERVER_POOL + '.rest_create_port') as rmock,\
+            self.port(arg_list=(portbindings.HOST_ID,), **port_kwargs):
+
             create_body = rmock.mock_calls[-1][1][2]
             self.assertIsNotNone(create_body['bound_segment'])
             self.assertEqual(create_body[portbindings.HOST_ID], ext_id)
 
     def test_req_context_header_present(self):
-        with contextlib.nested(
-            mock.patch(SERVER_MANAGER + '.ServerProxy.rest_call'),
-            self.port(**{'device_id': 'devid', 'binding:host_id': 'host'})
-        ) as (mock_rest, p):
+        with\
+            mock.patch(SERVER_MANAGER + '.ServerProxy.rest_call') as mock_rest,\
+            self.port(**{'device_id': 'devid', 'binding:host_id': 'host'}):
+
             headers = mock_rest.mock_calls[0][1][3]
             self.assertIn('X-REQ-CONTEXT', headers)

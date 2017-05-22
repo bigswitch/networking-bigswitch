@@ -11,7 +11,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-import contextlib
 import os
 import ssl
 
@@ -103,10 +102,9 @@ class TestSslSticky(test_ssl_certificate_base):
 
     def test_sticky_cert(self):
         # SSL connection should be successful and cert should be cached
-        with contextlib.nested(
-            mock.patch(HTTPS, new=fake_server.HTTPSHostValidation),
-            self.network()
-        ):
+        with\
+            mock.patch(HTTPS, new=fake_server.HTTPSHostValidation),\
+            self.network():
             # CA certs should have been checked for
             self.getcacerts_m.assert_has_calls([mock.call(self.ca_certs_path)])
             # cert should have been fetched via SSL lib
@@ -244,10 +242,9 @@ class TestSslNoValidation(test_ssl_certificate_base):
     def test_validation_disabled(self):
         # SSL connection should be successful without any certificates
         # If not, attempting to create a network will raise an exception
-        with contextlib.nested(
-            mock.patch(HTTPS, new=fake_server.HTTPSNoValidation),
-            self.network()
-        ):
+        with\
+            mock.patch(HTTPS, new=fake_server.HTTPSNoValidation),\
+            self.network():
             # no sticky grabbing and no cert combining with no enforcement
             self.assertFalse(self.sslgetcert_m.call_count)
             self.assertFalse(self.certcomb_m.call_count)
