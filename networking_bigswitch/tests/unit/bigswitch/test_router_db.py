@@ -101,51 +101,6 @@ class RouterDBTestCase(RouterDBTestBase,
                          'action': 'permit',
                          'nexthops': []}
 
-    def test_create_multiple_floatingips_same_fixed_ip_same_port(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_floatingip_port_delete(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_interface_ipv6_port_existing_network_returns_400(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_gateway_multiple_subnets_ipv6(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_floatingip_create_different_fixed_ip_same_port(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_interface_dup_subnet2_returns_400(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_interface_multiple_ipv4_subnet_port_returns_400(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_gateway_no_subnet(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_floatingip_with_assoc_fails(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_and_remove_gateway(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_create_with_gwinfo(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_add_and_remove_gateway_tenant_ctx(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_create_with_gwinfo_ext_ip(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_create_with_gwinfo_ext_ip_subnet(self):
-        self.skipTest("Skipping until enginefacade switch")
-
-    def test_router_update_gateway_upon_subnet_create_max_ips_ipv6(self):
-        self.skipTest("Skipping until enginefacade switch")
-
     def test_router_create(self):
         name = 'router1'
         tenant_id = _uuid()
@@ -164,8 +119,6 @@ class RouterDBTestCase(RouterDBTestBase,
                     self.assertEqual(router['router'][k], v)
 
     def test_router_create_with_external_net_no_tenant_id(self):
-        #TODO(Joe): re-enable enginefacade changes
-        self.skipTest("Skipping until enginefacade switch")
         with self.subnet() as s:
             self._set_net_external(s['subnet']['network_id'])
             data = {'router': {'tenant_id': _uuid()}}
@@ -353,8 +306,6 @@ class RouterDBTestCase(RouterDBTestBase,
                     self.assertEqual(res.status_int, exc.HTTPNotFound.code)
 
     def test_router_update_gateway(self):
-        #TODO(Joe): re-enable enginefacade changes
-        self.skipTest("Skipping until enginefacade switch")
         with self.router() as r:
             with self.subnet() as s1:
                 with self.subnet(cidr='10.0.10.0/24') as s2:
@@ -440,8 +391,6 @@ class RouterDBTestCase(RouterDBTestBase,
                     self._delete('ports', p2['port']['id'])
 
     def test_send_data(self):
-        #TODO(Joe): re-enable enginefacade changes
-        self.skipTest("Skipping until enginefacade switch")
         fmt = 'json'
         plugin_obj = directory.get_plugin()
 
