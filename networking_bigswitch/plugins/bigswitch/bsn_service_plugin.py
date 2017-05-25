@@ -16,7 +16,7 @@
 from datetime import datetime
 
 from neutron.db import common_db_mixin
-from neutron.services import service_base
+from neutron_lib.services import base as service_base
 from oslo_log import log
 from oslo_serialization import jsonutils
 
