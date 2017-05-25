@@ -855,6 +855,7 @@ def put_context_in_serverpool(f):
     def wrapper(self, context, *args, **kwargs):
         # core plugin: context is top level object
         # ml2: keeps context in _plugin_context
+        LOG.debug("Function: %(fname)s called", {'fname': f.__name__})
         self.servers.set_context(getattr(context, '_plugin_context', context))
         return f(self, context, *args, **kwargs)
     return wrapper
@@ -954,8 +955,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2: create_network() called")
-
         self._warn_on_state_status(network['network'])
 
         with context.session.begin(subtransactions=True):
@@ -997,8 +996,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: exceptions.NetworkNotFound
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2.update_network() called")
-
         self._warn_on_state_status(network['network'])
 
         session = context.session
@@ -1025,8 +1022,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: exceptions.NetworkNotFound
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2: delete_network() called")
-
         # Validate args
         orig_net = super(NeutronRestProxyV2, self).get_network(context, net_id)
         with context.session.begin(subtransactions=True):
@@ -1063,8 +1058,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: exceptions.StateInvalid
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2: create_port() called")
-
         # Update DB in new session so exceptions rollback changes
         with context.session.begin(subtransactions=True):
             self._ensure_default_security_group_on_port(context, port)
@@ -1156,8 +1149,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: exceptions.PortNotFound
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2: update_port() called")
-
         self._warn_on_state_status(port['port'])
 
         # Validate Args
@@ -1220,8 +1211,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: exceptions.NetworkNotFound
         :raises: RemoteRestError
         """
-        LOG.debug("NeutronRestProxyV2: delete_port() called")
-
         # if needed, check to see if this is a port owned by
         # and l3-router.  If so, we should prevent deletion.
         if l3_port_check and self.l3_plugin:
@@ -1243,8 +1232,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_subnet(self, context, subnet):
-        LOG.debug("NeutronRestProxyV2: create_subnet() called")
-
         self._warn_on_state_status(subnet['subnet'])
 
         with context.session.begin(subtransactions=True):
@@ -1260,8 +1247,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def update_subnet(self, context, id, subnet):
-        LOG.debug("NeutronRestProxyV2: update_subnet() called")
-
         self._warn_on_state_status(subnet['subnet'])
 
         with context.session.begin(subtransactions=True):
@@ -1277,7 +1262,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def delete_subnet(self, context, id):
-        LOG.debug("NeutronRestProxyV2: delete_subnet() called")
         orig_subnet = super(NeutronRestProxyV2, self).get_subnet(context, id)
         net_id = orig_subnet['network_id']
         with context.session.begin(subtransactions=True):

@@ -439,6 +439,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         }
         context.set_binding(segment[api.ID], vif_type, vif_details)
 
+    @put_context_in_serverpool
     def bind_port(self, context):
         """Marks ports as bound.
 
