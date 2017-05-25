@@ -13,16 +13,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutron.api import extensions
+from neutron.api import extensions as neutron_extensions
 from neutron.api.v2 import base
 from neutron.api.v2 import resource_helper
+from neutron_lib.api import extensions
 from neutron_lib.plugins import directory
 
 import abc
 from networking_bigswitch.plugins.bigswitch import extensions as bsn_extensions
 
 # Ensure the extension is loaded at startup
-extensions.append_api_extensions_path(bsn_extensions.__path__)
+neutron_extensions.append_api_extensions_path(bsn_extensions.__path__)
 
 RESOURCE_ATTRIBUTE_MAP = {
     'networktemplates': {
@@ -158,7 +159,8 @@ class Bsnserviceextension(extensions.ExtensionDescriptor):
             controller = base.create_resource(
                 collection, plural_mappings[collection], net_template_inst,
                 RESOURCE_ATTRIBUTE_MAP[collection])
-            resource = extensions.ResourceExtension(collection, controller)
+            resource = neutron_extensions.ResourceExtension(
+                collection, controller)
             resources.append(resource)
         return resources
 
