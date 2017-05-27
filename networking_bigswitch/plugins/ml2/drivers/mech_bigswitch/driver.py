@@ -281,6 +281,21 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             LOG.debug("Ignoring unsupported vnic type")
             return
 
+        # OSP-68: check if port is SRIOV and VM detach case, then skip host_id
+        # check and delete port on controller side
+        # read-only for shared context okay. deepcopy before modifying
+        port = context.current
+        network = context.network.current
+        if self._is_port_sriov_vm_detach(port, network):
+            LOG.debug("update_port_postcommmit called for SRIOV port VM "
+                      "detach case.")
+            # remove port from BCF and return
+            self.servers.rest_delete_port(network["tenant_id"],
+                                          network["id"],
+                                          port["id"])
+            return
+
+        # Else: regular port update,
         # update port on the network controller
         try:
             port = self._prepare_port_for_controller(context)
