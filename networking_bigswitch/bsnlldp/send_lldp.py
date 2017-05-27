@@ -161,6 +161,7 @@ def parse_args():
     parser.add_argument("-i", "--interval", type=int, default=0)
     parser.add_argument("-d", "--daemonize",
                         action="store_true", default=False)
+    parser.add_argument("--sriov", action="store_true", default=False)
 
     return parser.parse_args()
 
@@ -327,7 +328,7 @@ def send_lldp():
     chassisid = "00:00:00:00:00:00"
     if args.network_interface:
         intfs = args.network_interface.split(',')
-    elif "red hat" in platform_os.strip().lower():
+    elif "red hat" in platform_os.strip().lower() and not args.sriov:
         try:
             intfs, chassisid = get_uplinks_and_chassisid()
         except Exception:
@@ -341,7 +342,7 @@ def send_lldp():
         interval = args.interval
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
-        if "red hat" in platform_os.strip().lower():
+        if "red hat" in platform_os.strip().lower() and not args.sriov:
             # refresh interface list, since a new link may have come up
             new_intfs, new_chassisid = get_uplinks_and_chassisid()
             if (intfs, chassisid) != (new_intfs, new_chassisid):
