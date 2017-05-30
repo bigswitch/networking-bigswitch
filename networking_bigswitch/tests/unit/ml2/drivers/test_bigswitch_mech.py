@@ -21,6 +21,7 @@ import mock
 from oslo_serialization import jsonutils
 
 from neutron import context as neutron_context
+from neutron import manager
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.db import test_db_base_plugin_v2
@@ -109,51 +110,58 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             self.assertEqual(self.port_create_status, 'DOWN')
 
     def test_bind_ivs_port(self):
-        # TODO(wolverineav) fixit. looks like engine facade change fallout
-        self.skipTest("Skipped until fixed in subsequent change.")
-        # host_arg = {portbindings.HOST_ID: 'hostname'}
-        # with contextlib.nested(
-        #     mock.patch(SERVER_POOL + '.rest_get_switch',
-        #                return_value=[{"fabric-role": "virtual"}]),
-        #     self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        # ) as (rmock, port):
-        #     rmock.assert_called_once_with('hostname.' + PHYS_NET)
-        #     p = port['port']
-        #     self.assertEqual('ACTIVE', p['status'])
-        #     self.assertEqual('hostname', p[portbindings.HOST_ID])
-        #     self.assertEqual(pl_config.VIF_TYPE_IVS,
-        #                      p[portbindings.VIF_TYPE])
+        host_arg = {portbindings.HOST_ID: 'hostname'}
+        with contextlib.nested(
+            mock.patch(SERVER_POOL + '.rest_get_switch',
+                       return_value=[{"fabric-role": "virtual"}]),
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
+        ) as (rmock, port):
+            rmock.assert_called_once_with('hostname.' + PHYS_NET)
+            p = port['port']
+            self.assertEqual('hostname', p[portbindings.HOST_ID])
+            self.assertEqual(pl_config.VIF_TYPE_IVS,
+                             p[portbindings.VIF_TYPE])
+            # get port to check status
+            ctx = neutron_context.Context(user_id=None,
+                                          tenant_id=p['tenant_id'],
+                                          is_admin=False)
+            pl = manager.NeutronManager.get_plugin()
+            new_port = pl.get_port(ctx, p['id'])
+            self.assertEqual('ACTIVE', new_port['status'])
 
     def test_bind_nfvswitch_port(self):
-        # TODO(wolverineav) fixit. looks like engine facade change fallout
-        self.skipTest("Skipped until fixed in subsequent change.")
-        # host_arg = {portbindings.HOST_ID: 'hostname'}
-        # vhost_sock = "vhost0"
-        # with contextlib.nested(
-        #     mock.patch(SERVER_POOL + '.rest_get_switch',
-        #                return_value=[{"fabric-role": "nfvswitch"}]),
-        #     mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),
-        #     mock.patch(SERVER_POOL + '.rest_get_port',
-        #                return_value=[{'attachment-point':
-        #                               {'interface': vhost_sock}}]),
-        #     self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        # ) as (rmock1, _, _, port):
-        #     rmock1.assert_called_with('hostname.' + PHYS_NET)
-        #     p = port['port']
-        #     self.assertEqual('ACTIVE', p['status'])
-        #     self.assertEqual('hostname', p[portbindings.HOST_ID])
-        #     self.assertEqual(portbindings.VIF_TYPE_VHOST_USER,
-        #                      p[portbindings.VIF_TYPE])
-        #
-        #     vif_details = p['binding:vif_details']
-        #     self.assertEqual(vif_details[portbindings.VHOST_USER_SOCKET],
-        #                      "/run/vhost/" + vhost_sock)
-        #     self.assertEqual(vif_details[portbindings.VHOST_USER_MODE],
-        #                      portbindings.VHOST_USER_MODE_SERVER)
-        #     self.assertEqual(vif_details[portbindings.CAP_PORT_FILTER],
-        #                      False)
-        #     self.assertEqual(vif_details[portbindings.VHOST_USER_OVS_PLUG],
-        #                      False)
+        host_arg = {portbindings.HOST_ID: 'hostname'}
+        vhost_sock = "vhost0"
+        with contextlib.nested(
+            mock.patch(SERVER_POOL + '.rest_get_switch',
+                       return_value=[{"fabric-role": "nfvswitch"}]),
+            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),
+            mock.patch(SERVER_POOL + '.rest_get_port',
+                       return_value=[{'attachment-point':
+                                      {'interface': vhost_sock}}]),
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
+        ) as (rmock1, _, _, port):
+            rmock1.assert_called_with('hostname.' + PHYS_NET)
+            p = port['port']
+            self.assertEqual('hostname', p[portbindings.HOST_ID])
+            self.assertEqual(portbindings.VIF_TYPE_VHOST_USER,
+                             p[portbindings.VIF_TYPE])
+
+            vif_details = p['binding:vif_details']
+            self.assertEqual(vif_details[portbindings.VHOST_USER_SOCKET],
+                             "/run/vhost/" + vhost_sock)
+            self.assertEqual(vif_details[portbindings.VHOST_USER_MODE],
+                             portbindings.VHOST_USER_MODE_SERVER)
+            self.assertEqual(vif_details[portbindings.CAP_PORT_FILTER], False)
+            self.assertEqual(vif_details[portbindings.VHOST_USER_OVS_PLUG],
+                             False)
+            # get port to check status
+            ctx = neutron_context.Context(user_id=None,
+                                          tenant_id=p['tenant_id'],
+                                          is_admin=False)
+            pl = manager.NeutronManager.get_plugin()
+            new_port = pl.get_port(ctx, p['id'])
+            self.assertEqual('ACTIVE', new_port['status'])
 
     def test_bind_nfvswitch_port_nosock_fail(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
@@ -172,29 +180,32 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_vswitch_on_host(self):
         '''get_vswitch() to suceed on HOST instead of HOST.PHYSNET '''
-        # TODO(wolverineav) fixit. looks like engine facade change fallout
-        self.skipTest("Skipped until fixed in subsequent change.")
-        # host_arg = {portbindings.HOST_ID: 'hostname'}
-        #
-        # def side_effects(*args, **kwargs):
-        #     # When called with PHYSNET, return None so it is retried with
-        #     # HOST
-        #     physnet = args[0]
-        #     if PHYS_NET in physnet:
-        #         return None
-        #     return [{"fabric-role": "virtual"}]
-        #
-        # with contextlib.nested(
-        #     mock.patch(SERVER_POOL + '.rest_get_switch',
-        #                side_effect=side_effects),
-        #     self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
-        # ) as (rmock, port):
-        #     rmock.assert_called_with('hostname')
-        #     p = port['port']
-        #     self.assertEqual('ACTIVE', p['status'])
-        #     self.assertEqual('hostname', p[portbindings.HOST_ID])
-        #     self.assertEqual(pl_config.VIF_TYPE_IVS,
-        #                      p[portbindings.VIF_TYPE])
+        host_arg = {portbindings.HOST_ID: 'hostname'}
+
+        def side_effects(*args, **kwargs):
+            # When called with PHYSNET, return None so it is retried with HOST
+            physnet = args[0]
+            if PHYS_NET in physnet:
+                return None
+            return [{"fabric-role": "virtual"}]
+
+        with contextlib.nested(
+            mock.patch(SERVER_POOL + '.rest_get_switch',
+                       side_effect=side_effects),
+            self.port(arg_list=(portbindings.HOST_ID,), **host_arg)
+        ) as (rmock, port):
+            rmock.assert_called_with('hostname')
+            p = port['port']
+            self.assertEqual('hostname', p[portbindings.HOST_ID])
+            self.assertEqual(pl_config.VIF_TYPE_IVS,
+                             p[portbindings.VIF_TYPE])
+            # get port to check status
+            ctx = neutron_context.Context(user_id=None,
+                                          tenant_id=p['tenant_id'],
+                                          is_admin=False)
+            pl = manager.NeutronManager.get_plugin()
+            new_port = pl.get_port(ctx, p['id'])
+            self.assertEqual('ACTIVE', new_port['status'])
 
     def test_dont_bind_non_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
