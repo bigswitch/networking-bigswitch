@@ -77,7 +77,6 @@ from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
-from neutron.plugins.common import constants as pconst
 
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
@@ -628,7 +627,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         :return: boolean value whether it passed or failed
         """
         network_type = network.get(pl_config.PROVIDER_NETWORK_TYPE)
-        if not network_type or network_type != pconst.TYPE_VLAN:
+        if not network_type or network_type != const.TYPE_VLAN:
             return False
 
         physnet = network.get(pl_config.PROVIDER_PHYSNET)

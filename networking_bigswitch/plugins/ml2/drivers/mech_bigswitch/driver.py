@@ -27,7 +27,6 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import rpc as n_rpc
-from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
@@ -452,7 +451,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             # so this driver can be run in parallel with others that add
             # support for external port bindings
             for segment in context.segments_to_bind:
-                if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
+                if segment[api.NETWORK_TYPE] == const.TYPE_VLAN:
                     context.set_binding(
                         segment[api.ID], portbindings.VIF_TYPE_BRIDGE,
                         {portbindings.CAP_PORT_FILTER: False,
@@ -475,7 +474,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Check each segment to identify the correct vswitch, and set it in
         # vif_details
         for segment in context.segments_to_bind:
-            if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
+            if segment[api.NETWORK_TYPE] == const.TYPE_VLAN:
                 (vswitch_type, host_id) = self.get_vswitch_type(context.host,
                                                                 segment)
                 if vswitch_type == VSwitchType.NFVSWITCH:
