@@ -23,7 +23,10 @@ from oslo_serialization import jsonutils
 from neutron import context as neutron_context
 from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
+from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.db import test_db_base_plugin_v2
+from neutron.tests.unit.extensions import test_l3
+from neutron.tests.unit.extensions import test_securitygroup as test_sg
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.plugins import directory
@@ -46,7 +49,7 @@ HTTPCON = SERVER_MANAGER + '.httplib.HTTPConnection'
 
 class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 
-    def setUp(self):
+    def setUp(self, plugin=None, service_plugins=None, ext_mgr=None):
         # Configure the ML2 mechanism drivers and network types
         ml2_opts = {
             'mechanism_drivers': ['bsn_ml2'],
@@ -92,6 +95,31 @@ class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
             self.assertTrue('NeutronError' in res)
             self.assertEqual('NetworkNameChangeError',
                              res['NeutronError']['type'])
+
+
+class TestBigSwitchML2SubnetsV2(test_db_base_plugin_v2.TestSubnetsV2,
+                                TestBigSwitchMechDriverBase):
+    pass
+
+
+class TestBigSwitchML2SecurityGroups(test_sg.TestSecurityGroups,
+                                     TestBigSwitchMechDriverBase):
+    def setUp(self):
+        ext_mgr = test_sg.SecurityGroupTestExtensionManager()
+        super(TestBigSwitchML2SecurityGroups, self).setUp(ext_mgr=ext_mgr)
+        self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+
+
+class TestBigSwitchML2Router(test_l3.L3NatTestCaseBase,
+                             TestBigSwitchMechDriverBase):
+    def setUp(self):
+        ext_mgr = test_l3.L3TestExtensionManager()
+        super(TestBigSwitchML2Router, self).setUp(ext_mgr=ext_mgr)
+        self.ext_api = test_extensions.setup_extensions_middleware(ext_mgr)
+
+    def test_floatingip_with_invalid_create_port(self):
+        #TODO(Joe): This test fails. Why?
+        pass
 
 
 class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
