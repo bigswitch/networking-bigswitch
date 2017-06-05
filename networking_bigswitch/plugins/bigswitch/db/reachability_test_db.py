@@ -14,6 +14,7 @@
 #    under the License.
 
 from networking_bigswitch.plugins.bigswitch.i18n import _
+from networking_bigswitch.plugins.bigswitch.utils import Util
 from neutron.db import common_db_mixin
 from neutron_lib.db import model_base
 from neutron_lib import exceptions
@@ -77,8 +78,8 @@ class ReachabilityTest(model_base.BASEV2,
 
     def get_connection_source(self):
         source = {}
-        source['tenant'] = self.src_tenant_name
-        source['segment'] = self.src_segment_name
+        source['tenant'] = Util.format_resource_name(self.src_tenant_name)
+        source['segment'] = Util.format_resource_name(self.src_segment_name)
         source['ip'] = self.src_ip
         return source
 
@@ -210,8 +211,8 @@ class ReachabilityQuickTest(model_base.BASEV2,
 
     def get_connection_source(self):
         source = {}
-        source['tenant'] = self.src_tenant_name
-        source['segment'] = self.src_segment_name
+        source['tenant'] = Util.format_resource_name(self.src_tenant_name)
+        source['segment'] = Util.format_resource_name(self.src_segment_name)
         source['ip'] = self.src_ip
         return source
 
