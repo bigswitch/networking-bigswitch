@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        9.42.3
+Version:        9.42.4
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,17 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.4
+- OSP-36: update translation to one from plugin
+- OSP-103: fix testpath with special char in tenant/segment
+- cleanup: move function call debug log msg into decorator
+- BVS-5916: special character error message update
+- OSP-64: in case of sriov, do not get interface list from redhat utils
+- OSP-68: handle VM detach operation
+- OSP-76: perform delete on secondary network regardless
+- OSP-72: cleanup popping of subnet name
+- OSP-72: allow subnets without name instead of raising error
+- Revert "OSP-45: improve error visibility on GUI"
 * Wed May 03 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.3
 - OSP-29: allow LACP convergence when only one link is up
 * Mon May 01 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 9.42.2
