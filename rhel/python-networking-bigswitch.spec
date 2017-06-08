@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.8
+Version:        8.40.9
 Release:        1%{?dist}
 Epoch:          1
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,14 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.9
+- OSP-36: update translation to one from plugin
+- OSP-103: fix testpath with special char in tenant/segment
+- BVS-5916: special character error message update
+- OSP-72: cleanup popping of subnet name
+- OSP-72: allow subnets without name instead of raising error
+- OSP-29: allow LACP convergence when only one link is up
+- BVS-5916: add more special characters
 * Tue May 23 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.8
 - BVS-5916: ensure special chars are handled for tenant as well
 * Fri Apr 07 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.7
