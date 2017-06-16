@@ -43,7 +43,7 @@ from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 
-IVS_PORT_MTU = 9216
+IVS_PORT_MTU = 9000
 IVS_VM_PORT_PREFIX = 'qvo'
 IVS_VM_PORT_IFACE_PREFIXES = [IVS_VM_PORT_PREFIX, 'qvb', 'tap', 'qbr']
 
