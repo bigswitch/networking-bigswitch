@@ -32,7 +32,9 @@ LOG = logging.getLogger(__name__)
 # Maximum time in seconds to wait for a single record lock to be released
 # NOTE: The total time waiting may exceed this if there are multiple servers
 # waiting for the same lock
-MAX_LOCK_WAIT_TIME = 15
+MAX_LOCK_WAIT_TIME = 15  # seconds
+MIN_LOCK_RETRY_SLEEP_TIME = 100  # milliseconds
+MAX_LOCK_RETRY_SLEEP_TIME = 250  # milliseconds
 
 
 class ConsistencyHash(model_base.BASEV2):
@@ -142,6 +144,10 @@ class HashHandler(object):
         # MAX_LOCK_WAIT_TIME.
         lock_wait_start = None
         last_lock_owner = None
+        lock_id = self.random_lock_id
+        retry_sleep_time = random.randint(MIN_LOCK_RETRY_SLEEP_TIME,
+                                          MAX_LOCK_RETRY_SLEEP_TIME) / 1000.0
+        LOG.debug("This request's LockID is %s", lock_id)
         while True:
             res = self._get_current_record()
             if not res:
@@ -151,9 +157,10 @@ class HashHandler(object):
                     # a concurrent insert occured. Start process over to
                     # find the new record.
                     LOG.debug("Concurrent record inserted. Retrying.")
-                    time.sleep(0.25)
+                    time.sleep(retry_sleep_time)
                     continue
                 # The empty hash was successfully inserted with our lock
+                LOG.debug("LockID %s has grabbed the lock", lock_id)
                 return ''
 
             current_lock_owner = self._get_lock_owner(res.hash)
@@ -167,20 +174,17 @@ class HashHandler(object):
                         "Failed to acquire lock. Restarting lock wait. "
                         "Previous hash: %(prev)s. Attempted update: %(new)s",
                         {'prev': res.hash, 'new': new})
-                    time.sleep(0.25)
+                    time.sleep(retry_sleep_time)
                     continue
                 # successfully got the lock
+                LOG.debug("LockID %s has grabbed the lock", lock_id)
                 return res.hash
 
-            LOG.debug("This request's lock ID is %(this)s. "
-                      "DB lock held by %(that)s",
-                      {'this': self.random_lock_id,
-                       'that': current_lock_owner})
-
-            if current_lock_owner == self.random_lock_id:
+            if current_lock_owner == lock_id:
                 # no change needed, we already have the table lock due to
                 # previous read_for_update call.
                 # return hash with lock tag stripped off for use in a header
+                LOG.debug("LockID %s has grabbed the lock", lock_id)
                 return res.hash.replace(self.lock_marker, '')
 
             if current_lock_owner != last_lock_owner:
@@ -188,26 +192,30 @@ class HashHandler(object):
                 # wasn't to us. Reset the counter. Log if not
                 # first iteration.
                 if lock_wait_start:
-                    LOG.debug("Lock owner changed from %(old)s to %(new)s "
-                              "while waiting to acquire it.",
-                              {'old': last_lock_owner,
+                    LOG.debug("LockID %(this)s - Lock owner changed from "
+                              "%(old)s to %(new)s while waiting to acquire it",
+                              {'this': lock_id, 'old': last_lock_owner,
                                'new': current_lock_owner})
                 lock_wait_start = time.time()
                 last_lock_owner = current_lock_owner
+
             if time.time() - lock_wait_start > MAX_LOCK_WAIT_TIME:
                 # the lock has been held too long, steal it
                 LOG.warning(_LW("Gave up waiting for consistency DB "
                                 "lock, trying to take it. "
                                 "Current hash is: %s"), res.hash)
-                new_db_value = res.hash.replace(current_lock_owner,
-                                                self.random_lock_id)
+                new_db_value = res.hash.replace(current_lock_owner, lock_id)
                 if self._optimistic_update_hash_record(res, new_db_value):
+                    LOG.debug("LockID %s has grabbed the lock", lock_id)
                     return res.hash.replace(new_db_value, '')
-                LOG.info(_LI("Failed to take lock. Another process updated "
-                             "the DB first."))
+                LOG.info(_LI("LockID %(this)s - Failed to take lock as "
+                             "another thread has grabbed it"),
+                         {'this': lock_id})
+
+            time.sleep(retry_sleep_time)
 
     def clear_lock(self):
-        LOG.debug("Clearing hash record lock of id %s", self.random_lock_id)
+        LOG.debug("Clearing hash record of LockID  %s", self.random_lock_id)
         with self.session.begin(subtransactions=True):
             res = (self.session.query(ConsistencyHash).
                    filter_by(hash_id=self.hash_id).first())
@@ -234,4 +242,6 @@ class HashHandler(object):
                 conhash = ConsistencyHash(hash_id=self.hash_id, hash=hash)
                 self.session.merge(conhash)
         LOG.debug("Consistency hash for group %(hash_id)s updated "
-                  "to %(hash)s", {'hash_id': self.hash_id, 'hash': hash})
+                  "to %(hash)s by LockID %(this)s",
+                  {'hash_id': self.hash_id, 'hash': hash,
+                   'this': self.random_lock_id})
