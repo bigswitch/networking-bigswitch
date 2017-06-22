@@ -965,6 +965,7 @@ class ServerPool(object):
     def rest_create_floatingip(self, tenant_id, floatingip):
         resource = FLOATINGIPS_PATH % (tenant_id, floatingip['id'])
         errstr = _("Unable to create floating IP: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('PUT', resource, floatingip, errstr=errstr)
 
     def rest_update_floatingip(self, tenant_id, floatingip, oldid):
@@ -1016,6 +1017,10 @@ class ServerPool(object):
             except Exception:
                 LOG.exception(_LE("Encountered an error checking controller "
                                   "health."))
+
+    def _ensure_tenant_cache(self, tenant_id):
+        if tenant_id not in self.keystone_tenants:
+            self._update_tenant_cache()
 
     def _update_tenant_cache(self, reconcile=True):
         try:
