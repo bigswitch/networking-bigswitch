@@ -21,6 +21,8 @@ This plugin handles the L3 router calls for Big Switch Floodlight deployments.
 It is intended to be used in conjunction with the Big Switch ML2 driver or the
 Big Switch core plugin.
 """
+import copy
+
 from oslo_log import helpers as log_helper
 from oslo_log import log as logging
 from oslo_utils import excutils
@@ -259,8 +261,13 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # create floatingip on the network controller
             try:
                 if 'floatingip' in self.servers.get_capabilities():
+                    backend_fip = copy.deepcopy(new_fl_ip)
+                    fport = self.get_port(context.elevated(),
+                                          backend_fip['floating_port_id'])
+                    backend_fip['floating_mac_address']\
+                        = fport.get('mac_address')
                     self.servers.rest_create_floatingip(
-                        new_fl_ip['tenant_id'], new_fl_ip)
+                        backend_fip['tenant_id'], backend_fip)
                 else:
                     LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
                     self._send_floatingip_update(context)
