@@ -281,12 +281,17 @@ class ServerProxy(object):
         headers['NeutronProxy-Agent'] = self.name
         headers['Instance-ID'] = self.neutron_id
         headers['Orchestration-Service-ID'] = ORCHESTRATION_SERVICE_ID
+        lock_start_time = time.time()
         if hash_handler:
             # this will be excluded on calls that don't need hashes
             # (e.g. topology sync, capability checks)
             headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
         else:
             hash_handler = cdb.HashHandler()
+        lock_end_time = time.time()
+        LOG.debug("Time waited to get DB lock %.2fsecs",
+                  (lock_end_time - lock_start_time))
+
         # TODO(kevinbenton): Re-enable keep-alive in a thread-safe fashion.
         # When multiple workers are enabled the saved connection gets mangled
         # by multiple threads so we always reconnect.
@@ -338,6 +343,9 @@ class ServerProxy(object):
             response = currentconn.getresponse()
             respstr = response.read()
             respdata = respstr
+            bcf_response_time = time.time()
+            LOG.debug("Time waited to get response from BCF %.2fsecs",
+                      (bcf_response_time - lock_end_time))
             if response.status in self.success_codes:
                 hash_value = response.getheader(HASH_MATCH_HEADER)
                 # don't clear hash from DB if a hash header wasn't present
@@ -348,7 +356,20 @@ class ServerProxy(object):
                     if resource == TOPOLOGY_PATH:
                         self._topo_sync_in_progress = False
                         time.sleep(0.10)
-                    hash_handler.put_hash(hash_value)
+                        hash_handler.put_hash(hash_value)
+                    elif hash_handler.is_db_lock_owner():
+                        # There maybe be (rare) cases when the response takes
+                        # too long and thread looses the DB lock. In such cases
+                        # updating the HASH could result in chaos (eg: current
+                        # thread's lock is overwritten without mercy and would
+                        # allow another thread to grab the lock) Safest way
+                        # forward seems to not update HASH but let next REQUEST
+                        # trigger a TopoSync
+                        hash_handler.put_hash(hash_value)
+                    else:
+                        # Thread lost DB lock by the time BCF response was
+                        # received
+                        LOG.warning(_LW("Thread is no longer DB lock owner"))
                 else:
                     hash_handler.clear_lock()
                 try:
@@ -696,7 +717,7 @@ class ServerPool(object):
                 time.sleep(HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL)
 
             # If inconsistent, do a full synchronization
-            if ret[0] == httplib.CONFLICT:
+            if ret[0] == httplib.CONFLICT and hash_handler.is_db_lock_owner():
                 if not self.get_topo_function:
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
@@ -721,6 +742,12 @@ class ServerPool(object):
                     self._topo_sync_in_progress = False
                     if data is None:
                         return None
+            elif ret[0] == httplib.CONFLICT and \
+                    not hash_handler.is_db_lock_owner():
+                # DB lock ownership lost, allow current owner to detect hash
+                # conflict and perform needed TopoSync
+                LOG.warning(_LW("HashConflict detected but thread is no longer"
+                                " DB lock owner. Skipping TopoSync call"))
 
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
