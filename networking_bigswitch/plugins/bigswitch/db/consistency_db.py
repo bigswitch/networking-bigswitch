@@ -245,3 +245,20 @@ class HashHandler(object):
                   "to %(hash)s by LockID %(this)s",
                   {'hash_id': self.hash_id, 'hash': hash,
                    'this': self.random_lock_id})
+
+    def is_db_lock_owner(self):
+        """Check if the current thread is the DB lock owner
+        @:return True, if thread is the DB lock owner
+                 False, otherwise
+        """
+        res = self._get_current_record()
+        if not res:
+            return False
+
+        lock_owner = self._get_lock_owner(res.hash)
+        if not lock_owner:
+            return False
+
+        if lock_owner == self.random_lock_id:
+            return True
+        return False
