@@ -17,13 +17,12 @@ import re
 import string
 import time
 
+import sqlalchemy as sa
+from neutron.db import model_base
 from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import session
 from oslo_log import log as logging
-import sqlalchemy as sa
-
-from neutron.db import model_base
 
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
@@ -245,3 +244,20 @@ class HashHandler(object):
                   "to %(hash)s by LockID %(this)s",
                   {'hash_id': self.hash_id, 'hash': hash,
                    'this': self.random_lock_id})
+
+    def is_db_lock_owner(self):
+        """Check if the current thread is the DB lock owner
+        @:return True, if thread is the DB lock owner
+                 False, otherwise
+        """
+        res = self._get_current_record()
+        if not res:
+            return False
+
+        lock_owner = self._get_lock_owner(res.hash)
+        if not lock_owner:
+            return False
+
+        if lock_owner == self.random_lock_id:
+            return True
+        return False
