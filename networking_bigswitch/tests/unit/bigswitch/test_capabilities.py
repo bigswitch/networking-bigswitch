@@ -48,6 +48,9 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
                 l3_plugin = directory.get_plugin(lib_consts.L3)
                 fip = l3_plugin.get_floatingip(context.get_admin_context(),
                                                fip['floatingip']['id'])
+                fip_port = l3_plugin.get_port(context.get_admin_context(),
+                                              fip['floating_port_id'])
+                fip['floating_mac_address'] = fip_port['mac_address']
             mock_create.assert_has_calls(
                 [mock.call(fip['tenant_id'], fip)]
             )
