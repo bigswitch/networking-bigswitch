@@ -30,6 +30,7 @@ from neutron import context
 from neutron_lib.plugins import directory
 
 SERVERMANAGER = 'networking_bigswitch.plugins.bigswitch.servermanager'
+CONSISTENCYDB = 'networking_bigswitch.plugins.bigswitch.db.consistency_db'
 HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
 HTTPSCON = SERVERMANAGER + '.HTTPSConnectionWithValidation'
 
@@ -434,10 +435,13 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_conflict_triggers_sync(self):
         pl = directory.get_plugin()
-        with mock.patch(
-            SERVERMANAGER + '.ServerProxy.rest_call',
-            return_value=(httplib.CONFLICT, 0, 0, 0)
-        ) as srestmock:
+        with \
+            mock.patch(
+                SERVERMANAGER + '.ServerProxy.rest_call',
+                return_value=(httplib.CONFLICT, 0, 0, 0)) as srestmock, \
+            mock.patch(
+                CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
+                return_value=True):
             # making a call should trigger a conflict sync
             pl.servers.rest_call('GET', '/', '', None, [])
             srestmock.assert_has_calls([
@@ -453,10 +457,14 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_conflict_sync_raises_error_without_topology(self):
         pl = directory.get_plugin()
         pl.servers.get_topo_function = None
-        with mock.patch(
-            SERVERMANAGER + '.ServerProxy.rest_call',
-            return_value=(httplib.CONFLICT, 0, 0, 0)
-        ):
+        with \
+            mock.patch(
+                SERVERMANAGER + '.ServerProxy.rest_call',
+                return_value=(httplib.CONFLICT, 0, 0, 0)), \
+            mock.patch(
+                CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
+                return_value=True,
+            ):
             # making a call should trigger a conflict sync that will
             # error without the topology function set
             self.assertRaises(
