@@ -33,8 +33,12 @@ LOG = logging.getLogger(__name__)
 # NOTE: The total time waiting may exceed this if there are multiple servers
 # waiting for the same lock
 MAX_LOCK_WAIT_TIME = 15  # seconds
+MAX_LOCK_TOPOSYNC_WAIT_TIME = 300  # seconds
 MIN_LOCK_RETRY_SLEEP_TIME = 100  # milliseconds
 MAX_LOCK_RETRY_SLEEP_TIME = 250  # milliseconds
+DBLOCK_ID_LEN = 12
+DBLOCK_PREFIX_TOPO = "TOPO"
+DBLOCK_PREFIX_AUTOGEN = "A"
 
 
 class ConsistencyHash(model_base.BASEV2):
@@ -78,18 +82,22 @@ class HashHandler(object):
     '''
     _FACADE = None
 
-    def __init__(self, hash_id='1', prefix=None, length=10):
+    def __init__(self, hash_id='1', prefix=None):
         if HashHandler._FACADE is None:
             HashHandler._FACADE = session.EngineFacade.from_config(
                 cfg.CONF, sqlite_fk=True)
+
+        if not prefix:
+            prefix = DBLOCK_PREFIX_AUTOGEN
+        length = max((DBLOCK_ID_LEN - len(prefix)), 0)
+
         self.hash_id = hash_id
         self.session = HashHandler._FACADE.get_session(autocommit=True,
                                                        expire_on_commit=False)
         self.random_lock_id = ''.join(random.choice(string.ascii_uppercase
                                                     + string.digits)
                                       for _ in range(length))
-        if prefix:
-            self.random_lock_id = prefix + self.random_lock_id
+        self.random_lock_id = prefix + self.random_lock_id
         self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
 
     def _get_current_record(self):
@@ -135,6 +143,24 @@ class HashHandler(object):
         if not matches:
             return None
         return matches[0]
+
+    def _try_force_acquire_db_lock(self, res):
+        """Try to acquire DB lock as current Lock has been held for too long
+        @return: DB_HASH, on success
+                 None, otherwise
+        """
+        lock_id = self.random_lock_id
+        current_lock_owner = self._get_lock_owner(res.hash)
+        LOG.warning(_LW("Gave up waiting for consistency DB lock, trying to "
+                        "take it. Current hash is: %s"), res.hash)
+        new_db_value = res.hash.replace(current_lock_owner, lock_id)
+        if self._optimistic_update_hash_record(res, new_db_value):
+            return res.hash.replace(new_db_value, '')
+
+        LOG.info(_LI("LockID %(this)s - Failed to take lock as another thread "
+                     "has grabbed it"),
+                 {'this': lock_id})
+        return None
 
     def read_for_update(self):
         # An optimistic locking strategy with a timeout to avoid using a
@@ -187,6 +213,7 @@ class HashHandler(object):
                 LOG.debug("LockID %s has grabbed the lock", lock_id)
                 return res.hash.replace(self.lock_marker, '')
 
+            cur_time = time.time()
             if current_lock_owner != last_lock_owner:
                 # The owner changed since the last iteration, but it
                 # wasn't to us. Reset the counter. Log if not
@@ -196,21 +223,21 @@ class HashHandler(object):
                               "%(old)s to %(new)s while waiting to acquire it",
                               {'this': lock_id, 'old': last_lock_owner,
                                'new': current_lock_owner})
-                lock_wait_start = time.time()
+                lock_wait_start = cur_time
                 last_lock_owner = current_lock_owner
 
-            if time.time() - lock_wait_start > MAX_LOCK_WAIT_TIME:
-                # the lock has been held too long, steal it
-                LOG.warning(_LW("Gave up waiting for consistency DB "
-                                "lock, trying to take it. "
-                                "Current hash is: %s"), res.hash)
-                new_db_value = res.hash.replace(current_lock_owner, lock_id)
-                if self._optimistic_update_hash_record(res, new_db_value):
-                    LOG.debug("LockID %s has grabbed the lock", lock_id)
-                    return res.hash.replace(new_db_value, '')
-                LOG.info(_LI("LockID %(this)s - Failed to take lock as "
-                             "another thread has grabbed it"),
-                         {'this': lock_id})
+            db_lock_hash = None
+            time_waited = cur_time - lock_wait_start
+            if current_lock_owner.startswith(DBLOCK_PREFIX_TOPO):
+                # Extended timeout for TopoSync as it could take more time
+                if time_waited > MAX_LOCK_TOPOSYNC_WAIT_TIME:
+                    db_lock_hash = self._try_force_acquire_db_lock(res)
+            elif time_waited > MAX_LOCK_WAIT_TIME:
+                db_lock_hash = self._try_force_acquire_db_lock(res)
+
+            if db_lock_hash:
+                LOG.debug("LockID %s has grabbed the lock", lock_id)
+                return db_lock_hash
 
             time.sleep(retry_sleep_time)
 
@@ -260,5 +287,14 @@ class HashHandler(object):
             return False
 
         if lock_owner == self.random_lock_id:
+            return True
+        return False
+
+    def is_db_hash_empty(self):
+        """Check if DB hash record exists
+        :return: True, if there is no hash entry
+                 False, otherwise
+        """
+        if not self._get_current_record():
             return True
         return False

@@ -73,12 +73,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
-        LOG.debug("Force topology sync if consistency hash is empty")
         hash_handler = cdb.HashHandler()
-        cur_hash = hash_handler.read_for_update()
-        if not cur_hash:
-            hash_handler.put_hash('intial:hash,code')
-            LOG.debug("Force topology sync Done")
+        if hash_handler.is_db_hash_empty():
+            LOG.debug("Forcing topology sync as consistency hash is empty")
+            hash_handler.read_for_update()
+            hash_handler.put_hash('initial:hash,code')
 
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
