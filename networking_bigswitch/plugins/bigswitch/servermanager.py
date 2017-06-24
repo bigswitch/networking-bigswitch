@@ -28,11 +28,9 @@ The following functionality is handled by this module:
 """
 import base64
 import httplib
-import random
 import re
 import socket
 import ssl
-import string
 import time
 import weakref
 
@@ -283,10 +281,10 @@ class ServerProxy(object):
         headers['Orchestration-Service-ID'] = ORCHESTRATION_SERVICE_ID
         lock_start_time = time.time()
         if hash_handler:
-            # this will be excluded on calls that don't need hashes
-            # (e.g. topology sync, capability checks)
+            # For calls that need hash checks
             headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
         else:
+            # For calls that don't need hash checks: TopoSync, CapabilityCheck
             hash_handler = cdb.HashHandler()
         lock_end_time = time.time()
         LOG.debug("Time waited to get DB lock %.2fsecs",
@@ -350,12 +348,8 @@ class ServerProxy(object):
                 hash_value = response.getheader(HASH_MATCH_HEADER)
                 # don't clear hash from DB if a hash header wasn't present
                 if hash_value is not None:
-                    # BVS-6979: race-condition(#1) set sync=false so that
-                    # keep_updating_thread doesn't squash updated HASH
-                    # Delay is required in-case the loop is already executing
                     if resource == TOPOLOGY_PATH:
-                        self._topo_sync_in_progress = False
-                        time.sleep(0.10)
+                        # TODO(sarath): double-check Topo DBLock ownership
                         hash_handler.put_hash(hash_value)
                     elif hash_handler.is_db_lock_owner():
                         # There maybe be (rare) cases when the response takes
@@ -473,7 +467,6 @@ class ServerPool(object):
         default_port = 8000
         if timeout is not False:
             self.timeout = timeout
-        self._topo_sync_in_progress = False
 
         # Function to use to retrieve topology for consistency syncs.
         # Needs to be set by module that uses the servermanager.
@@ -672,17 +665,12 @@ class ServerPool(object):
         """
         return resp[0] in SUCCESS_CODES
 
-    def keep_updating_lock(self):
-        topo_index = ''.join(random.choice(string.ascii_uppercase +
-                                           string.digits) for _ in range(2))
+    def dblock_mark_toposync_started(self):
         # topology sync will lock the consistency hash table
         # the lock starts with TOPO
-        prefix = "TOPO" + topo_index
-        while self._topo_sync_in_progress:
-            handler = cdb.HashHandler(prefix=prefix, length=4)
-            new = handler.lock_marker + "initial:hash,code"
-            handler.put_hash(new)
-            time.sleep(2)
+        handler = cdb.HashHandler(prefix=cdb.DBLOCK_PREFIX_TOPO)
+        new = handler.lock_marker + "initial:hash,code"
+        handler.put_hash(new)
 
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
@@ -725,8 +713,7 @@ class ServerPool(object):
                 LOG.info(_LI("ServerProxy: HashConflict detected with request "
                              "%(action)s %(resource)s Starting Topology sync"),
                          {'action': action, 'resource': resource})
-                self._topo_sync_in_progress = True
-                eventlet.spawn_n(self.keep_updating_lock)
+                self.dblock_mark_toposync_started()
                 try:
                     data = self.get_topo_function(
                                **self.get_topo_function_args)
@@ -739,7 +726,6 @@ class ServerPool(object):
                                                   status=ret_ts[0])
                 finally:
                     LOG.info(_LI("ServerProxy: Topology sync completed"))
-                    self._topo_sync_in_progress = False
                     if data is None:
                         return None
             elif ret[0] == httplib.CONFLICT and \
@@ -1050,7 +1036,7 @@ class ServerPool(object):
                     res = hash_handler._get_current_record()
                     if res:
                         lock_owner = hash_handler._get_lock_owner(res.hash)
-                        if lock_owner and "TOPO" in lock_owner:
+                        if lock_owner and cdb.DBLOCK_PREFIX_TOPO in lock_owner:
                             # topology sync is still going on
                             return True
                     LOG.debug("TENANT changed: force topo sync")

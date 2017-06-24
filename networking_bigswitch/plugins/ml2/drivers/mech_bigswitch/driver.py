@@ -77,6 +77,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         LOG.debug("Force topology sync if consistency hash is empty")
         hash_handler = cdb.HashHandler()
         cur_hash = hash_handler.read_for_update()
+        # TODO(sarath): check if DBLock is held by TopoSync, if so evict it
+        # if it was inserted more than MAX_LOCK_TOPOSYNC_WAIT_TIME secs ago
         if not cur_hash:
             hash_handler.put_hash('intial:hash,code')
             LOG.debug("Force topology sync Done")
