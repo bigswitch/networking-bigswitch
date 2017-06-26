@@ -77,6 +77,8 @@ TESTPATH_PATH = ('/testpath/controller-view'
                  '?src-tenant=%(src-tenant)s'
                  '&src-segment=%(src-segment)s&src-ip=%(src-ip)s'
                  '&dst-ip=%(dst-ip)s')
+TENANTPOLICY_RESOURCE_PATH = "/tenants/%s/policies"
+TENANTPOLICIES_PATH = "/tenants/%s/policies/%s"
 SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
@@ -997,6 +999,25 @@ class ServerPool(object):
                                 ignore_codes=[404])
         # return None if testpath not found, else return testpath info
         return None if (resp[0] not in range(200, 300)) else resp[3]
+
+    def rest_create_tenantpolicy(self, tenant_id, policy):
+        policy['ipproto'] = policy['protocol']
+        resource = TENANTPOLICY_RESOURCE_PATH % tenant_id
+        data = {"policy": policy}
+        errstr = _("Unable to create policy: %s")
+        self.rest_action('POST', resource, data, errstr)
+
+    def rest_update_tenantpolicy(self, tenant_id, policy):
+        policy['ipproto'] = policy['protocol']
+        resource = TENANTPOLICIES_PATH % (tenant_id, policy['priority'])
+        data = {"policy": policy}
+        errstr = _("Unable to update policy: %s")
+        self.rest_action('PUT', resource, data, errstr)
+
+    def rest_delete_tenantpolicy(self, tenant_id, policy_prio):
+        resource = TENANTPOLICIES_PATH % (tenant_id, policy_prio)
+        errstr = _("Unable to delete remote policy: %s")
+        self.rest_action('DELETE', resource, errstr=errstr)
 
     def _consistency_watchdog(self, polling_interval=60):
         if 'consistency' not in self.get_capabilities():

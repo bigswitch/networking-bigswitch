@@ -28,7 +28,7 @@ from neutron.tests.unit import testlib_api
 # EXTERNAL_TABLES should contain all names of tables that are not related to
 # current repo.
 # in our case, its all tables
-EXTERNAL_TABLES = set(external.TABLES)
+EXTERNAL_TABLES = set(external.TABLES) - set(external.REPO_BIGSWITCH_TABLES)
 
 
 class _TestModelsMigrationsBsn(test_migrations._TestModelsMigrations):
