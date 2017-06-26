@@ -1,8 +1,11 @@
 {
+    "admin_only": "rule:context_is_admin",
+    "admin_or_owner": "rule:context_is_admin or tenant_id:%(tenant_id)s",
+
     "get_networktemplate": "",
-    "create_networktemplate": "rule:admin",
-    "update_networktemplate": "rule:admin",
-    "delete_networktemplate": "rule:admin",
+    "create_networktemplate": "rule:admin_only",
+    "update_networktemplate": "rule:admin_only",
+    "delete_networktemplate": "rule:admin_only",
 
     "get_networktemplateassignment": "",
     "create_networktemplateassignment": "",
@@ -12,5 +15,10 @@
     "get_reachabilitytest": "rule:admin_or_owner",
     "create_reachabilitytest": "rule:admin_or_owner",
     "update_reachabilitytest": "rule:admin_or_owner",
-    "delete_reachabilitytest": "rule:admin_or_owner"
+    "delete_reachabilitytest": "rule:admin_or_owner",
+
+    "get_tenantpolicies": "rule:admin_or_owner",
+    "create_tenantpolicies": "rule:admin_or_owner",
+    "update_tenantpolicies": "rule:admin_or_owner",
+    "delete_tenantpolicies": "rule:admin_or_owner"
 }

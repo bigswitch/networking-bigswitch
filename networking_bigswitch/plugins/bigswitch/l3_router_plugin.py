@@ -29,18 +29,20 @@ from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
 from neutron.db import api as db
+from neutron.db import l3_db
 from neutron.extensions import l3
 
 from neutron_lib import constants as lib_constants
 from neutron_lib import exceptions
 from neutron_lib.plugins import directory
 
+from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db
 from networking_bigswitch.plugins.bigswitch import extensions
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch import plugin as cplugin
-from networking_bigswitch.plugins.bigswitch import routerrule_db
 from networking_bigswitch.plugins.bigswitch import servermanager
+from networking_bigswitch.plugins.bigswitch.utils import Util
 
 LOG = logging.getLogger(__name__)
 put_context_in_serverpool = cplugin.put_context_in_serverpool
@@ -50,7 +52,8 @@ BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
 
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
-                  routerrule_db.RouterRule_db_mixin):
+                  l3_db.L3_NAT_db_mixin,
+                  tenant_policy_db.TenantPolicyDbMixin):
 
     supported_extension_aliases = ["router", "router_rules"]
     # This is a flag to tell that L3 plugin is BSN.
@@ -75,11 +78,10 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     def create_router(self, context, router):
         self._warn_on_state_status(router['router'])
 
-        tenant_id = self._get_tenant_id_for_create(context, router["router"])
+        tenant_id = Util.get_tenant_id_for_create(context, router["router"])
 
-        # set default router rules
-        rules = self._get_tenant_default_router_rule(tenant_id)
-        router['router']['router_rules'] = [rules]
+        # set default router policies
+        default_policy_dict = self._get_tenant_default_router_policy(tenant_id)
 
         with db.context_manager.writer.using(context):
             # create router in DB
@@ -101,11 +103,15 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                     if ext_net:
                         mapped_router['external_gateway_info']['tenant_id'] = (
                             ext_net.get('tenant_id'))
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
 
             self.servers.rest_create_router(tenant_id, mapped_router)
+
+            # post router creation, create default policy if missing
+            tenantpolicy_dict = super(L3RestProxy, self).create_default_policy(
+                context, tenant_id, default_policy_dict)
+            if tenantpolicy_dict:
+                self.servers.rest_create_tenantpolicy(
+                    tenantpolicy_dict['tenant_id'], tenantpolicy_dict)
 
             # return created router
             return new_router
@@ -122,9 +128,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
             router = self._update_ext_gateway_info(context, new_router)
-            # pop router_tenant_rules from upstream object
-            if 'router_tenant_rules' in new_router:
-                del new_router['router_tenant_rules']
+
             # update router on network controller
             self.servers.rest_update_router(tenant_id, router, router_id)
 
@@ -156,20 +160,11 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             setattr(context, 'GUARD_TRANSACTION', False)
             super(L3RestProxy, self).delete_router(context, router_id)
 
-            # added check to update router policy for another router for
-            # default routes
-            updated_router = (super(L3RestProxy, self)
-                              .update_policies_post_delete(context, tenant_id))
-
             # delete from network controller
             self.servers.rest_delete_router(tenant_id, router_id)
-            if updated_router:
-                # update BCF after removing the router first
-                LOG.debug('Default policies now part of router: %s'
-                          % updated_router)
-                router = self._update_ext_gateway_info(context, updated_router)
-                self.servers.rest_update_router(tenant_id, router,
-                                                router['id'])
+
+            # remove tenant policies if this was the last router under tenant
+            super(L3RestProxy, self).remove_default_policy(context, tenant_id)
 
     @put_context_in_serverpool
     @log_helper.log_method_call
