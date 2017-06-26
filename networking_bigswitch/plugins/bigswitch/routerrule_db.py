@@ -375,17 +375,6 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         router_rules = query.filter_by(tenant_id=tenant_id).all()
         return self._make_router_rule_list(router_rules)
 
-    def _get_tenant_id_for_create(self, context, resource):
-        if context.is_admin and 'tenant_id' in resource:
-            tenant_id = resource['tenant_id']
-        elif ('tenant_id' in resource and
-              resource['tenant_id'] != context.tenant_id):
-            reason = _('Cannot create resource for another tenant')
-            raise n_exc.AdminRequired(reason=reason)
-        else:
-            tenant_id = context.tenant_id
-        return tenant_id
-
     def get_router(self, context, id, fields=None):
         with context.session.begin(subtransactions=True):
             router = super(RouterRule_db_mixin, self).get_router(
