@@ -85,6 +85,7 @@ from neutron_lib import constants as const
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
+from networking_bigswitch.plugins.bigswitch import constants as bsn_constants
 from networking_bigswitch.plugins.bigswitch.db import porttracker_db
 from networking_bigswitch.plugins.bigswitch import extensions
 from networking_bigswitch.plugins.bigswitch.i18n import _
@@ -167,6 +168,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     @property
     def l3_bsn_plugin(self):
         return hasattr(self.l3_plugin, "bsn")
+
+    @property
+    def bsn_service_plugin(self):
+        return directory.get_plugin(bsn_constants.BSN_SERVICE_PLUGIN)
 
     def _validate_names(self, obj, name=None):
         """
@@ -276,7 +281,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if get_routers and self.l3_plugin:
             routers = []
             all_routers = self.l3_plugin.get_routers(admin_context) or []
-            tenant_rules = {}
+            all_policies = (self.bsn_service_plugin
+                            .get_tenantpolicies(admin_context)
+                            if self.bsn_service_plugin else [])
+            tenant_policies = {}
+            for policy in all_policies:
+                if policy['tenant_id'] not in tenant_policies:
+                    tenant_policies[policy['tenant_id']] = []
+                policy['ipproto'] = policy['protocol']
+                tenant_policies[policy['tenant_id']].append(policy)
             for router in all_routers:
                 try:
                     # Add tenant_id of the external gateway network
@@ -308,13 +321,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                         interfaces.append(intf_details)
                     mapped_router['interfaces'] = interfaces
 
-                    # consolidate policies on per tenant basis
-                    if 'router_rules' in router:
-                        if router['tenant_id'] not in tenant_rules:
-                            tenant_rules[router['tenant_id']] = []
-                        tenant_rules[router['tenant_id']].extend(
-                            mapped_router['router_rules'])
-
                     routers.append(mapped_router)
                 except servermanager.TenantIDNotFound:
                     # if tenant name is not known to keystone, skip the network
@@ -322,11 +328,13 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
             # append router_tenant_rules to each router
             for router in routers:
-                if router['tenant_id'] in tenant_rules:
-                    router['router_tenant_rules'] = tenant_rules[
-                        router['tenant_id']]
+                if router['tenant_id'] in tenant_policies:
+                    router['policies'] = tenant_policies[router['tenant_id']]
 
             data.update({'routers': routers})
+
+            # L3 plugin also includes tenant policies
+            # data.update({'policies': tenant_policies})
 
         if get_sgs and self.l3_plugin:
             sgs = plugin.get_security_groups(admin_context) or []
