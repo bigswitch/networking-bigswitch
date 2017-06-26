@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.9
+Version:        8.40.10
 Release:        1%{?dist}
 Epoch:          2
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,8 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Mon Jun 26 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.10
+- OSP-112: dbdeadlock in scaling P+V setup
 * Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.9
 - OSP-36: update translation to one from plugin
 - OSP-103: fix testpath with special char in tenant/segment
