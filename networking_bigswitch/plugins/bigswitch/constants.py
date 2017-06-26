@@ -1,4 +1,4 @@
-# Copyright 2014 Big Switch Networks, Inc.
+# Copyright 2011 OpenStack Foundation.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -12,14 +12,5 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-#
 
-from networking_bigswitch.plugins.bigswitch.db import network_template_db  # noqa
-from networking_bigswitch.plugins.bigswitch.db import reachability_test_db  # noqa
-from networking_bigswitch.plugins.bigswitch.db import routerrule_db  # noqa
-from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db  # noqa
-from neutron.db.migration.models import head
-
-
-def get_metadata():
-    return head.model_base.BASEV2.metadata
+BSN_SERVICE_PLUGIN='BSNSERVICEPLUGIN'
