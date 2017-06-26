@@ -17,6 +17,7 @@ from neutron.api import extensions
 from neutron.api.v2 import base
 from neutron.api.v2 import resource_helper
 from neutron import manager
+from neutron_lib import constants
 
 import abc
 from networking_bigswitch.plugins.bigswitch import extensions as bsn_extensions
@@ -118,6 +119,40 @@ RESOURCE_ATTRIBUTE_MAP = {
                      'is_visible': True},
         'save_test': {'allow_post': False, 'allow_put': True,
                      'is_visible': True},
+    },
+    'tenantpolicies': {
+        'id': {'allow_post': False, 'allow_put': False,
+               'is_visible': True},
+        'tenant_id': {'allow_post': True, 'allow_put': False,
+                      'validate': {'type:string': None},
+                      'is_visible': True},
+        'priority': {'allow_post': True, 'allow_put': False,
+                     'validate': {'type:integer': None},
+                     'is_visible': True},
+        'source': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'source_port': {'allow_post': True, 'allow_put': True,
+                        'validate': {'type:integer': None},
+                        'is_visible': True,
+                        'default': 0},
+        'destination': {'allow_post': True, 'allow_put': True,
+                        'validate': {'type:string': None},
+                        'is_visible': True},
+        'destination_port': {'allow_post': True, 'allow_put': True,
+                            'validate': {'type:integer': None},
+                            'is_visible': True,
+                             'default': 0},
+        'protocol': {'allow_post': True, 'allow_put': True,
+                     'validate': {'type:string': None},
+                     'is_visible': True},
+        'action': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'nexthops': {'allow_post': True, 'allow_put': True,
+                     'validate': {'type:string': None},
+                     'is_visible': True,
+                     'default': ''},
     },
 }
 
@@ -264,4 +299,27 @@ class BSNServicePluginBase(object):
 
     @abc.abstractmethod
     def delete_reachabilityquicktest(self, context, id):
+        pass
+
+    # Tenant router policies
+    @abc.abstractmethod
+    def get_tenantpolicies(self, context, filters=None, fields=None,
+                           sorts=None, limit=None, marker=None,
+                           page_reverse=False):
+        pass
+
+    @abc.abstractmethod
+    def get_tenantpolicy(self, context, id, fields=None):
+        pass
+
+    @abc.abstractmethod
+    def create_tenantpolicy(self, context, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def update_tenantpolicy(self, context, id, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def delete_tenantpolicy(self, context, id):
         pass

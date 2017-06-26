@@ -22,6 +22,7 @@ from oslo_serialization import jsonutils
 
 from networking_bigswitch.plugins.bigswitch.db import network_template_db
 from networking_bigswitch.plugins.bigswitch.db import reachability_test_db
+from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db
 from networking_bigswitch.plugins.bigswitch.extensions \
     import bsnserviceextension
 from networking_bigswitch.plugins.bigswitch import servermanager
@@ -47,6 +48,7 @@ class BSNServicePlugin(service_base.ServicePluginBase,
             .ReachabilityTestDbMixin()
         self.reachabilityquicktest_db_mixin = reachability_test_db\
             .ReachabilityQuickTestDbMixin()
+        self.tenantpolicy_db_mixin = tenant_policy_db.TenantPolicyDbMixin()
 
     def get_plugin_type(self):
         # Tell Neutron this is a BSN service plugin
@@ -250,3 +252,28 @@ class BSNServicePlugin(service_base.ServicePluginBase,
     def delete_reachabilityquicktest(self, context, id):
         self.reachabilityquicktest_db_mixin.delete_reachabilityquicktest(
             context=context, id=id)
+
+    # public CRUD methods for Tenant Policies
+    def get_tenantpolicies(self, context, filters=None, fields=None,
+                           sorts=None, limit=None, marker=None,
+                           page_reverse=False):
+        return self.tenantpolicy_db_mixin.get_tenantpolicies(
+            context=context, filters=filters, fields=fields, sorts=sorts,
+            limit=limit, marker=marker, page_reverse=page_reverse)
+
+    def get_tenantpolicy(self, context, id, fields=None):
+        return self.tenantpolicy_db_mixin.get_tenantpolicy(
+            context=context, id=id, fields=fields)
+
+    def create_tenantpolicy(self, context, tenantpolicy):
+        return self.tenantpolicy_db_mixin.create_tenantpolicy(
+            context=context, servers=self.servers, tenantpolicy=tenantpolicy)
+
+    def delete_tenantpolicy(self, context, id):
+        self.tenantpolicy_db_mixin.delete_tenantpolicy(
+            context=context, servers=self.servers, id=id)
+
+    def update_tenantpolicy(self, context, id, tenantpolicy):
+        return self.tenantpolicy_db_mixin.update_tenantpolicy(
+            context=context, servers=self.servers, id=id,
+            tenantpolicy=tenantpolicy)

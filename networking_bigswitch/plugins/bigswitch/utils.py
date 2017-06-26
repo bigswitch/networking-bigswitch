@@ -12,7 +12,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+from neutron_lib import exceptions as n_exc
 
 class Util(object):
     """
@@ -40,3 +40,15 @@ class Util(object):
                 .replace('/', '_f')
                 .replace('[', '_l')
                 .replace(']', '_r'))
+
+    @staticmethod
+    def get_tenant_id_for_create(context, resource):
+        if context.is_admin and 'tenant_id' in resource:
+            tenant_id = resource['tenant_id']
+        elif ('tenant_id' in resource and
+              resource['tenant_id'] != context.tenant_id):
+            reason = _('Cannot create resource for another tenant')
+            raise n_exc.AdminRequired(reason=reason)
+        else:
+            tenant_id = context.tenant_id
+        return tenant_id

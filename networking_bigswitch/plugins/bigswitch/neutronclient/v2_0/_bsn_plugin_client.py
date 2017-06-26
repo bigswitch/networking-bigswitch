@@ -381,3 +381,114 @@ class ReachabilityQuickTestsShow(extension.ClientExtensionShow,
     """Show a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-show'
+
+# tenant policies
+def _tenantpolicy_updateable_args(parser):
+    parser.add_argument(
+        'source',
+        help=_('Source for the policy.'))
+    parser.add_argument(
+        '-source_port',
+        help=_('Source port for the policy. Optional.'))
+    parser.add_argument(
+        'destination',
+        help=_('Destination for the policy.'))
+    parser.add_argument(
+        '-destination_port',
+        help=_('Destination port for the policy. Optional.'))
+    parser.add_argument(
+        'action',
+        help=_('Action for matching traffic - permit or deny.'))
+    parser.add_argument(
+        '-protocol',
+        help=_('Protocol for matching traffic when specifying '
+               'source or destination port.'))
+    parser.add_argument(
+        '-nexthops',
+        help=_('Optional nexthops.'))
+
+
+def _tenantpolicy_updateable_args2body(parsed_args, body, client):
+    if parsed_args.source:
+        body['source'] = parsed_args.source
+    if parsed_args.source_port:
+        body['source_port'] = parsed_args.source_port
+    if parsed_args.destination:
+        body['destination'] = parsed_args.destination
+    if parsed_args.destination_port:
+        body['destination_port'] = parsed_args.destination_port
+    if parsed_args.action:
+        body['action'] = parsed_args.action
+    if parsed_args.protocol:
+        body['protocol'] = parsed_args.protocol
+    if parsed_args.nexthops:
+        body['nexthops'] = parsed_args.nexthops
+
+
+class TenantPolicy(extension.NeutronClientExtension):
+    resource = 'tenantpolicy'
+    resource_plural = 'tenantpolicies'
+    object_path = '/%s' % resource_plural
+    resource_path = '/%s/%%s' % resource_plural
+    versions = ['2.0']
+
+
+class TenantPoliciesList(extension.ClientExtensionList, TenantPolicy):
+    """List Tenant Policies"""
+
+    shell_command = 'tenant-policies-list'
+    list_columns = ['id', 'priority', 'source', 'source_port', 'destination',
+                    'destination_port', 'action', 'nexthops']
+
+
+class TenantPoliciesCreate(extension.ClientExtensionCreate, TenantPolicy):
+    """Create a Tenant Policy."""
+
+    shell_command = 'tenant-policies-create'
+    list_columns = ['id', 'priority', 'source', 'source_port', 'destination',
+                    'destination_port', 'action', 'protocol', 'nexthops']
+
+    def add_known_arguments(self, parser):
+        # create takes an extra argument of 'priority'
+        parser.add_argument(
+            'priority',
+            help=_('Priority for the policy. Valid range 1 to 2999'))
+        _tenantpolicy_updateable_args(parser)
+
+    def args2body(self, parsed_args):
+        body = {}
+        client = self.get_client()
+        # create takes an extra argument of 'priority'
+        if parsed_args.priority:
+            body['priority'] = parsed_args.priority
+        _tenantpolicy_updateable_args2body(parsed_args, body, client)
+        return {'tenantpolicy': body}
+
+
+class TenantPoliciesUpdate(extension.ClientExtensionUpdate, TenantPolicy):
+    """Update a Tenant Policy."""
+
+    shell_command = 'tenant-policies-update'
+    list_columns = ['id', 'priority', 'source', 'source_port', 'destination',
+                    'destination_port', 'action', 'protocol', 'nexthops']
+
+    def add_known_arguments(self, parser):
+        _tenantpolicy_updateable_args(parser)
+
+    def args2body(self, parsed_args):
+        body = {}
+        client = self.get_client()
+        _tenantpolicy_updateable_args2body(parsed_args, body, client)
+        return {'tenantpolicy': body}
+
+
+class TenantPoliciesDelete(extension.ClientExtensionDelete, TenantPolicy):
+    """Delete a tenant policy."""
+
+    shell_command = 'tenant-policies-delete'
+
+
+class TenantPoliciesShow(extension.ClientExtensionShow, TenantPolicy):
+    """Show a tenant policy."""
+
+    shell_command = 'tenant-policies-show'

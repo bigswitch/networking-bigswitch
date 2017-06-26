@@ -38,6 +38,7 @@ from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch import plugin as cplugin
 from networking_bigswitch.plugins.bigswitch import routerrule_db
 from networking_bigswitch.plugins.bigswitch import servermanager
+from networking_bigswitch.plugins.bigswitch.utils import Util
 
 LOG = logging.getLogger(__name__)
 put_context_in_serverpool = cplugin.put_context_in_serverpool
@@ -72,7 +73,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     def create_router(self, context, router):
         self._warn_on_state_status(router['router'])
 
-        tenant_id = self._get_tenant_id_for_create(context, router["router"])
+        tenant_id = Util.get_tenant_id_for_create(context, router["router"])
 
         # set default router rules
         rules = self._get_tenant_default_router_rule(tenant_id)
