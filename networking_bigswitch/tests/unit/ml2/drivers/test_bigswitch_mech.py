@@ -63,7 +63,9 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
                                           [phys_vrange],
                                           'ml2_type_vlan')
         super(TestBigSwitchMechDriverBase,
-              self).setUp(test_plugin.PLUGIN_NAME)
+              self).setUp(test_plugin.PLUGIN_NAME,
+                          service_plugins=service_plugins,
+                          ext_mgr=ext_mgr)
 
 
 class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,

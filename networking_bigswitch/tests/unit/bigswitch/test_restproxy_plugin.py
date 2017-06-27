@@ -40,7 +40,7 @@ HTTPCON = ('networking_bigswitch.plugins.bigswitch.servermanager.httplib'
 class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
                                      test_plugin.NeutronDbPluginV2TestCase):
 
-    def setUp(self, plugin_name=None):
+    def setUp(self, plugin_name=None, service_plugins=None, ext_mgr=None):
         if hasattr(self, 'HAS_PORT_FILTER'):
             cfg.CONF.set_override(
                 'enable_security_group', self.HAS_PORT_FILTER, 'SECURITYGROUP')
@@ -48,9 +48,17 @@ class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
         self.setup_patches()
         if plugin_name:
             self._plugin_name = plugin_name
-        service_plugins = {'L3_ROUTER_NAT': self._l3_plugin_name}
+        l3_plugin = {'L3_ROUTER_NAT': self._l3_plugin_name}
+        if service_plugins:
+            service_plugins.update(l3_plugin)
+        else:
+            service_plugins = l3_plugin
+
         super(BigSwitchProxyPluginV2TestCase,
-              self).setUp(self._plugin_name, service_plugins=service_plugins)
+              self).setUp(self._plugin_name,
+                          service_plugins=service_plugins,
+                          ext_mgr=ext_mgr)
+
         self.port_create_status = 'BUILD'
         self.startHttpPatch()
 
