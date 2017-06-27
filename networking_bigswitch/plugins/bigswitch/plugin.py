@@ -81,6 +81,7 @@ from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
@@ -161,7 +162,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     @property
     def l3_plugin(self):
-        return directory.get_plugin(const.L3)
+        return directory.get_plugin(plugin_constants.L3)
 
     @property
     def l3_bsn_plugin(self):

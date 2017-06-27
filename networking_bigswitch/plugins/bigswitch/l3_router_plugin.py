@@ -33,6 +33,7 @@ from neutron.extensions import l3
 
 from neutron_lib import constants as lib_constants
 from neutron_lib import exceptions
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import extensions
@@ -58,7 +59,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
     @staticmethod
     def get_plugin_type():
-        return lib_constants.L3
+        return plugin_constants.L3
 
     @staticmethod
     def get_plugin_description():

@@ -16,8 +16,8 @@
 
 import mock
 
-from neutron_lib import constants as lib_consts
 from neutron_lib import context
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.tests.unit.bigswitch import test_router_db
@@ -43,7 +43,7 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
                 # we have to grab the floating ip object from the service
                 # plugin since we send extra information not returned to the
                 # API caller
-                l3_plugin = directory.get_plugin(lib_consts.L3)
+                l3_plugin = directory.get_plugin(plugin_constants.L3)
                 fip = l3_plugin.get_floatingip(context.get_admin_context(),
                                                fip['floatingip']['id'])
                 fip_port = l3_plugin.get_port(context.get_admin_context(),
