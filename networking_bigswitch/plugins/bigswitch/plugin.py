@@ -52,6 +52,7 @@ import oslo_messaging
 from oslo_utils import importutils
 from sqlalchemy.orm import exc as sqlexc
 
+from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api import extensions as neutron_extensions
 from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
@@ -154,10 +155,34 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
 
 class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                              external_net_db.External_net_db_mixin,
-                             SecurityGroupServerRpcMixin):
+                             SecurityGroupServerRpcMixin,
+                             agentschedulers_db.DhcpAgentSchedulerDbMixin):
 
     supported_extension_aliases = ["binding"]
     servers = None
+
+    def __init__(self):
+        super(NeutronRestProxyV2Base, self).__init__()
+        self._setup_rpc()
+
+    def _setup_rpc(self):
+        self.conn = n_rpc.create_connection()
+        self.topic = topics.PLUGIN
+        self.notifier = AgentNotifierApi(topics.AGENT)
+        # init dhcp agent support
+        self._dhcp_agent_notifier = dhcp_rpc_agent_api.DhcpAgentNotifyAPI()
+        self.agent_notifiers[const.AGENT_TYPE_DHCP] = (
+            self._dhcp_agent_notifier
+        )
+        self.endpoints = [agent_rpc.PluginApi(self.topic),
+                          securitygroups_rpc.SecurityGroupServerRpcCallback(),
+                          dhcp_rpc.DhcpRpcCallback(),
+                          agents_db.AgentExtRpcCallback(),
+                          metadata_rpc.MetadataRpcCallback()]
+        self.conn.create_consumer(self.topic, self.endpoints,
+                                  fanout=False)
+        # Consume from all consumers in threads
+        self.conn.consume_in_threads()
 
     @property
     def l3_plugin(self):
@@ -917,24 +942,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         self.add_periodic_dhcp_agent_status_check()
         LOG.debug("NeutronRestProxyV2: initialization done")
-
-    def _setup_rpc(self):
-        self.conn = n_rpc.create_connection()
-        self.topic = topics.PLUGIN
-        self.notifier = AgentNotifierApi(topics.AGENT)
-        # init dhcp agent support
-        self._dhcp_agent_notifier = dhcp_rpc_agent_api.DhcpAgentNotifyAPI()
-        self.agent_notifiers[const.AGENT_TYPE_DHCP] = (
-            self._dhcp_agent_notifier
-        )
-        self.endpoints = [securitygroups_rpc.SecurityGroupServerRpcCallback(),
-                          dhcp_rpc.DhcpRpcCallback(),
-                          agents_db.AgentExtRpcCallback(),
-                          metadata_rpc.MetadataRpcCallback()]
-        self.conn.create_consumer(self.topic, self.endpoints,
-                                  fanout=False)
-        # Consume from all consumers in threads
-        self.conn.consume_in_threads()
 
     @db.context_manager.writer
     @put_context_in_serverpool
