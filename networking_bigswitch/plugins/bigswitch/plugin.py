@@ -87,9 +87,6 @@ from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.db import porttracker_db
 from networking_bigswitch.plugins.bigswitch import extensions
 from networking_bigswitch.plugins.bigswitch.i18n import _
-from networking_bigswitch.plugins.bigswitch.i18n import _LE
-from networking_bigswitch.plugins.bigswitch.i18n import _LI
-from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.plugins.bigswitch.utils import Util
 from networking_bigswitch.plugins.bigswitch import version
@@ -174,21 +171,21 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             False, otherwise
         """
         if name and not servermanager.is_valid_bcf_name(name):
-            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '),
+            LOG.warning('Unsupported characters in Name: %(name)s. ',
                         {'name': name})
             return False
 
         if (obj and 'name' in obj and
                 not servermanager.is_valid_bcf_name(obj['name'])):
-            LOG.warning(_LW('Unsupported characters in Name: %(name)s. '
-                            'Object details: %(obj)s'),
+            LOG.warning('Unsupported characters in Name: %(name)s. '
+                        'Object details: %(obj)s',
                         {'name': obj['name'], 'obj': obj})
             return False
 
         if (obj and 'tenant_name' in obj and
                 not servermanager.is_valid_bcf_name(obj['tenant_name'])):
-            LOG.warning(_LW('Unsupported characters in TenantName: %(tname)s. '
-                            'Object details: %(obj)s'),
+            LOG.warning('Unsupported characters in TenantName: %(tname)s. '
+                        'Object details: %(obj)s',
                         {'tname': obj['tenant_name'], 'obj': obj})
             return False
 
@@ -215,7 +212,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         for net in all_networks:
             try:
                 if self._skip_bcf_network_event(net):
-                    LOG.info(_LI('Skipping segment create for Network: %(n)s'),
+                    LOG.info('Skipping segment create for Network: %(n)s',
                              {'n': net.get('name')})
                     continue
 
@@ -464,7 +461,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                            context=context)
                 self.servers.rest_create_securitygroup(sg)
         else:
-            LOG.warning(_LW("No scurity group is provided for creation."))
+            LOG.warning("No scurity group is provided for creation.")
 
     def bsn_delete_security_group(self, sg_id, context=None):
         self.servers.rest_delete_securitygroup(sg_id)
@@ -520,7 +517,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _send_create_network(self, network, context=None):
         tenant_id = network['tenant_id']
         if self._skip_bcf_network_event(network):
-            LOG.info(_LI('Skipping BCF segment create for Network: %(name)s'),
+            LOG.info('Skipping BCF segment create for Network: %(name)s',
                      {'name': network.get('name')})
             return
 
@@ -548,7 +545,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         net_id = network['id']
         tenant_id = network['tenant_id']
         if self._skip_bcf_network_event(network):
-            LOG.info(_LI('Skipping BCF segment update for Network: %(name)s'),
+            LOG.info('Skipping BCF segment update for Network: %(name)s',
                      {'name': network.get('name')})
             return
 
@@ -719,14 +716,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _warn_on_state_status(self, resource):
         if resource.get('admin_state_up', True) is False:
-            LOG.warning(_LW("Setting admin_state_up=False is not supported "
-                            "in this plugin version. Ignoring setting for "
-                            "resource: %s"), resource)
+            LOG.warning("Setting admin_state_up=False is not supported "
+                        "in this plugin version. Ignoring setting for "
+                        "resource: %s", resource)
 
         if 'status' in resource:
             if resource['status'] != const.NET_STATUS_ACTIVE:
-                LOG.warning(_LW("Operational status is internally set by the "
-                                "plugin. Ignoring setting status=%s."),
+                LOG.warning("Operational status is internally set by the "
+                            "plugin. Ignoring setting status=%s.",
                             resource['status'])
 
     def _get_router_intf_details(self, context, subnet_id):
@@ -751,8 +748,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         cfg_vif_type = cfg.CONF.NOVA.vif_type.lower()
         if cfg_vif_type not in (portbindings.VIF_TYPE_OVS,
                                 pl_config.VIF_TYPE_IVS):
-            LOG.warning(_LW("Unrecognized vif_type in configuration "
-                            "[%s]. Defaulting to ovs."),
+            LOG.warning("Unrecognized vif_type in configuration "
+                        "[%s]. Defaulting to ovs.",
                         cfg_vif_type)
             cfg_vif_type = portbindings.VIF_TYPE_OVS
         # In ML2, the host_id is already populated
@@ -810,8 +807,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
                 e.status == httplib.NOT_FOUND and
                 servermanager.NXNETWORK in e.reason):
-                LOG.error(_LE("Inconsistency with backend controller "
-                              "triggering full synchronization."))
+                LOG.error("Inconsistency with backend controller "
+                          "triggering full synchronization.")
                 # args depend on if we are operating in ML2 driver
                 # or as the full plugin
                 self._send_all_data_auto(triggered_by_tenant=tenant_id)
@@ -821,7 +818,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                 # Any errors that don't result in a successful auto-sync
                 # require that the port be placed into the error state.
                 LOG.error(
-                    _LE("NeutronRestProxyV2: Unable to create port: %s"), e)
+                    "NeutronRestProxyV2: Unable to create port: %s", e)
                 try:
                     self._set_port_status(port['id'], const.PORT_STATUS_ERROR)
                 except exceptions.PortNotFound:
@@ -887,7 +884,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     def __init__(self):
         super(NeutronRestProxyV2, self).__init__()
-        LOG.info(_LI('NeutronRestProxy: Starting plugin. Version=%s'),
+        LOG.info('NeutronRestProxy: Starting plugin. Version=%s',
                  version.version_string_with_vcs())
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)

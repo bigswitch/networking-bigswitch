@@ -37,7 +37,6 @@ from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import extensions
 from networking_bigswitch.plugins.bigswitch.i18n import _
-from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch import plugin as cplugin
 from networking_bigswitch.plugins.bigswitch import routerrule_db
 from networking_bigswitch.plugins.bigswitch import servermanager
@@ -272,9 +271,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                     self._send_floatingip_update(context)
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(
-                        _LE("NeutronRestProxyV2: Unable to create remote "
-                            "floating IP: %s"), e)
+                    LOG.error("NeutronRestProxyV2: Unable to create remote "
+                              "floating IP: %s", e)
             # return created floating IP
             return new_fl_ip
 

@@ -36,9 +36,6 @@ from neutron_lib.plugins import directory
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
 from networking_bigswitch.plugins.bigswitch.i18n import _
-from networking_bigswitch.plugins.bigswitch.i18n import _LE
-from networking_bigswitch.plugins.bigswitch.i18n import _LI
-from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import plugin
 from networking_bigswitch.plugins.bigswitch import servermanager
 
@@ -260,7 +257,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             # create port on the network controller
             port = self._prepare_port_for_controller(context)
         except servermanager.TenantIDNotFound as e:
-            LOG.warning(_LW("Skipping create port %(port)s as %(exp)s"),
+            LOG.warning("Skipping create port %(port)s as %(exp)s",
                         {'port': context.current.get('id'), 'exp': e})
             return
 
@@ -298,7 +295,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         try:
             port = self._prepare_port_for_controller(context)
         except servermanager.TenantIDNotFound as e:
-            LOG.warning(_LW("Skipping update port %(port)s as %(exp)s"),
+            LOG.warning("Skipping update port %(port)s as %(exp)s",
                         {'port': context.current.get('id'), 'exp': e})
             return
 
@@ -320,8 +317,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                         e.status == httplib.NOT_FOUND and
                         servermanager.NXNETWORK in e.reason):
                         ctxt.reraise = False
-                        LOG.error(_LE("Inconsistency with backend controller "
-                                      "triggering full synchronization."))
+                        LOG.error("Inconsistency with backend controller "
+                                  "triggering full synchronization.")
                         self._send_all_data_auto(
                             triggered_by_tenant=port["network"]["tenant_id"]
                         )
@@ -367,8 +364,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         vif_type = portbindings.VIF_TYPE_VHOST_USER
         port = self._prepare_port_for_controller(context)
         if not port:
-            LOG.warning(_LW("nfv-switch bind_port() skipped due to missing "
-                            "Host ID."))
+            LOG.warning("nfv-switch bind_port() skipped due to missing "
+                        "Host ID.")
             return
 
         # Create an endpoint corresponding to the port on the Controller,
@@ -387,15 +384,15 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                         e.status == httplib.NOT_FOUND and
                         servermanager.NXNETWORK in e.reason):
                     ctxt.reraise = False
-                    LOG.error(_LE("Inconsistency with backend controller "
-                                  "triggering full synchronization."))
+                    LOG.error("Inconsistency with backend controller "
+                              "triggering full synchronization.")
                     self._send_all_data_auto(triggered_by_tenant=tenant_id)
 
         # Retrieve the vhost_socket reserved for the port(endpoint) by the
         # Controller and use it in set_binding()
         resp = self.servers.rest_get_port(tenant_id, network_id, port["id"])
         if not resp or not isinstance(resp, list):
-            LOG.warning(_LW("Controller failed to reserve a nfv-switch sock"))
+            LOG.warning("Controller failed to reserve a nfv-switch sock")
             return
 
         vhost_sock = None
@@ -404,11 +401,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             vhost_sock = attachment_point.get('interface')
 
         if not vhost_sock:
-            LOG.warning(_LW("Controller failed to reserve a nfv-switch sock"))
+            LOG.warning("Controller failed to reserve a nfv-switch sock")
             return
 
         vhost_sock_path = self._get_vhost_user_sock_path(vhost_sock)
-        LOG.info(_LI('nfv-switch VM %(port)s alloted sock_path %(sock)s'),
+        LOG.info('nfv-switch VM %(port)s alloted sock_path %(sock)s',
                  {'port': port['id'], 'sock': vhost_sock_path})
 
         # Update vif_details with host_id. This way, for all BCF

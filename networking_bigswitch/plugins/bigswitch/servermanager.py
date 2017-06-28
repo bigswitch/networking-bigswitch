@@ -45,9 +45,6 @@ from keystoneauth1 import session
 from keystoneclient.v3 import client as ksclient
 from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
 from networking_bigswitch.plugins.bigswitch.i18n import _
-from networking_bigswitch.plugins.bigswitch.i18n import _LE
-from networking_bigswitch.plugins.bigswitch.i18n import _LI
-from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch.utils import Util
 import os
 from oslo_config import cfg
@@ -228,8 +225,8 @@ def get_keystoneauth_cfg(conf, name):
                                                        name)])
         return value_list[0]
     except KeyError as e:
-        LOG.warning(_LW("Config does not have property %(name)s "
-                        "in group keystone_authtoken"), {'name': name})
+        LOG.warning("Config does not have property %(name)s "
+                    "in group keystone_authtoken", {'name': name})
         raise e
 
 
@@ -263,11 +260,11 @@ class ServerProxy(object):
             if body:
                 self.capabilities = jsonutils.loads(body)
         except Exception:
-            LOG.exception(_LE("Couldn't retrieve capabilities. "
-                              "Newer API calls won't be supported."))
-        LOG.info(_LI("The following capabilities were received "
-                     "for %(server)s: %(cap)s"), {'server': self.server,
-                                                  'cap': self.capabilities})
+            LOG.exception("Couldn't retrieve capabilities. "
+                          "Newer API calls won't be supported.")
+        LOG.info("The following capabilities were received "
+                 "for %(server)s: %(cap)s",
+                 {'server': self.server, 'cap': self.capabilities})
         return self.capabilities
 
     def rest_call(self, action, resource, data='', headers=None,
@@ -328,16 +325,16 @@ class ServerProxy(object):
                 currentconn = HTTPSConnectionWithValidation(
                     self.server, self.port, timeout=timeout)
                 if currentconn is None:
-                    LOG.error(_LE('ServerProxy: Could not establish HTTPS '
-                                  'connection'))
+                    LOG.error('ServerProxy: Could not establish HTTPS '
+                              'connection')
                     return 0, None, None, None
                 currentconn.combined_cert = self.combined_cert
             else:
                 currentconn = httplib.HTTPConnection(
                     self.server, self.port, timeout=timeout)
                 if currentconn is None:
-                    LOG.error(_LE('ServerProxy: Could not establish HTTP '
-                                  'connection'))
+                    LOG.error('ServerProxy: Could not establish HTTP '
+                              'connection')
                     return 0, None, None, None
 
         try:
@@ -364,7 +361,7 @@ class ServerProxy(object):
                     else:
                         # Thread lost DB lock by the time BCF response was
                         # received
-                        LOG.warning(_LW("Thread is no longer DB lock owner"))
+                        LOG.warning("Thread is no longer DB lock owner")
                 else:
                     hash_handler.clear_lock()
                 try:
@@ -396,7 +393,7 @@ class ServerProxy(object):
                                   timeout=timeout, reconnect=True)
         except (socket.timeout, socket.error) as e:
             currentconn.close()
-            LOG.error(_LE('ServerProxy: %(action)s failure, %(e)r'),
+            LOG.error('ServerProxy: %(action)s failure, %(e)r',
                       {'action': action, 'e': e})
             ret = 0, None, None, None
         LOG.debug("ServerProxy: status=%(status)d, reason=%(reason)r, "
@@ -439,9 +436,9 @@ class ServerPool(object):
                 cfg.CONF, 'user_domain_name')
         else:
             # this is for UT only
-            LOG.warning(_LW("keystone_authtoken not found in "
-                            "/etc/neutron/neutron.conf. "
-                            "Please check config file"))
+            LOG.warning("keystone_authtoken not found in "
+                        "/etc/neutron/neutron.conf. "
+                        "Please check config file")
             self.auth_url = cfg.CONF.RESTPROXY.auth_url
             self.auth_user = cfg.CONF.RESTPROXY.auth_user
             self.auth_password = cfg.CONF.RESTPROXY.auth_password
@@ -636,9 +633,8 @@ class ServerPool(object):
                               'Error details: %(error)s') %
                             {'server': server, 'error': e})
 
-        LOG.warning(_LW("Storing to certificate for host %(server)s "
-                        "at %(path)s"), {'server': server,
-                                         'path': path})
+        LOG.warning("Storing to certificate for host %(server)s "
+                    "at %(path)s", {'server': server, 'path': path})
         self._file_put_contents(path, cert)
 
         return cert
@@ -715,8 +711,8 @@ class ServerPool(object):
                     raise cfg.Error(_('Server requires synchronization, '
                                       'but no topology function was defined.'))
 
-                LOG.info(_LI("ServerProxy: HashConflict detected with request "
-                             "%(action)s %(resource)s Starting Topology sync"),
+                LOG.info("ServerProxy: HashConflict detected with request "
+                         "%(action)s %(resource)s Starting Topology sync",
                          {'action': action, 'resource': resource})
                 topo_hh = self.dblock_mark_toposync_started(hash_handler)
                 try:
@@ -727,19 +723,19 @@ class ServerPool(object):
                                                          data, timeout=None,
                                                          hash_handler=topo_hh)
                         if self.server_failure(ret_ts, ignore_codes):
-                            LOG.error(_LE("ServerProxy: Topology sync failed"))
+                            LOG.error("ServerProxy: Topology sync failed")
                             raise RemoteRestError(reason=ret_ts[2],
                                                   status=ret_ts[0])
                 finally:
-                    LOG.info(_LI("ServerProxy: Topology sync completed"))
+                    LOG.info("ServerProxy: Topology sync completed")
                     if data is None:
                         return None
             elif ret[0] == httplib.CONFLICT and \
                     not hash_handler.is_db_lock_owner():
                 # DB lock ownership lost, allow current owner to detect hash
                 # conflict and perform needed TopoSync
-                LOG.warning(_LW("HashConflict detected but thread is no longer"
-                                " DB lock owner. Skipping TopoSync call"))
+                LOG.warning("HashConflict detected but thread is no longer"
+                            " DB lock owner. Skipping TopoSync call")
 
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
@@ -757,17 +753,17 @@ class ServerPool(object):
                            'response': ret[3]})
                 return ret
             else:
-                LOG.warning(_LW('ServerProxy: %(action)s failure for servers:'
-                                '%(server)r Response: %(response)s'),
-                           {'action': action,
-                            'server': (active_server.server,
-                                       active_server.port),
-                            'response': ret[3]})
-                LOG.warning(_LW("ServerProxy: Error details: "
-                                "status=%(status)d, reason=%(reason)r, "
-                                "ret=%(ret)s, data=%(data)r"),
-                           {'status': ret[0], 'reason': ret[1],
-                            'ret': ret[2], 'data': ret[3]})
+                LOG.warning('ServerProxy: %(action)s failure for servers:'
+                            '%(server)r Response: %(response)s',
+                            {'action': action,
+                             'server': (active_server.server,
+                                        active_server.port),
+                             'response': ret[3]})
+                LOG.warning("ServerProxy: Error details: "
+                            "status=%(status)d, reason=%(reason)r, "
+                            "ret=%(ret)s, data=%(data)r",
+                            {'status': ret[0], 'reason': ret[1],
+                             'ret': ret[2], 'data': ret[3]})
                 active_server.failed = True
 
         # A failure on a delete means the object is gone from Neutron but not
@@ -778,8 +774,8 @@ class ServerPool(object):
         if action == 'DELETE':
             hash_handler.put_hash('INCONSISTENT,INCONSISTENT')
         # All servers failed, reset server list and try again next time
-        LOG.error(_LE('ServerProxy: %(action)s failure for all servers: '
-                      '%(server)r'),
+        LOG.error('ServerProxy: %(action)s failure for all servers: '
+                  '%(server)r',
                   {'action': action,
                    'server': tuple((s.server,
                                     s.port) for s in self.servers)})
@@ -803,9 +799,9 @@ class ServerPool(object):
             LOG.error(errstr, resp[2])
             raise RemoteRestError(reason=resp[2], status=resp[0])
         if resp[0] in ignore_codes:
-            LOG.info(_LI("NeutronRestProxyV2: Received and ignored error "
-                         "code %(code)s on %(action)s action to resource "
-                         "%(resource)s"),
+            LOG.info("NeutronRestProxyV2: Received and ignored error "
+                     "code %(code)s on %(action)s action to resource "
+                     "%(resource)s",
                      {'code': resp[2], 'action': action,
                       'resource': resource})
         return resp
@@ -943,8 +939,8 @@ class ServerPool(object):
         device_id = port.get("device_id")
         if not port["mac_address"] or not device_id:
             # controller only cares about ports attached to devices
-            LOG.warning(_LW("No device MAC attached to port %s. "
-                            "Skipping notification to controller."),
+            LOG.warning("No device MAC attached to port %s. "
+                        "Skipping notification to controller.",
                         port["id"])
             return
         data["attachment"] = {"id": device_id,
@@ -999,12 +995,12 @@ class ServerPool(object):
 
     def _consistency_watchdog(self, polling_interval=60):
         if 'consistency' not in self.get_capabilities():
-            LOG.warning(_LW("Backend server(s) do not support automated "
-                            "consitency checks."))
+            LOG.warning("Backend server(s) do not support automated "
+                        "consitency checks.")
             return
         if not polling_interval:
-            LOG.warning(_LW("Consistency watchdog disabled by polling "
-                            "interval setting of %s."), polling_interval)
+            LOG.warning("Consistency watchdog disabled by polling "
+                        "interval setting of %s.", polling_interval)
             return
         while True:
             # If consistency is supported, all we have to do is make any
@@ -1015,8 +1011,8 @@ class ServerPool(object):
             try:
                 self.rest_action('GET', HEALTH_PATH)
             except Exception:
-                LOG.exception(_LE("Encountered an error checking controller "
-                                  "health."))
+                LOG.exception("Encountered an error checking controller "
+                              "health.")
 
     def _ensure_tenant_cache(self, tenant_id):
         if tenant_id not in self.keystone_tenants:
@@ -1062,8 +1058,7 @@ class ServerPool(object):
                     hash_handler.put_hash('initial:hash,code')
             return True
         except Exception:
-            LOG.exception(_LE("Encountered an error syncing with "
-                              "keystone."))
+            LOG.exception("Encountered an error syncing with keystone.")
             return False
 
     def _keystone_sync(self, polling_interval=60):

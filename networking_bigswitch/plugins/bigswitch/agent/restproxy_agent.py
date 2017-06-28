@@ -41,8 +41,6 @@ from neutron_lib import constants as q_const
 from neutron_lib import context as q_context
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
-from networking_bigswitch.plugins.bigswitch.i18n import _LE
-from networking_bigswitch.plugins.bigswitch.i18n import _LI
 
 IVS_PORT_MTU = 9000
 IVS_VM_PORT_PREFIX = 'qvo'
@@ -69,8 +67,8 @@ class IVSBridge(object):
                     logfunc = LOG.error
                 else:
                     logfunc = LOG.debug
-                logfunc(_LE("Unable to execute %(cmd)s. "
-                            "Exception: %(exception)s"),
+                logfunc("Unable to execute %(cmd)s. "
+                        "Exception: %(exception)s",
                         {'cmd': full_args, 'exception': e})
                 if not check_error:
                     ctxt.reraise = False
@@ -116,8 +114,8 @@ class IVSBridge(object):
                     LOG.debug("MTU of port %s set to %d", str(iface_name),
                               IVS_PORT_MTU)
                 except Exception as e:
-                    LOG.error(_LE("Set MTU for port %(p)s failed. Unable to "
-                                  "execute %(cmd)s. Exception: %(exception)s"),
+                    LOG.error("Set MTU for port %(p)s failed. Unable to "
+                              "execute %(cmd)s. Exception: %(exception)s",
                               {'p': iface_name, 'cmd': cmd, 'exception': e})
 
 
@@ -150,7 +148,7 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
             return
         # use tap as a prefix because ml2 is hard-coded to expect that
         device_ids = [d.replace('qvo', 'tap') for d in device_ids]
-        LOG.info(_LI("Preparing filters for devices %s"), device_ids)
+        LOG.info("Preparing filters for devices %s", device_ids)
         if self.use_enhanced_rpc:
             devices_info = self.plugin_rpc.security_group_info_for_devices(
                 self.context, list(device_ids))
@@ -216,7 +214,7 @@ class RestProxyAgent(api_sg_rpc.SecurityGroupAgentRpcCallbackMixin):
             self.use_call = False
             self.agent_state.pop('start_flag', None)
         except Exception:
-            LOG.exception(_LE("Failed reporting state!"))
+            LOG.exception("Failed reporting state!")
 
     def _setup_rpc(self):
         self.topic = topics.AGENT
@@ -285,7 +283,7 @@ class RestProxyAgent(api_sg_rpc.SecurityGroupAgentRpcCallbackMixin):
                     self._process_devices_filter(port_info)
                     ports = port_info['current']
             except Exception:
-                LOG.exception(_LE("Error in agent event loop"))
+                LOG.exception("Error in agent event loop")
 
             elapsed = max(time.time() - start, 0)
             if (elapsed < self.polling_interval):

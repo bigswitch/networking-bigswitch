@@ -25,8 +25,6 @@ import sqlalchemy as sa
 
 from neutron_lib.db import model_base
 
-from networking_bigswitch.plugins.bigswitch.i18n import _LI
-from networking_bigswitch.plugins.bigswitch.i18n import _LW
 
 LOG = logging.getLogger(__name__)
 # Maximum time in seconds to wait for a single record lock to be released
@@ -151,15 +149,14 @@ class HashHandler(object):
         """
         lock_id = self.random_lock_id
         current_lock_owner = self._get_lock_owner(res.hash)
-        LOG.warning(_LW("Gave up waiting for consistency DB lock, trying to "
-                        "take it. Current hash is: %s"), res.hash)
+        LOG.warning("Gave up waiting for consistency DB lock, trying to "
+                    "take it. Current hash is: %s", res.hash)
         new_db_value = res.hash.replace(current_lock_owner, lock_id)
         if self._optimistic_update_hash_record(res, new_db_value):
             return res.hash.replace(new_db_value, '')
 
-        LOG.info(_LI("LockID %(this)s - Failed to take lock as another thread "
-                     "has grabbed it"),
-                 {'this': lock_id})
+        LOG.info("LockID %(this)s - Failed to take lock as another thread "
+                 "has grabbed it", {'this': lock_id})
         return None
 
     def read_for_update(self):
@@ -247,13 +244,13 @@ class HashHandler(object):
             res = (self.session.query(ConsistencyHash).
                    filter_by(hash_id=self.hash_id).first())
             if not res:
-                LOG.warning(_LW("Hash record already gone, no lock to clear."))
+                LOG.warning("Hash record already gone, no lock to clear.")
                 return
             else:
                 self.session.refresh(res)  # get the latest res from db
             if not res.hash.startswith(self.lock_marker):
                 # if these are frequent the server is too slow
-                LOG.warning(_LW("Another server already removed the lock. %s"),
+                LOG.warning("Another server already removed the lock. %s",
                             res.hash)
                 return
             res.hash = res.hash.replace(self.lock_marker, '')

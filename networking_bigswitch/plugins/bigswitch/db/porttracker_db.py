@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from neutron_lib.api import validators
 from oslo_log import log as logging
 
@@ -37,10 +36,10 @@ def put_port_hostid(context, port_id, host):
     # relational table generation until one of the functions is called.
     from neutron.db.models import portbinding
     if not validators.is_attr_set(host):
-        LOG.warning(_LW("No host_id in port request to track port location."))
+        LOG.warning("No host_id in port request to track port location.")
         return
     if port_id == '':
-        LOG.warning(_LW("Received an empty port ID for host_id '%s'"), host)
+        LOG.warning("Received an empty port ID for host_id '%s'", host)
         return
     if host == '':
         LOG.debug("Received an empty host_id for port '%s'", port_id)
