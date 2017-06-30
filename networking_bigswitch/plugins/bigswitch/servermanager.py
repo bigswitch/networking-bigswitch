@@ -350,22 +350,18 @@ class ServerProxy(object):
                       (bcf_response_time - lock_end_time))
             if response.status in self.success_codes:
                 hash_value = response.getheader(HASH_MATCH_HEADER)
-                # don't clear hash from DB if a hash header wasn't present
                 if hash_value is not None:
-                    if hash_handler.is_db_lock_owner():
-                        # There maybe be (rare) cases when the response takes
-                        # too long and thread looses the DB lock. In such cases
-                        # updating the HASH could result in chaos (eg: current
-                        # thread's lock is overwritten without mercy and would
-                        # allow another thread to grab the lock) Safest way
-                        # forward seems to not update HASH but let next REQUEST
-                        # trigger a TopoSync
-                        hash_handler.put_hash(hash_value)
-                    else:
-                        # Thread lost DB lock by the time BCF response was
-                        # received
+                    # There maybe be (rare) cases when the response takes too
+                    # long and thread looses the DB lock. In such cases
+                    # updating the HASH could result in chaos (eg: current
+                    # thread's lock is overwritten without mercy and would
+                    # allow another thread to grab the lock). Safest way
+                    # forward seems to be to check lock ownership prior to
+                    # updating Hash else let next REQUEST trigger a TopoSync
+                    if not hash_handler.put_hash_if_owner(hash_value):
                         LOG.warning(_LW("Thread is no longer DB lock owner"))
                 else:
+                    # Don't clear hash from DB if a hash header wasn't present
                     hash_handler.clear_lock()
                 try:
                     respdata = jsonutils.loads(respstr)
