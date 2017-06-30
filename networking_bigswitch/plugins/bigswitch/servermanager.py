@@ -1057,7 +1057,7 @@ class ServerPool(object):
             LOG.exception("Encountered an error syncing with keystone.")
             return False
 
-    def _keystone_sync(self, polling_interval=60):
+    def _keystone_sync(self, polling_interval=300):
         while True:
             eventlet.sleep(polling_interval)
             self._update_tenant_cache()
