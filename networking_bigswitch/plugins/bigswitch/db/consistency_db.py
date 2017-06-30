@@ -270,6 +270,37 @@ class HashHandler(object):
                   {'hash_id': self.hash_id, 'hash': hash,
                    'this': self.random_lock_id})
 
+    def put_hash_if_owner(self, new_hash):
+        """Update the DB Hash if the current thread is the DB lock owner
+        @:return: True, if DB hash was successfully updated
+                  False, otherwise
+        """
+        new_hash = new_hash or ''
+        lock_marker = self.lock_marker + '%'
+        query = sa.update(ConsistencyHash.__table__).values(hash=new_hash)
+        query = query.where(ConsistencyHash.hash_id == self.hash_id)
+        query = query.where(ConsistencyHash.hash.like(lock_marker))
+
+        success = True
+        try:
+            with self._FACADE.get_engine().begin() as conn:
+                result = conn.execute(query)
+        except db_exc.DBDeadlock:
+            success = False
+
+        # We need to check update row count for successful update
+        if success and (result.rowcount != 0):
+            # DB Hash update was successful
+            LOG.debug("Consistency hash for group %(hash_id)s updated "
+                      "to %(hash)s by LockID %(this)s",
+                      {'hash_id': self.hash_id, 'hash': new_hash,
+                       'this': self.random_lock_id})
+            return True
+
+        LOG.debug("LockID %s is no longer DB lock owner. Consistency "
+                  "hash not updated", self.random_lock_id)
+        return False
+
     def is_db_lock_owner(self):
         """Check if the current thread is the DB lock owner
         @:return True, if thread is the DB lock owner
