@@ -75,7 +75,7 @@ restproxy_opts = [
     cfg.StrOpt('auth_user', help=_("Admin username")),
     cfg.StrOpt('auth_password', help=_("Admin password")),
     cfg.StrOpt('auth_tenant', help=_("Admin tenant name")),
-    cfg.IntOpt('keystone_sync_interval', default=60,
+    cfg.IntOpt('keystone_sync_interval', default=300,
                help=_("Time between that keystone queries to sync "
                       "Openstack tenants. (0 to disable)")),
 ]
