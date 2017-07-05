@@ -99,6 +99,17 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 # RE pattern for checking BCF supported names
 BCF_IDENTIFIER_UUID_RE = re.compile(r"[0-9a-zA-Z][-.0-9a-zA-Z_]*")
 
+# keystone_authtoken properties changed Newton onwards. During upgrade, we may
+# need to refer by old values
+KS_AUTH_OLD_DICT = {
+    'username': 'admin_user',
+    'password': 'admin_password',
+    'auth_url': 'auth_uri',
+    'project_name': 'admin_tenant_name',
+    'project_domain_name': KS_AUTH_DOMAIN_DEFAULT,
+    'user_domain_name': KS_AUTH_DOMAIN_DEFAULT,
+}
+
 
 class TenantIDNotFound(exceptions.NeutronException):
     message = _("Tenant: %(tenant)s is not known by keystone.")
@@ -227,9 +238,23 @@ def get_keystoneauth_cfg(conf, name):
                                                        name)])
         return value_list[0]
     except KeyError as e:
+        old_name = KS_AUTH_OLD_DICT[name]
         LOG.warning(_LW("Config does not have property %(name)s "
-                        "in group keystone_authtoken"), {'name': name})
-        raise e
+                        "in group keystone_authtoken. Trying with older name "
+                        "of property %(old_name)s."),
+                    {'name': name, 'old_name': old_name})
+        try:
+            if old_name == KS_AUTH_DOMAIN_DEFAULT:
+                # for default domain name, no lookup is needed before Newton
+                return old_name
+            value_list = conf._namespace._get_file_value([(KS_AUTH_GROUP_NAME,
+                                                           old_name)])
+            return value_list[0]
+        except KeyError as e:
+            LOG.warning(_LW("Config does not have property %(old_name)s "
+                            "in group keystone_authtoken."),
+                        {'old_name': old_name})
+            raise e
 
 
 class ServerProxy(object):
