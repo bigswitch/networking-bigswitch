@@ -6,7 +6,7 @@
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
 Name:           python-%{rpm_name}
-Version:        8.40.10
+Version:        8.40.11
 Release:        1%{?dist}
 Epoch:          2
 Summary:        Big Switch Networks neutron plugin for OpenStack Networking
@@ -120,6 +120,11 @@ done
 %systemd_postun_with_restart neutron-bsn-lldp.service
 
 %changelog
+* Thu Jul 06 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.11
+- update build script to fix SNI warning during upload to pypi
+- mitaka is EOL-ed. update URL in test-requirement.txt
+- OSP-112: increase the keystone_sync interval
+- OSP-112: make DB lock owner check and Hash update single transaction
 * Mon Jun 26 2017 Sarath Kumar <sarath@bigswitch.com> - 8.40.10
 - OSP-112: dbdeadlock in scaling P+V setup
 * Thu Jun 08 2017 Aditya Vaja <aditya.vaja@bigswitch.com> - 8.40.9
