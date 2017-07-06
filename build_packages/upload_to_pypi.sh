@@ -1,5 +1,6 @@
 #!/bin/bash -eux
 # install twine, to be added to infra puppet script
+sudo -H pip install urllib3[secure]
 sudo -H pip install twine
 CURR_VERSION=$(awk '/^version/{print $3}' setup.cfg)
 
