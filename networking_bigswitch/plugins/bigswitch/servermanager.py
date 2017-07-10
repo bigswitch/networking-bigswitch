@@ -854,6 +854,7 @@ class ServerPool(object):
         resource = ROUTER_RESOURCE_PATH % tenant_id
         data = {"router": router}
         errstr = _("Unable to create remote router: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_router(self, tenant_id, router, router_id):
@@ -862,22 +863,26 @@ class ServerPool(object):
         resource = ROUTERS_PATH % (tenant_id, router_id)
         data = {"router": router}
         errstr = _("Unable to update remote router: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('PUT', resource, data, errstr)
 
     def rest_delete_router(self, tenant_id, router_id):
         resource = ROUTERS_PATH % (tenant_id, router_id)
         errstr = _("Unable to delete remote router: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_add_router_interface(self, tenant_id, router_id, intf_details):
         resource = ROUTER_INTF_OP_PATH % (tenant_id, router_id)
         data = {"interface": intf_details}
         errstr = _("Unable to add router interface: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('POST', resource, data, errstr)
 
     def rest_remove_router_interface(self, tenant_id, router_id, interface_id):
         resource = ROUTER_INTF_PATH % (tenant_id, router_id, interface_id)
         errstr = _("Unable to delete remote intf: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_network(self, tenant_id, network):
@@ -890,6 +895,7 @@ class ServerPool(object):
         resource = NET_RESOURCE_PATH % tenant_id
         data = {"network": network}
         errstr = _("Unable to create remote network: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('POST', resource, data, errstr)
 
     def rest_update_network(self, tenant_id, net_id, network):
@@ -902,11 +908,13 @@ class ServerPool(object):
         resource = NETWORKS_PATH % (tenant_id, net_id)
         data = {"network": network}
         errstr = _("Unable to update remote network: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('PUT', resource, data, errstr)
 
     def rest_delete_network(self, tenant_id, net_id):
         resource = NETWORKS_PATH % (tenant_id, net_id)
         errstr = _("Unable to delete remote network: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_create_securitygroup(self, sg):
@@ -915,6 +923,7 @@ class ServerPool(object):
         resource = SECURITY_GROUP_RESOURCE_PATH
         data = {"security-group": sg}
         errstr = _("Unable to create security group: %s")
+        self._ensure_tenant_cache(sg['tenant_name'])
         self.rest_action('POST', resource, data, errstr)
 
     def rest_delete_securitygroup(self, sg_id):
@@ -942,16 +951,19 @@ class ServerPool(object):
         data["attachment"] = {"id": device_id,
                               "mac": port["mac_address"]}
         errstr = _("Unable to create remote port: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('PUT', resource, data, errstr)
 
     def rest_delete_port(self, tenant_id, network_id, port_id):
         resource = ATTACHMENT_PATH % (tenant_id, network_id, port_id)
         errstr = _("Unable to delete remote port: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_update_port(self, tenant_id, net_id, port):
         # Controller has no update operation for the port endpoint
         # the create PUT method will replace
+        self._ensure_tenant_cache(tenant_id)
         self.rest_create_port(tenant_id, net_id, port)
 
     def rest_create_floatingip(self, tenant_id, floatingip):
@@ -963,11 +975,13 @@ class ServerPool(object):
     def rest_update_floatingip(self, tenant_id, floatingip, oldid):
         resource = FLOATINGIPS_PATH % (tenant_id, oldid)
         errstr = _("Unable to update floating IP: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('PUT', resource, floatingip, errstr=errstr)
 
     def rest_delete_floatingip(self, tenant_id, oldid):
         resource = FLOATINGIPS_PATH % (tenant_id, oldid)
         errstr = _("Unable to delete floating IP: %s")
+        self._ensure_tenant_cache(tenant_id)
         self.rest_action('DELETE', resource, errstr=errstr)
 
     def rest_get_switch(self, switch_id):
