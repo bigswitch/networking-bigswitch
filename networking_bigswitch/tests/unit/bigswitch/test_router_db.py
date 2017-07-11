@@ -181,7 +181,7 @@ class RouterDBTestCase(RouterDBTestBase,
                                                       s['subnet']['id'],
                                                       p['port']['id'],
                                                       exc.HTTPBadRequest.code)
-                        #remove properly to clean-up
+                        # remove properly to clean-up
                         self._router_interface_action('remove',
                                                       r['router']['id'],
                                                       None,
@@ -360,7 +360,7 @@ class RouterDBTestCase(RouterDBTestBase,
                                                   s['subnet']['id'],
                                                   p['port']['id'],
                                                   exc.HTTPBadRequest.code)
-                    #remove properly to clean-up
+                    # remove properly to clean-up
                     self._router_interface_action('remove',
                                                   r['router']['id'],
                                                   None,

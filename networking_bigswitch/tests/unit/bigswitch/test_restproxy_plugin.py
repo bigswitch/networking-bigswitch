@@ -145,7 +145,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
                 httpPatch.stop()
                 self.httpPatch.start()
                 ports = self._get_ports(s['subnet']['network_id'])
-                #failure to create should result in port in error state
+                # failure to create should result in port in error state
                 self.assertEqual(ports[0]['status'], 'ERROR')
 
     def test_rollback_for_port_update(self):
