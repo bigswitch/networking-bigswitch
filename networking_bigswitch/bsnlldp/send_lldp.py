@@ -220,8 +220,8 @@ def tlv_of(type_, str_value):
 
 
 def chassis_id_tlv_of(chassis_id, subtype=CHASSIS_ID_LOCALLY_ASSIGNED):
-    return tlv_of(1,
-            raw_bytes_of_int(subtype, 1, "Chassis ID subtype") + chassis_id)
+    return tlv_of(
+        1, raw_bytes_of_int(subtype, 1, "Chassis ID subtype") + chassis_id)
 
 
 def port_id_tlv_of(port_id, subtype=PORT_ID_INTERFACE_ALIAS):

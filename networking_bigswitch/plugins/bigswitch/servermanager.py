@@ -615,8 +615,7 @@ class ServerPool(object):
         certs = [os.path.join(root, name)
                  for name in [
                      name for (root, dirs, files) in os.walk(ca_dir)
-                     for name in files
-                 ]
+                     for name in files]
                  if name.endswith('.pem')]
         return certs
 
@@ -695,10 +694,10 @@ class ServerPool(object):
         for active_server in good_first:
             LOG.debug("ServerProxy: %(action)s to servers: "
                       "%(server)r, %(resource)s" %
-                     {'action': action,
-                      'server': (active_server.server,
-                                 active_server.port),
-                      'resource': resource})
+                      {'action': action,
+                       'server': (active_server.server,
+                                  active_server.port),
+                       'resource': resource})
             for x in range(HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT + 1):
                 ret = active_server.rest_call(action, resource, data, headers,
                                               timeout,
@@ -720,7 +719,7 @@ class ServerPool(object):
                 topo_hh = self.dblock_mark_toposync_started(hash_handler)
                 try:
                     data = self.get_topo_function(
-                               **self.get_topo_function_args)
+                        **self.get_topo_function_args)
                     if data:
                         ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
                                                          data, timeout=None,

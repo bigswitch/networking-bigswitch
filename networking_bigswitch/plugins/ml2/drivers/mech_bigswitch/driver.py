@@ -115,7 +115,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         target = oslo_messaging.Target(topic='#',
                                        server=cfg.CONF.host)
         keystone_target = oslo_messaging.Target(
-             topic='#', exchange='keystone', server=cfg.CONF.host)
+            topic='#', exchange='keystone', server=cfg.CONF.host)
         self.listener = oslo_messaging.get_notification_listener(
             n_rpc.TRANSPORT, [target, keystone_target], [self],
             executor='eventlet', allow_requeue=False)
@@ -248,7 +248,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
         # If bsn_l3 plugin and it is a gateway port, bind to ivs.
         if (self.l3_bsn_plugin and
-            context.current['device_owner'] == ROUTER_GATEWAY_PORT_OWNER):
+                context.current['device_owner'] == ROUTER_GATEWAY_PORT_OWNER):
             directory.get_plugin().update_port_status(
                 context._plugin_context, context.current['id'],
                 const.PORT_STATUS_ACTIVE)
@@ -314,8 +314,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception() as ctxt:
                     if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
-                        e.status == httplib.NOT_FOUND and
-                        servermanager.NXNETWORK in e.reason):
+                            e.status == httplib.NOT_FOUND and
+                            servermanager.NXNETWORK in e.reason):
                         ctxt.reraise = False
                         LOG.error("Inconsistency with backend controller "
                                   "triggering full synchronization.")
@@ -411,14 +411,12 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Update vif_details with host_id. This way, for all BCF
         # communications, we we shall use it as HOST_ID (i.e. interface-group
         # on BCF)
-        vif_details = {
-                       portbindings.CAP_PORT_FILTER: False,
+        vif_details = {portbindings.CAP_PORT_FILTER: False,
                        portbindings.VHOST_USER_MODE:
                        portbindings.VHOST_USER_MODE_SERVER,
                        portbindings.VHOST_USER_OVS_PLUG: False,
                        portbindings.VHOST_USER_SOCKET: vhost_sock_path,
-                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id
-        }
+                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id}
         context.set_binding(segment[api.ID], vif_type, vif_details)
 
     def _bind_port_ivswitch(self, context, segment, host_id):
@@ -427,11 +425,9 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         @param context: PortContext object
         """
         vif_type = pl_config.VIF_TYPE_IVS
-        vif_details = {
-                       portbindings.CAP_PORT_FILTER: True,
+        vif_details = {portbindings.CAP_PORT_FILTER: True,
                        portbindings.OVS_HYBRID_PLUG: True,
-                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id
-        }
+                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id}
         context.set_binding(segment[api.ID], vif_type, vif_details)
 
     @put_context_in_serverpool

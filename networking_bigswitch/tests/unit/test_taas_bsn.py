@@ -39,7 +39,7 @@ TAAS_PREFIX = '/taas'
 
 DB_TAAS_PLUGIN_KLASS = ('neutron_taas.services.taas.taas_plugin.TaasPlugin')
 BSN_TAAS_DRIVER_KLASS = ('networking_bigswitch.services.taas.service_drivers.'
-                        'taas_bsn.BSNTaasDriver')
+                         'taas_bsn.BSNTaasDriver')
 
 
 class TaasExtensionManager(object):
@@ -88,8 +88,8 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
     def _create_tap_flow(self, tap_service_id, source_port, direction,
                          name=None, tenant_id=None):
         t_f = {'tap_flow': {'tap_service_id': tap_service_id,
-                           'source_port': source_port,
-                           'direction': direction}}
+                            'source_port': source_port,
+                            'direction': direction}}
         if name:
             t_f['tap_flow']['name'] = name
         if tenant_id:
@@ -129,7 +129,7 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
     @contextlib.contextmanager
     def create_tap_service_and_tap_flow(self):
         with self.port(tenant_id=TENANT1) as port1, \
-                 self.port(tenant_id=TENANT1) as port2:
+                self.port(tenant_id=TENANT1) as port2:
             dist_port = port1['port']
             source_port = port2['port']
             with self.tap_service(port_id=dist_port['id']) as t_s:

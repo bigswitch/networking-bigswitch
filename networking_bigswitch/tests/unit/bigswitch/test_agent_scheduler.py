@@ -19,8 +19,8 @@ from neutron.tests.unit.db import test_agentschedulers_db
 
 
 class BigSwitchDhcpAgentNotifierTestCase(
-    test_agentschedulers_db.OvsDhcpAgentNotifierTestCase,
-    test_base.BigSwitchTestBase):
+        test_agentschedulers_db.OvsDhcpAgentNotifierTestCase,
+        test_base.BigSwitchTestBase):
 
     plugin_str = ('%s.NeutronRestProxyV2' %
                   test_base.RESTPROXY_PKG_PATH)

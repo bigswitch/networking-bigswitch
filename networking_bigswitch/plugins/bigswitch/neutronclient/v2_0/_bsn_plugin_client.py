@@ -202,7 +202,7 @@ def _reachabilitytest_updatable_args(parser):
 
 def _reachabilitytest_runtest_args(parser):
     parser.add_argument('name',
-        help=_('Name of this reachability test.'))
+                        help=_('Name of this reachability test.'))
 
 
 def _reachabilitytest_updatable_args2body(parsed_args, body, client):

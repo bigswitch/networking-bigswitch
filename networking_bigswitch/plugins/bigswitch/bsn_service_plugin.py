@@ -137,7 +137,7 @@ class BSNServicePlugin(service_base.ServicePluginBase,
         else:
             try:
                 detail = [{'path-index':
-                    response[0]['summary'][0]['logical-error']}]
+                           response[0]['summary'][0]['logical-error']}]
             except Exception:
                 detail = [{'path-index': jsonutils.dumps(response)}]
             test_result = "fail"

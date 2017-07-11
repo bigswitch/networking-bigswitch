@@ -260,14 +260,14 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
 
         if ignore_priority:
             if (rule['source'] == old_rule['source']
-                and rule['destination'] == old_rule['destination']
-                and rule['action'] == old_rule['action']):
+                    and rule['destination'] == old_rule['destination']
+                    and rule['action'] == old_rule['action']):
                 return True
         else:
             if (rule['source'] == old_rule['source']
-                and rule['destination'] == old_rule['destination']
-                and rule['action'] == old_rule['action']
-                and rule['priority'] == old_rule['priority']):
+                    and rule['destination'] == old_rule['destination']
+                    and rule['action'] == old_rule['action']
+                    and rule['priority'] == old_rule['priority']):
                 return True
         return False
 
@@ -305,7 +305,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         existing_priorities = [int(rule['priority']) for rule in old_ruleset]
 
         overlapping_rules = [rule for rule in new_ruleset
-                         if int(rule['priority']) in existing_priorities]
+                             if int(rule['priority']) in existing_priorities]
         overlapping_priorities = [int(rule['priority'])
                                   for rule in overlapping_rules]
 

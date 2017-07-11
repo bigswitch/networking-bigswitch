@@ -75,7 +75,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 *('example.org', 443)
             )
             sslgetmock.assert_has_calls([mock.call(
-                  ('example.org', 443), ssl_version=ssl.PROTOCOL_TLSv1)])
+                ('example.org', 443), ssl_version=ssl.PROTOCOL_TLSv1)])
 
     def test_consistency_watchdog_stops_with_0_polling_interval(self):
         pl = directory.get_plugin()
@@ -90,18 +90,16 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl = directory.get_plugin()
         pl.servers.capabilities = []
         self.watch_p.stop()
-        with\
-            mock.patch('eventlet.sleep') as smock,\
-            mock.patch(
-                SERVERMANAGER + '.ServerPool.rest_call',
-                side_effect=servermanager.RemoteRestError(
-                    reason='Failure to trigger except clause.'
-                )
-            ) as rmock,\
-            mock.patch(
-                SERVERMANAGER + '.LOG.exception',
-                side_effect=KeyError('Failure to break loop')
-            ) as lmock:
+        with mock.patch('eventlet.sleep') as smock,\
+                mock.patch(
+                    SERVERMANAGER + '.ServerPool.rest_call',
+                    side_effect=servermanager.RemoteRestError(
+                        reason='Failure to trigger except clause.'))\
+                as rmock,\
+                mock.patch(
+                    SERVERMANAGER + '.LOG.exception',
+                    side_effect=KeyError('Failure to break loop'))\
+                as lmock:
             # should return immediately without consistency capability
             pl.servers._consistency_watchdog()
             self.assertFalse(smock.called)
@@ -228,7 +226,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         ctxdct.pop('auth_token')
         self.assertEqual(
             ctxdct, jsonutils.loads(
-                  callheaders[servermanager.REQ_CONTEXT_HEADER]))
+                callheaders[servermanager.REQ_CONTEXT_HEADER]))
 
     def test_capabilities_retrieval(self):
         sp = servermanager.ServerPool()
@@ -353,13 +351,12 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists, 3 children don't, and host cert does
-        with\
-            mock.patch('os.path.exists', side_effect=[True, False, False,
-                                                      False, True]) as exmock,\
-            mock.patch('os.makedirs') as makemock,\
-            mock.patch(
-                SERVERMANAGER + '.ServerPool._combine_certs_to_file'
-            ) as combmock:
+        with mock.patch('os.path.exists', side_effect=[True, False, False,
+                                                       False, True]) as exmock,\
+                mock.patch('os.makedirs') as makemock,\
+                mock.patch(
+                    SERVERMANAGER + '.ServerPool._combine_certs_to_file')\
+                as combmock:
             # will raise error because no certs found
             self.assertIn(
                 'example.org',
@@ -402,12 +399,10 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_retry_on_unavailable(self):
         pl = directory.get_plugin()
-        with\
-            mock.patch(
-                SERVERMANAGER + '.ServerProxy.rest_call',
-                return_value=(httplib.SERVICE_UNAVAILABLE,
-                              0, 0, 0)) as srestmock,\
-            mock.patch(SERVERMANAGER + '.time.sleep') as tmock:
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.SERVICE_UNAVAILABLE,
+                                      0, 0, 0)) as srestmock,\
+                mock.patch(SERVERMANAGER + '.time.sleep') as tmock:
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
             rest_call = [mock.call('GET', '/', '', None, False, reconnect=True,
@@ -457,14 +452,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_conflict_sync_raises_error_without_topology(self):
         pl = directory.get_plugin()
         pl.servers.get_topo_function = None
-        with \
-            mock.patch(
-                SERVERMANAGER + '.ServerProxy.rest_call',
-                return_value=(httplib.CONFLICT, 0, 0, 0)), \
-            mock.patch(
-                CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
-                return_value=True,
-            ):
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.CONFLICT, 0, 0, 0)), \
+                mock.patch(
+                    CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
+                    return_value=True,):
             # making a call should trigger a conflict sync that will
             # error without the topology function set
             self.assertRaises(
@@ -489,7 +481,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_no_send_all_data_without_keystone(self):
         pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
-                return_value=(False)):
+                        return_value=(False)):
             # making a call should trigger a conflict sync
             self.assertEqual(None, pl._send_all_data())
 

@@ -231,16 +231,16 @@ class RouterDBTestCase(RouterDBTestBase,
         tenant2_id = _uuid()
         with\
             self.network(tenant_id=tenant1_id) as n1,\
-            self.network(tenant_id=tenant2_id) as n2:
+                self.network(tenant_id=tenant2_id) as n2:
             with\
                 self.subnet(network=n1, cidr='11.0.0.0/24') as s1,\
                 self.subnet(network=n2, cidr='12.0.0.0/24') as s2,\
-                self.subnet(cidr='13.0.0.0/24') as psub:
+                    self.subnet(cidr='13.0.0.0/24') as psub:
                 with\
                     self.router(tenant_id=tenant1_id) as r1,\
                     self.router(tenant_id=tenant2_id) as r2,\
                     self.port(subnet=s1, tenant_id=tenant1_id) as p1,\
-                    self.port(subnet=s2, tenant_id=tenant2_id) as p2:
+                        self.port(subnet=s2, tenant_id=tenant2_id) as p2:
                     self._set_net_external(psub['subnet']['network_id'])
                     s1id = p1['port']['fixed_ips'][0]['subnet_id']
                     s2id = p2['port']['fixed_ips'][0]['subnet_id']

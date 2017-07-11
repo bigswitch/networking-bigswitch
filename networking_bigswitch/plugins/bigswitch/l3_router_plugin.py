@@ -44,8 +44,8 @@ from networking_bigswitch.plugins.bigswitch import servermanager
 
 LOG = logging.getLogger(__name__)
 put_context_in_serverpool = cplugin.put_context_in_serverpool
-BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
-    "not have floatingip capability, should not "
+BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = (
+    "BCF does not have floatingip capability, should not "
     "deploy BSN l3 router plugin")
 
 

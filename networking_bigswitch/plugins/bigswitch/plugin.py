@@ -220,9 +220,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _get_all_data_auto(self):
         return self._get_all_data(
-                get_floating_ips=self.l3_bsn_plugin,
-                get_routers=self.l3_bsn_plugin,
-                get_sgs=True)
+            get_floating_ips=self.l3_bsn_plugin,
+            get_routers=self.l3_bsn_plugin,
+            get_sgs=True)
 
     def _get_all_data(self, get_ports=True, get_floating_ips=True,
                       get_routers=True, get_sgs=True):
@@ -382,8 +382,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
         return self._send_all_data(send_floating_ips=self.l3_bsn_plugin,
-                       send_routers=self.l3_bsn_plugin, timeout=timeout,
-                       triggered_by_tenant=triggered_by_tenant)
+                                   send_routers=self.l3_bsn_plugin,
+                                   timeout=timeout,
+                                   triggered_by_tenant=triggered_by_tenant)
 
     def _send_all_data(self, send_ports=True, send_floating_ips=True,
                        send_routers=True, send_sgs=True, timeout=None,
@@ -715,7 +716,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         """
         prepped_port = copy.copy(port)
         if (portbindings.HOST_ID not in prepped_port or
-            prepped_port[portbindings.HOST_ID] == ''):
+                prepped_port[portbindings.HOST_ID] == ''):
             LOG.debug("Ignoring port notification to controller because of "
                       "missing host ID.")
             return False
@@ -833,8 +834,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # and the data in the backend.
             # Run a sync to get it consistent.
             if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
-                e.status == httplib.NOT_FOUND and
-                servermanager.NXNETWORK in e.reason):
+                    e.status == httplib.NOT_FOUND and
+                    servermanager.NXNETWORK in e.reason):
                 LOG.error("Inconsistency with backend controller "
                           "triggering full synchronization.")
                 # args depend on if we are operating in ML2 driver
@@ -1086,7 +1087,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                                                                    port)
             self._process_port_create_security_group(context, new_port, sgids)
         if (portbindings.HOST_ID in port['port']
-            and 'id' in new_port):
+                and 'id' in new_port):
             host_id = port['port'][portbindings.HOST_ID]
             porttracker_db.put_port_hostid(context, new_port['id'],
                                            host_id)
@@ -1180,7 +1181,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             old_host_id = porttracker_db.get_port_hostid(context,
                                                          orig_port['id'])
             if (portbindings.HOST_ID in port['port']
-                and 'id' in new_port):
+                    and 'id' in new_port):
                 host_id = port['port'][portbindings.HOST_ID]
                 porttracker_db.put_port_hostid(context, new_port['id'],
                                                host_id)
@@ -1188,7 +1189,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                     ctrl_update_required = True
 
             if (new_port.get("device_id") != orig_port.get("device_id") and
-                orig_port.get("device_id")):
+                    orig_port.get("device_id")):
                 ctrl_update_required = True
 
             if ctrl_update_required:

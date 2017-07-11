@@ -173,7 +173,7 @@ class TestRestProxyAgent(BaseAgentTestCase):
             mock.patch(AGENTMOD + '.cfg', **cfg_attrs) as mock_conf,\
             mock.patch(AGENTMOD + '.config.init'),\
             mock.patch(NEUTRONCFG) as mock_log_conf,\
-            mock.patch(PLCONFIG):
+                mock.patch(PLCONFIG):
             self.mod_agent.main()
 
         mock_log_conf.assert_has_calls([

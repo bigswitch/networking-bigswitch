@@ -103,7 +103,7 @@ def _validate_uniquerules(rules):
     pairs = []
     for r in rules:
         if ('source' not in r or 'destination' not in r
-            or 'action' not in r or 'priority' not in r):
+                or 'action' not in r or 'priority' not in r):
             continue
         pairs.append((r['source'], r['destination'],
                       r['action'], r['priority']))

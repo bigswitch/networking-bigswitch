@@ -139,10 +139,10 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with\
-            mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "virtual"}]) as rmock,\
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+        with mock.patch(SERVER_POOL + '.rest_get_switch',
+                        return_value=[{"fabric-role": "virtual"}]) as rmock,\
+                self.port(arg_list=(portbindings.HOST_ID,),
+                          **host_arg) as port:
 
             rmock.assert_called_once_with('hostname.' + PHYS_NET)
             p = port['port']
@@ -154,14 +154,14 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_bind_nfvswitch_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
         vhost_sock = "vhost0"
-        with\
-            mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
-            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
-            mock.patch(SERVER_POOL + '.rest_get_port',
-                       return_value=[{'attachment-point':
-                                      {'interface': vhost_sock}}]),\
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+        with mock.patch(SERVER_POOL + '.rest_get_switch',
+                        return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
+                mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
+                mock.patch(SERVER_POOL + '.rest_get_port',
+                           return_value=[{'attachment-point':
+                                         {'interface': vhost_sock}}]),\
+                self.port(arg_list=(portbindings.HOST_ID,),
+                          **host_arg) as port:
 
             rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
@@ -181,12 +181,12 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_bind_nfvswitch_port_nosock_fail(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with\
-            mock.patch(SERVER_POOL + '.rest_get_switch',
-                       return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
-            mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
-            mock.patch(SERVER_POOL + '.rest_get_port', return_value=None),\
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+        with mock.patch(SERVER_POOL + '.rest_get_switch',
+                        return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
+                mock.patch(SERVER_POOL + '.rest_create_port', return_value=None),\
+                mock.patch(SERVER_POOL + '.rest_get_port', return_value=None),\
+                self.port(arg_list=(portbindings.HOST_ID,),
+                          **host_arg) as port:
 
             rmock1.assert_called_with('hostname.' + PHYS_NET)
             p = port['port']
@@ -205,10 +205,10 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                 return None
             return [{"fabric-role": "virtual"}]
 
-        with\
-            mock.patch(SERVER_POOL + '.rest_get_switch',
-                       side_effect=side_effects) as rmock,\
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+        with mock.patch(SERVER_POOL + '.rest_get_switch',
+                        side_effect=side_effects) as rmock,\
+                self.port(arg_list=(portbindings.HOST_ID,),
+                          **host_arg) as port:
 
             rmock.assert_called_with('hostname')
             p = port['port']
@@ -219,11 +219,11 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
 
     def test_dont_bind_non_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
-        with\
-            mock.patch(SERVER_POOL + '.rest_get_switch',
-                       side_effect=servermanager.RemoteRestError(
-                           reason='No such switch', status=404)) as rmock,\
-            self.port(arg_list=(portbindings.HOST_ID,), **host_arg) as port:
+        with mock.patch(SERVER_POOL + '.rest_get_switch',
+                        side_effect=servermanager.RemoteRestError(
+                            reason='No such switch', status=404)) as rmock,\
+                self.port(arg_list=(portbindings.HOST_ID,),
+                          **host_arg) as port:
 
             rmock.assert_called_with('hostname')
             p = port['port']
@@ -310,14 +310,12 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
         self.spawn_p.start()
 
     def test_udpate404_triggers_background_sync(self):
-        with\
-            mock.patch(
-                DRIVER + '.async_port_create',
-                side_effect=servermanager.RemoteRestError(
-                    reason=servermanager.NXNETWORK,
-                    status=404)),\
-            mock.patch(DRIVER + '._send_all_data') as mock_send_all,\
-            self.port() as p:
+        with mock.patch(DRIVER + '.async_port_create',
+                        side_effect=servermanager.RemoteRestError(
+                            reason=servermanager.NXNETWORK,
+                            status=404)),\
+                mock.patch(DRIVER + '._send_all_data') as mock_send_all,\
+                self.port() as p:
 
             plugin = directory.get_plugin()
             context = neutron_context.get_admin_context()
@@ -353,9 +351,8 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
             portbindings.HOST_ID: ext_id,
             'device_owner': bsn_driver.EXTERNAL_PORT_OWNER
         }
-        with\
-            mock.patch(SERVER_POOL + '.rest_create_port') as rmock,\
-            self.port(arg_list=(portbindings.HOST_ID,), **port_kwargs):
+        with mock.patch(SERVER_POOL + '.rest_create_port') as rmock,\
+                self.port(arg_list=(portbindings.HOST_ID,), **port_kwargs):
 
             create_body = rmock.mock_calls[-1][1][2]
             self.assertIsNotNone(create_body['bound_segment'])
@@ -364,7 +361,8 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_req_context_header_present(self):
         with\
             mock.patch(SERVER_MANAGER + '.ServerProxy.rest_call') as mock_rest,\
-            self.port(**{'device_id': 'devid', 'binding:host_id': 'host'}):
+            self.port(**{'device_id': 'devid',
+                         'binding:host_id': 'host'}):
 
             headers = mock_rest.mock_calls[0][1][3]
             self.assertIn('X-REQ-CONTEXT', headers)

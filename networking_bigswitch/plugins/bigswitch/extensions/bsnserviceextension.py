@@ -118,7 +118,7 @@ RESOURCE_ATTRIBUTE_MAP = {
         'run_test': {'allow_post': False, 'allow_put': True,
                      'is_visible': True},
         'save_test': {'allow_post': False, 'allow_put': True,
-                     'is_visible': True},
+                      'is_visible': True},
     },
 }
 
