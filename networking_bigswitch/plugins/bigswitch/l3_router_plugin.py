@@ -165,8 +165,8 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             self.servers.rest_delete_router(tenant_id, router_id)
             if updated_router:
                 # update BCF after removing the router first
-                LOG.debug('Default policies now part of router: %s'
-                          % updated_router)
+                LOG.debug('Default policies now part of router: %s',
+                          updated_router)
                 router = self._update_ext_gateway_info(context, updated_router)
                 self.servers.rest_update_router(tenant_id, router,
                                                 router['id'])

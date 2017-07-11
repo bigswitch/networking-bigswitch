@@ -82,7 +82,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 tenant_id = r['tenant_id']
 
             if 'router_rules' in r and len(r['router_rules']) > 0:
-                LOG.debug('CREATE ROUTER with router from DB %s' % router_db)
+                LOG.debug('CREATE ROUTER with router from DB %s', router_db)
                 # check if default rule exists
                 existing_def_rule = (context.session.query(RouterRule)
                                      .filter_by(tenant_id=tenant_id)
@@ -109,7 +109,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             router_db['router_tenant_rules'] = \
                 self._get_router_rules_by_tenant_id(context,
                                                     router_db['tenant_id'])
-            LOG.debug('Router created as %s' % router_db)
+            LOG.debug('Router created as %s', router_db)
 
         return router_db
 
@@ -118,7 +118,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             context, router_id)
         with context.session.begin(subtransactions=True):
             if 'router_rules' in router:
-                LOG.debug("Deleting all rules for router_id %s" % router['id'])
+                LOG.debug("Deleting all rules for router_id %s", router['id'])
                 (context.session.query(RouterRule)
                  .filter_by(tenant_id=router['tenant_id'])
                  .filter_by(router_id=router['id'])
@@ -138,7 +138,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             upstream_routers = super(RouterRule_db_mixin, self).get_routers(
                 context, filters={"tenant_id": [tenant_id]})
 
-            LOG.debug('upstream_routers are: %s' % upstream_routers)
+            LOG.debug('upstream_routers are: %s', upstream_routers)
             if not upstream_routers:
                 # tenant doesn't have another router, return
                 LOG.debug("Tenant doesn't have another router after router "
@@ -155,7 +155,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             for rule in tenant_rules:
                 if rule['priority'] == DEFAULT_RULE_PRIORITY:
                     LOG.debug('Tenant has default rule after router deletion.'
-                              ' %s' % rule)
+                              ' %s', rule)
                     existing_def_rule = rule
 
             # If the default rules were associated with that router, add it
@@ -186,7 +186,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             router['router_tenant_rules'] = \
                 self._get_router_rules_by_tenant_id(context, tenant_id)
             LOG.debug('Returning router obj after applying default '
-                      'rules %s' % router)
+                      'rules %s', router)
             return router
 
     def _get_priority(self, existing_rule_priorities):
@@ -213,8 +213,8 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
                 quota=cfg.CONF.ROUTER.max_router_rules)
 
         LOG.debug('Update router ::: %s', router)
-        LOG.debug('Filtering by tenantID %s routerID %s'
-                  % (router['tenant_id'], router['id']))
+        LOG.debug('Filtering by tenantID %s routerID %s',
+                  router['tenant_id'], router['id'])
         old_rules = (context.session.query(RouterRule)
                      .filter_by(tenant_id=router['tenant_id'])
                      .filter_by(router_id=router['id']).all())
@@ -224,8 +224,8 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         overlapping_rules, deleted_rules, added_rules = \
             self._get_rule_diff(old_rules_list, rules)
 
-        LOG.debug('Updated_rules %s \n Deleted_rules %s \n Added_rules %s \n'
-                  % (overlapping_rules, deleted_rules, added_rules))
+        LOG.debug('Updated_rules %s \n Deleted_rules %s \n Added_rules %s \n',
+                  overlapping_rules, deleted_rules, added_rules)
 
         for rule in overlapping_rules:
             for old_rule in old_rules:

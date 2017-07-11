@@ -693,7 +693,7 @@ class ServerPool(object):
         first_response = None
         for active_server in good_first:
             LOG.debug("ServerProxy: %(action)s to servers: "
-                      "%(server)r, %(resource)s" %
+                      "%(server)r, %(resource)s",
                       {'action': action,
                        'server': (active_server.server,
                                   active_server.port),
@@ -748,7 +748,7 @@ class ServerPool(object):
             if not self.server_failure(ret, ignore_codes):
                 active_server.failed = False
                 LOG.debug("ServerProxy: %(action)s succeed for servers: "
-                          "%(server)r Response: %(response)s" %
+                          "%(server)r Response: %(response)s",
                           {'action': action,
                            'server': (active_server.server,
                                       active_server.port),
@@ -1038,17 +1038,17 @@ class ServerPool(object):
             # Add SERVICE_TENANT to handle hidden network for VRRP
             new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT
 
-            LOG.debug("New TENANTS: %s \nPrevious Tenants %s"
-                      % (new_cached_tenants, self.keystone_tenants))
+            LOG.debug("New TENANTS: %s \nPrevious Tenants %s",
+                      new_cached_tenants, self.keystone_tenants)
             diff = DictDiffer(new_cached_tenants, self.keystone_tenants)
             self.keystone_tenants = new_cached_tenants
             if reconcile:
                 for tenant_id in diff.added():
-                    LOG.debug("TENANT create: id %s name %s"
-                              % (tenant_id, self.keystone_tenants[tenant_id]))
+                    LOG.debug("TENANT create: id %s name %s",
+                              tenant_id, self.keystone_tenants[tenant_id])
                     self._rest_create_tenant(tenant_id)
                 for tenant_id in diff.removed():
-                    LOG.debug("TENANT delete: id %s" % tenant_id)
+                    LOG.debug("TENANT delete: id %s", tenant_id)
                     self.rest_delete_tenant(tenant_id)
                 if diff.changed():
                     hash_handler = cdb.HashHandler()

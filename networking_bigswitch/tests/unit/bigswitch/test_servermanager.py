@@ -483,7 +483,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
                         return_value=(False)):
             # making a call should trigger a conflict sync
-            self.assertEqual(None, pl._send_all_data())
+            self.assertIsNone(pl._send_all_data())
 
     def test_floating_calls(self):
         pl = directory.get_plugin()

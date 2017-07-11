@@ -125,8 +125,8 @@ class RouterDBTestCase(RouterDBTestBase,
             data['router']['name'] = 'router1'
             data['router']['external_gateway_info'] = {
                 'network_id': s['subnet']['network_id']}
-            self.assertEqual(
-                data['router']['external_gateway_info'].get('tenant_id'), None)
+            self.assertIsNone(
+                data['router']['external_gateway_info'].get('tenant_id'))
             router_req = self.new_create_request('routers', data, self.fmt)
             res = router_req.get_response(self.ext_api)
             router = self.deserialize(self.fmt, res)

@@ -126,14 +126,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         context = kwargs.get('context')
         if security_group and context:
             sg_id = security_group.get('id')
-            LOG.debug("Callback create sg_id: %s" % sg_id)
+            LOG.debug("Callback create sg_id: %s", sg_id)
             self.bsn_create_security_group(sg_id=sg_id, context=context)
 
     def bsn_delete_sg_callback(self, resource, event, trigger, **kwargs):
         sg_id = kwargs.get('security_group_id')
         context = kwargs.get('context')
         if sg_id and context:
-            LOG.debug("Callback delete sg_id: %s" % sg_id)
+            LOG.debug("Callback delete sg_id: %s", sg_id)
             self.bsn_delete_security_group(sg_id=sg_id, context=context)
 
     def bsn_update_sg_callback(self, resource, event, trigger, **kwargs):
@@ -141,7 +141,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         context = kwargs.get('context')
         if security_group and context:
             sg_id = security_group.get('id')
-            LOG.debug("Callback update sg_id: %s" % sg_id)
+            LOG.debug("Callback update sg_id: %s", sg_id)
             self.bsn_create_security_group(sg_id=sg_id, context=context)
 
     def bsn_create_sg_rule_callback(self, resource, event, trigger, **kwargs):
@@ -149,45 +149,45 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         context = kwargs.get('context')
         if rule and context:
             sg_id = rule.get('security_group_id')
-            LOG.debug("Callback create rule in sg_id: %s" % sg_id)
+            LOG.debug("Callback create rule in sg_id: %s", sg_id)
             self.bsn_create_security_group(sg_id=sg_id, context=context)
 
     def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
         context = kwargs.get('context')
         if context:
-            LOG.debug("Callback deleted sg_rule belones to tenant: %s"
-                      % context.tenant_id)
+            LOG.debug("Callback deleted sg_rule belones to tenant: %s",
+                      context.tenant_id)
             sgs = self.get_security_groups(context, filters={}) or []
             for sg in sgs:
                 if sg.get('tenant_id') != context.tenant_id:
                     continue
                 sg_id = sg.get('id')
-                LOG.debug("Callback delete rule in sg_id: %s" % sg_id)
+                LOG.debug("Callback delete rule in sg_id: %s", sg_id)
                 # we over write the sg on bcf controller instead of deleting
                 self.bsn_create_security_group(sg_id=sg_id, context=context)
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """
         if event_type == 'security_group.create.end':
-            LOG.debug("Security group created: %s" % payload)
+            LOG.debug("Security group created: %s", payload)
             self.bsn_create_security_group(sg=payload['security_group'])
         elif event_type == 'security_group.delete.end':
-            LOG.debug("Security group deleted: %s" % payload)
+            LOG.debug("Security group deleted: %s", payload)
             self.bsn_delete_security_group(payload['security_group_id'])
         elif event_type == 'identity.project.deleted':
-            LOG.debug("Project deleted: %s" % payload)
+            LOG.debug("Project deleted: %s", payload)
             self.bsn_delete_tenant(payload['resource_info'])
         elif event_type == 'identity.project.created':
-            LOG.debug("Project created: %s" % payload)
+            LOG.debug("Project created: %s", payload)
             self.bsn_create_tenant(payload['resource_info'])
         else:
-            LOG.debug("Else events: %s payload: %s" % (event_type, payload))
+            LOG.debug("Else events: %s payload: %s", (event_type, payload))
 
     @put_context_in_serverpool
     def security_groups_rule_updated(self, context, **kwargs):
         # this will get called whenever a security group rule updated message
         # goes onto the RPC bus
-        LOG.debug("security_groups_rule_updated: %s" % kwargs)
+        LOG.debug("security_groups_rule_updated: %s", kwargs)
         if kwargs.get('security_groups'):
             for sg_id in kwargs.get('security_groups'):
                 self.bsn_create_security_group(sg_id, context=context)
