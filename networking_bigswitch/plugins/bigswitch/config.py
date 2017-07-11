@@ -121,8 +121,7 @@ SRIOV_ACTIVE_PHYSNET = SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR + '1'
 
 
 class VSwitchType(enumerate):
-    """Enums declaring the different Virtual Switch types
-    """
+    """Enums declaring the different Virtual Switch types"""
     VIRTUAL = "virtual"        # Indigo virtual switch (IVS)
     NFVSWITCH = "nfvswitch"    # NFV switch
 

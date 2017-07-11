@@ -50,10 +50,11 @@ LOG = log.getLogger(__name__)
 
 
 class IVSBridge(object):
-    '''
+    """IVS Bridge
+
     This class does not provide parity with OVS using IVS.
     It's only the bare minimum necessary to use IVS with this agent.
-    '''
+    """
     def run_vsctl(self, args, check_error=False, log_fail_as_error=True):
         full_args = ["ivs-ctl"] + args
         try:
@@ -120,10 +121,11 @@ class IVSBridge(object):
 
 
 class NFVSwitchBridge(object):
-    '''
+    """NFV Switch Bridge
+
     This class does not provide parity with OVS using NFVSwitch.
     It's only the bare minimum necessary to use NFVSwitch with this agent.
-    '''
+    """
     def get_vif_port_set(self):
         # Un-supported operation. Return empty set for no-op
         return set()

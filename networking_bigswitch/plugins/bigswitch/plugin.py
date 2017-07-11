@@ -191,7 +191,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return hasattr(self.l3_plugin, "bsn")
 
     def _validate_names(self, obj, name=None):
-        """
+        """validate names
+
         :returns
             True, if obj name, obj's tenant name and name have supported chars
             False, otherwise
@@ -460,6 +461,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def _tenant_check_for_security_group(self, sg):
         """Router VRRP creates a hidden network for router heart-beats.
+
         This network is not associated with any tenant
         """
         sg['tenant_id'] = sg['tenant_id'] or servermanager.SERVICE_TENANT
@@ -640,8 +642,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return False
 
     def _sriov_port_validation_active_active(self, port, network):
-        """
-        For SR-IOV port, we configure 'memeber interface-group $HOSTID' on BCF.
+        """For SR-IOV port, we configure 'memeber interface-group $HOSTID' on BCF.
+
         In Active-Active mode, this is done ONLY for ports belonging to the
         ACTIVE physnet. In Active-Backup mode, this is done for all ports.
 
@@ -665,12 +667,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return True
 
     def _is_port_sriov_vm_detach(self, port, network):
-        """
-        We allow empty host_id field during update_port_postcommit. This is a
-        check to see if the port is SRIOV port and a case of VM detach.
+        """We allow empty host_id field during update_port_postcommit.
 
-        If yes, we send a delete_port to the BCF controller for that port.
-        Otherwise return false and do nothing for the port.
+        This is a check to see if the port is SRIOV port and a case of VM
+        detach. If yes, we send a delete_port to the BCF controller for that
+        port. Otherwise return false and do nothing for the port.
 
         :param port:
         :param network:
@@ -706,7 +707,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return bsn_host_id
 
     def _map_port_hostid(self, port, network):
-        """Update the HOST_ID of a given port based on it's type
+        """Update the HOST_ID of a given port based on it's type.
+
         Perform basic sanity checks and update the HOST_ID of the port
         :return: port, if port is of relevance to BCF
                  False, otherwise
@@ -1021,6 +1023,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     @put_context_in_serverpool
     def delete_network(self, context, net_id):
         """Delete a network.
+
         :param context: neutron api request context
         :param id: UUID representing the network to delete.
 
@@ -1041,7 +1044,9 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     @put_context_in_serverpool
     def create_port(self, context, port):
-        """Create a port, which is a connection point of a device
+        """Create a port.
+
+        create a port, which is a connection point of a device
         (e.g., a VM NIC) to attach an L2 Neutron network.
         :param context: neutron api request context
         :param port: dictionary describing the port
@@ -1211,6 +1216,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     @put_context_in_serverpool
     def delete_port(self, context, port_id, l3_port_check=True):
         """Delete a port.
+
         :param context: neutron api request context
         :param id: UUID representing the port to delete.
 

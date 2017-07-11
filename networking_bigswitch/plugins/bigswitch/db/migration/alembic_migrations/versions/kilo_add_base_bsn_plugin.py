@@ -37,6 +37,7 @@ from sqlalchemy.types import Enum, TIMESTAMP, TypeDecorator
 
 class JSONEncodedDict(TypeDecorator):
     """Represents an immutable structure as a json-encoded string.
+
     Usage::
         JSONEncodedDict(255)
     """

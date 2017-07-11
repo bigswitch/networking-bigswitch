@@ -35,8 +35,8 @@ class RulesExhausted(nexception.BadRequest):
 
 
 def convert_to_valid_router_rules(data):
-    """
-    Validates and converts router rules to the appropriate data structure
+    """Validates and converts router rules to the appropriate data structure
+
     Example argument = [{'source': 'any', 'destination': 'any',
                          'action':'deny'},
                         {'source': '1.1.1.1/32', 'destination': 'external',

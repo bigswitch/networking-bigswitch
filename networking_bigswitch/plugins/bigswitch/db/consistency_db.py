@@ -40,12 +40,13 @@ DBLOCK_PREFIX_AUTOGEN = "A"
 
 
 class ConsistencyHash(model_base.BASEV2):
-    '''
+    """Consistency Hash
+
     A simple table to store the latest consistency hash
     received from a server.
     For now we only support one global state so the
     hash_id will always be '1'
-    '''
+    """
     __tablename__ = 'consistencyhashes'
     hash_id = sa.Column(sa.String(255),
                         primary_key=True)
@@ -70,14 +71,15 @@ def clear_db():
 
 
 class HashHandler(object):
-    '''
+    """Hash Handler
+
     A wrapper object to keep track of the session between the read
     and the update operations.
 
     This class needs an SQL engine completely independent of the main
     neutron connection so rollbacks from consistency hash operations don't
     affect the parent sessions.
-    '''
+    """
     _FACADE = None
 
     def __init__(self, hash_id='1', prefix=None):
@@ -144,6 +146,7 @@ class HashHandler(object):
 
     def _try_force_acquire_db_lock(self, res):
         """Try to acquire DB lock as current Lock has been held for too long
+
         @return: DB_HASH, on success
                  None, otherwise
         """
@@ -272,6 +275,7 @@ class HashHandler(object):
 
     def put_hash_if_owner(self, new_hash):
         """Update the DB Hash if the current thread is the DB lock owner
+
         @:return: True, if DB hash was successfully updated
                   False, otherwise
         """
@@ -303,6 +307,7 @@ class HashHandler(object):
 
     def is_db_lock_owner(self):
         """Check if the current thread is the DB lock owner
+
         @:return True, if thread is the DB lock owner
                  False, otherwise
         """
@@ -320,6 +325,7 @@ class HashHandler(object):
 
     def is_db_hash_empty(self):
         """Check if DB hash record exists
+
         :return: True, if there is no hash entry
                  False, otherwise
         """

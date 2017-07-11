@@ -15,14 +15,16 @@
 
 
 class Util(object):
-    """
+    """Util
+
     Placeholder for static methods that can be called from across the plugin
     and reused as required.
     """
 
     @staticmethod
     def format_resource_name(name):
-        """
+        """format resource name
+
         Util method to format resource names to make them compatible with BCF.
 
         Replaces special characters with its corresponding BCF compatible

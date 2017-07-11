@@ -63,6 +63,7 @@ utils._is_active_nic = _is_active_nic
 
 def get_bcf_mode():
     """Get bcf deployment mode.
+
     :returns: UNKNOWN, MODE_P_ONLY or MODE_P_V.
     """
     while True:
@@ -93,6 +94,7 @@ def get_mac_str(network_interface):
 
 def get_uplinks_and_chassisid():
     """Get uplinks and chassis_id in RHOSP environment.
+
     :returns: a list of uplinks names and one chassis_id
         which is the first active nic's mac address.
     """

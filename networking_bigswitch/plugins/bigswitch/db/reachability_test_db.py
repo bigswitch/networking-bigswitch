@@ -27,7 +27,9 @@ from sqlalchemy.types import Enum, TIMESTAMP, TypeDecorator
 
 
 class JSONEncodedDict(TypeDecorator):
-    """Represents an immutable structure as a json-encoded string.
+    """encoded JSON dict
+
+    Represents an immutable structure as a json-encoded string.
     Usage::
         JSONEncodedDict(255)
     """
@@ -47,9 +49,10 @@ class JSONEncodedDict(TypeDecorator):
 class ReachabilityTest(model_base.BASEV2,
                        model_base.HasId,
                        model_base.HasProject):
-    '''
+    """Reachability Test
+
     A table to store user configured reachability tests.
-    '''
+    """
     __tablename__ = 'reachabilitytest'
     name = sa.Column(sa.String(64), nullable=False, unique=True)
     src_tenant_name = sa.Column(sa.String(255), nullable=False)
@@ -179,9 +182,10 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
 class ReachabilityQuickTest(model_base.BASEV2,
                             model_base.HasId,
                             model_base.HasProject):
-    '''
+    """Reachability Quick Test
+
     A table to store user configured reachability quick tests.
-    '''
+    """
     __tablename__ = 'reachabilityquicktest'
     name = sa.Column(sa.String(64), nullable=False, unique=True)
     src_tenant_name = sa.Column(sa.String(255), nullable=False)

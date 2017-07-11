@@ -338,8 +338,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self.servers.rest_delete_port(tenant_id, net["id"], port['id'])
 
     def _prepare_port_for_controller(self, context):
-        """
-        Make a copy so the context isn't changed for other drivers
+        """Make a copy so the context isn't changed for other drivers
+
         :exception can throw servermanager.TenantIDNotFound
         """
         port = copy.deepcopy(context.current)
@@ -479,7 +479,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                     self._bind_port_ivswitch(context, segment, host_id)
 
     def get_vswitch_type(self, host, segment=None):
-        """Get the virtual switch type on the given host for the given segment
+        """Get the virtual switch type on the given host for the given segment.
+
         Check for virtual switch on host.physnet, else check on host.
 
         @param host: the HOST_ID.
@@ -498,6 +499,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     def _get_vswitch_type(self, host):
         """Get virtual switch type
+
         Check if a virtual switch exists with the given hostname on BCF, if
         it does, return its type.
 
@@ -532,7 +534,9 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         return switch_type
 
     def _get_cached_vswitch_existence(self, host):
-        """Returns cached existence. Expired and non-cached raise ValueError.
+        """Returns cached existence.
+
+        Expired and non-cached raise ValueError.
         """
         entry = self.vswitch_host_cache.get(host)
         if not entry:

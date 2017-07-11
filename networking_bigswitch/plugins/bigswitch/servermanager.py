@@ -107,7 +107,8 @@ class TenantIDNotFound(exceptions.NeutronException):
 
 
 class UnsupportedNameException(exceptions.NeutronException):
-    """
+    """UnsupportedNameException
+
     Exception class to be raised when encountering object names with
     unsupported names. Namely those that do not conform to the regular
     expression BCF_IDENTIFIER_UUID_RE
@@ -125,7 +126,8 @@ class UnsupportedNameException(exceptions.NeutronException):
 
 
 class UnsupportedTenantNameInObjectException(exceptions.NeutronException):
-    """
+    """Unsupported Tenant Name
+
     Exception class to be raised when objects have tenant names with
     unsupported characters. Namely those that do not conform to the regular
     expression BCF_IDENTIFIER_UUID_RE
@@ -160,8 +162,8 @@ class RemoteRestError(exceptions.NeutronException):
 
 
 class DictDiffer(object):
-    """
-    Calculate the difference between two dictionaries as:
+    """Calculate the difference between two dictionaries as:
+
     (1) items added
     (2) items removed
     (3) keys same in both but changed values
@@ -189,7 +191,8 @@ class DictDiffer(object):
 
 
 class ObjTypeEnum(Enum):
-    """
+    """Enum
+
     Enum to represent various object types whose name requires sanitization
     before syncing to the controller.
     """
@@ -201,7 +204,8 @@ class ObjTypeEnum(Enum):
 
 
 def is_valid_bcf_name(name):
-    """
+    """Check if bcf name is valid
+
     :returns True if name matches BCF_IDENTIFIER_UUID_RE
     :returns False otherwise
     """
@@ -212,7 +216,9 @@ def is_valid_bcf_name(name):
 
 
 def get_keystoneauth_cfg(conf, name):
-    """Fetch value of keystone_authtoken group from config file when not
+    """get the keystone auth cfg
+
+    Fetch value of keystone_authtoken group from config file when not
     available as part of GroupAttr.
 
     :rtype: String
@@ -587,20 +593,19 @@ class ServerPool(object):
         return combined_cert
 
     def _combine_certs_to_file(self, certs, cfile):
-        '''
+        """_combine_certs_to_file
+
         Concatenates the contents of each certificate in a list of
         certificate paths to one combined location for use with ssl
         sockets.
-        '''
+        """
         with open(cfile, 'w') as combined:
             for c in certs:
                 with open(c, 'r') as cert_handle:
                     combined.write(cert_handle.read())
 
     def _get_host_cert_path(self, host_dir, server):
-        '''
-        returns full path and boolean indicating existence
-        '''
+        """returns full path and boolean indicating existence"""
         hcert = os.path.join(host_dir, '%s.pem' % server)
         if os.path.exists(hcert):
             return hcert, True
@@ -616,10 +621,11 @@ class ServerPool(object):
         return certs
 
     def _fetch_and_store_cert(self, server, port, path):
-        '''
+        """_fetch_and_store_cert
+
         Grabs a certificate from a server and writes it to
         a given path.
-        '''
+        """
         try:
             cert = ssl.get_server_certificate((server, port),
                                               ssl_version=ssl.PROTOCOL_TLSv1)
@@ -660,6 +666,7 @@ class ServerPool(object):
 
     def dblock_mark_toposync_started(self, orig_hash_handler):
         """Insert DBLock with TopoSync start marker
+
         marker = 'TOPO' + original call's lockID
         @return: new HashHandler for TopoSync
         """
@@ -779,7 +786,8 @@ class ServerPool(object):
 
     def rest_action(self, action, resource, data='', errstr='%s',
                     ignore_codes=None, headers=None, timeout=False):
-        """
+        """rest_action
+
         Wrapper for rest_call that verifies success and raises a
         RemoteRestError on failure with a provided error string
         By default, 404 errors on DELETE calls are ignored because
@@ -803,7 +811,8 @@ class ServerPool(object):
         return resp
 
     def _check_and_raise_exception_unsupported_name(self, obj_type, obj):
-        """
+        """_check_and_raise_exception_unsupported_name
+
         Used to sanity check object names and tenant names within an object.
         If they do not comply with the BCF expectation, raises an exception.
 

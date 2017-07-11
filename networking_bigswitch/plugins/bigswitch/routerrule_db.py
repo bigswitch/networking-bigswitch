@@ -127,7 +127,8 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
             super(RouterRule_db_mixin, self).delete_router(context, router_id)
 
     def update_policies_post_delete(self, context, tenant_id):
-        """
+        """Update policies post delete.
+
         After deletion of router, check if another router exists for the
         tenant.
         If yes, update the policies to remove any existing policies for the
@@ -198,10 +199,12 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         return new_prio
 
     def _update_router_rules(self, context, router, rules):
-        """
-        Update router rules at the tenant level. Since at the backend, BCF
-        maintains a single logical router, all routers under the tenant map to
-        a single router on the backend.
+        """Update router rules at the tenant level.
+
+        Since at the backend, BCF maintains a single logical router,
+        all routers under the tenant map to a single router on the
+        backend.
+
         Hence, we apply policies accordingly.
         """
         if len(rules) > cfg.CONF.ROUTER.max_router_rules:
@@ -253,9 +256,8 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         context.session.flush()
 
     def _is_rule_equal(self, old_rule, rule, ignore_priority=False):
-        """
-        Compare the necessary fields of two given rules for equality
-        """
+        """Compare the necessary fields of two given rules for equality"""
+
         if ignore_priority:
             if (rule['source'] == old_rule['source']
                 and rule['destination'] == old_rule['destination']
@@ -270,8 +272,9 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         return False
 
     def _is_rule_in_set_ignore_priority(self, rule_list, rule):
-        """Check if the given rule is present in the rule_list. Ignores the
-        priority of the rule
+        """Check if the given rule is present in the rule_list.
+
+        Ignores the priority of the rule
 
         :param rule_list: list of existing rules in dictionary format
         :param rule: new rule to be added
@@ -295,7 +298,8 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         return False
 
     def _get_rule_diff(self, old_ruleset, new_ruleset):
-        """
+        """_get_rule_diff
+
         Given two sets of rules, find overlapping, added and removed rules.
         """
         existing_priorities = [int(rule['priority']) for rule in old_ruleset]
@@ -317,9 +321,7 @@ class RouterRule_db_mixin(l3_db.L3_NAT_db_mixin):
         return overlapping_rules, deleted_rules, added_rules
 
     def _get_tenant_default_router_rule(self, tenant):
-        """
-        Returns a rule dictionary. Can be empty.
-        """
+        """Returns a rule dictionary. Can be empty."""
         rules = cfg.CONF.ROUTER.tenant_default_router_rule
         default_rule = {}
         tenant_rule = {}
