@@ -118,6 +118,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         orig_router = super(L3RestProxy, self).get_router(context, router_id)
         tenant_id = orig_router["tenant_id"]
         with db.context_manager.writer.using(context):
+            setattr(context, 'GUARD_TRANSACTION', False)
             new_router = super(L3RestProxy,
                                self).update_router(context, router_id, router)
             router = self._update_ext_gateway_info(context, new_router)
