@@ -43,6 +43,7 @@ on port-attach) on an additional PUT to do a bulk dump of all persistent data.
 import copy
 import functools
 import httplib
+import netaddr
 import re
 
 import eventlet
@@ -63,6 +64,7 @@ from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.common import utils
+from neutron.db import address_scope_db as as_db
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
@@ -152,6 +154,7 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
 
 
 class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
+                             as_db.AddressScopeDbMixin,
                              external_net_db.External_net_db_mixin,
                              SecurityGroupServerRpcMixin,
                              agentschedulers_db.DhcpAgentSchedulerDbMixin):
@@ -505,6 +508,28 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if context.current['name'] != context.original['name']:
             raise servermanager.NetworkNameChangeError()
 
+    def _overlaps(self, cidr1, cidr2):
+        return not (cidr1.last < cidr2.first or cidr2.last < cidr1.first)
+
+    def _build_address_scope_map(self, context):
+        cidrs = list()
+        with db.context_manager.writer.using(context):
+            addr_scopes = self.get_address_scopes(context, filters={})
+            for addr_scope in addr_scopes:
+                addr_scope_filter = {'address_scope_id': addr_scope['id']}
+                addr_scope['subnetpools'] = self.get_subnetpools(
+                    context, filters=addr_scope_filter)
+                for pool in addr_scope['subnetpools']:
+                    for cidr in pool['prefixes']:
+                        cidrs.append(netaddr.IPNetwork(cidr))
+        overlapping = False
+        for check in range(0, len(cidrs)):
+            for index in range(0, check):
+                if self._overlaps(cidrs[check], cidrs[index]):
+                    overlapping = True
+
+        return {'data': addr_scopes, 'overlapping': overlapping}
+
     def _get_mapped_network_with_subnets(self, network, context=None):
         # if context is not provided, admin context is used
         if context is None:
@@ -514,6 +539,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         subnets = self._get_all_subnets_json_for_network(network['id'],
                                                          context)
         network['subnets'] = subnets
+        network['address_scopes'] = self._build_address_scope_map(context)
         for subnet in (subnets or []):
             if subnet['gateway_ip']:
                 # FIX: For backward compatibility with wire protocol
