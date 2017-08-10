@@ -21,7 +21,7 @@ from oslo_config import cfg
 
 import neutron.common.test_lib as test_lib
 
-from networking_bigswitch.plugins.bigswitch import config
+from networking_bigswitch.plugins.bigswitch import config  # noqa
 from networking_bigswitch.plugins.bigswitch.db import consistency_db
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 
@@ -56,7 +56,6 @@ class BigSwitchTestBase(object):
                                                 'restproxy.ini.test')]
         self.addCleanup(cfg.CONF.reset)
         self.addCleanup(consistency_db.clear_db)
-        config.register_config()
         # Only try SSL on SSL tests
         cfg.CONF.set_override('server_ssl', False, 'RESTPROXY')
         etc_path = os.path.join(os.path.dirname(__file__), 'etc')

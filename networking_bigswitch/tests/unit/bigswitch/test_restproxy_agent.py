@@ -20,7 +20,7 @@ from oslo_utils import importutils
 
 from neutron.tests import base
 
-from networking_bigswitch.plugins.bigswitch import config as pl_config
+from networking_bigswitch.plugins.bigswitch import config as pl_config  # noqa
 
 OVSBRIDGE = 'neutron.agent.common.ovs_lib.OVSBridge'
 PLUGINAPI = 'neutron.agent.rpc.PluginApi'
@@ -38,7 +38,6 @@ PLCONFIG = 'networking_bigswitch.plugins.bigswitch.config'
 class BaseAgentTestCase(base.BaseTestCase):
 
     def setUp(self):
-        pl_config.register_config()
         super(BaseAgentTestCase, self).setUp()
         self.mod_agent = importutils.import_module(AGENTMOD)
 
