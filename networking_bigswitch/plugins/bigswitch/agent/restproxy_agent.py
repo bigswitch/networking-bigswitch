@@ -40,7 +40,7 @@ from neutron import context as q_context
 from neutron.extensions import securitygroup as ext_sg
 from neutron_lib import constants as q_const
 
-from networking_bigswitch.plugins.bigswitch import config as pl_config
+from networking_bigswitch.plugins.bigswitch import config as pl_config  # noqa
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 
@@ -301,7 +301,6 @@ class RestProxyAgent(api_sg_rpc.SecurityGroupAgentRpcCallbackMixin):
 def main():
     config.init(sys.argv[1:])
     config.setup_logging()
-    pl_config.register_config()
 
     integ_br = cfg.CONF.RESTPROXYAGENT.integration_bridge
     polling_interval = cfg.CONF.RESTPROXYAGENT.polling_interval

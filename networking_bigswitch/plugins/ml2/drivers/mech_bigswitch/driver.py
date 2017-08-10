@@ -71,7 +71,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         LOG.debug('Initializing driver')
 
         # register plugin config opts
-        pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
         hash_handler = cdb.HashHandler()

@@ -150,11 +150,10 @@ agent_opts = [
 ]
 
 
-def register_config():
-    cfg.CONF.register_opts(restproxy_opts, "RESTPROXY")
-    cfg.CONF.register_opts(router_opts, "ROUTER")
-    cfg.CONF.register_opts(nova_opts, "NOVA")
-    cfg.CONF.register_opts(agent_opts, "RESTPROXYAGENT")
-    # include for report_interval
-    cfg.CONF.register_opts(agconfig.AGENT_STATE_OPTS, "AGENT")
-    agconfig.register_root_helper(cfg.CONF)
+cfg.CONF.register_opts(restproxy_opts, "RESTPROXY")
+cfg.CONF.register_opts(router_opts, "ROUTER")
+cfg.CONF.register_opts(nova_opts, "NOVA")
+cfg.CONF.register_opts(agent_opts, "RESTPROXYAGENT")
+# include for report_interval
+cfg.CONF.register_opts(agconfig.AGENT_STATE_OPTS, "AGENT")
+agconfig.register_root_helper(cfg.CONF)

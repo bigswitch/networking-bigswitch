@@ -890,7 +890,6 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         super(NeutronRestProxyV2, self).__init__()
         LOG.info(_LI('NeutronRestProxy: Starting plugin. Version=%s'),
                  version.version_string_with_vcs())
-        pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
         # Include the Big Switch Extensions path in the api_extensions
