@@ -5,9 +5,9 @@ sudo -H pip install twine
 
 # get version info from tags
 git fetch --tags
-# NOTE update refs/tags/10.*.* according to version string for each branch
-CURR_VERSION=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
-CURR_SUBJECT=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(subject)" --count=1`
+# NOTE update refs/tags/11.*.* according to version string for each branch
+CURR_VERSION=`git for-each-ref refs/tags/11.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
+CURR_SUBJECT=`git for-each-ref refs/tags/11.*.* --sort="-*committerdate" --format="%(subject)" --count=1`
 
 # get pypi and gpg creds in place
 mv $PYPIRC_FILE ~/.pypirc
