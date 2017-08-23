@@ -1,17 +1,20 @@
 #!/bin/bash -eux
-# install twine, to be added to infra puppet script
-sudo -H pip install urllib3[secure]
-sudo -H pip install twine
+
+# RPM runs as root and doesn't like source files owned by a random UID
+OUTER_UID=$(stat -c '%u' /networking-bigswitch)
+OUTER_GID=$(stat -c '%g' /networking-bigswitch)
+trap "chown -R $OUTER_UID:$OUTER_GID /networking-bigswitch" EXIT
+chown -R root:root /networking-bigswitch
+
+cd /networking-bigswitch
+git config --global user.name "Big Switch Networks"
+git config --global user.email "support@bigswitch.com"
 
 # get version info from tags
 git fetch --tags
 # NOTE update refs/tags/10.*.* according to version string for each branch
 CURR_VERSION=`git for-each-ref refs/tags/9.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
 CURR_SUBJECT=`git for-each-ref refs/tags/9.*.* --sort="-*committerdate" --format="%(subject)" --count=1`
-
-# get pypi and gpg creds in place
-mv $PYPIRC_FILE ~/.pypirc
-tar -zxvf $GNUPG_TAR -C ~/
 
 echo 'CURR_VERSION=' $CURR_VERSION
 echo 'CURR_SUBJECT=' $CURR_SUBJECT
@@ -33,6 +36,5 @@ fi
 # remove the package
 sudo -H pip uninstall -y networking-bigswitch
 
-# remove pypi and gpg creds
-rm ~/.pypirc
-rm -rf ~/.gnupg
+# revert the permissions
+chown -R $OUTER_UID:$OUTER_GID /networking-bigswitch
