@@ -302,7 +302,7 @@ def send_lldp():
     def _generate_senders_frames(intfs, chassisid, args):
         senders = []
         frames = []
-        systemname = socket.gethostname()
+        systemname = socket.getfqdn()
         if args.system_name:
             systemname = args.system_name
         LOG.syslog("LLDP system-name is %s" % systemname)
