@@ -95,6 +95,7 @@ NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
+KEYSTONE_SYNC_RATE_LIMIT = 30  # Limit KeyStone sync to once in 30 secs
 
 # RE pattern for checking BCF supported names
 BCF_IDENTIFIER_UUID_RE = re.compile(r"[0-9a-zA-Z][-.0-9a-zA-Z_]*")
@@ -1018,7 +1019,12 @@ class ServerPool(object):
         if tenant_id not in self.keystone_tenants:
             self._update_tenant_cache()
 
-    def _update_tenant_cache(self, reconcile=True):
+    def _update_tenant_cache(self, reconcile=True, ratelimit=False):
+        if ratelimit is True and self._last_keystone_sync_time is not None:
+            if time.time() - self._last_keystone_sync_time <= \
+                    KEYSTONE_SYNC_RATE_LIMIT:
+                return
+
         try:
             auth = v3.Password(auth_url=self.auth_url,
                                username=self.auth_user,
@@ -1061,6 +1067,8 @@ class ServerPool(object):
             LOG.exception(_LE("Encountered an error syncing with "
                               "keystone."))
             return False
+        finally:
+            self._last_keystone_sync_time = time.time()
 
     def _keystone_sync(self, polling_interval=300):
         while True:
