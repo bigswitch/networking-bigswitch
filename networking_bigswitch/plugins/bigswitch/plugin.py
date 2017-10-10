@@ -1,3 +1,4 @@
+
 # Copyright 2012 Big Switch Networks, Inc.
 # All Rights Reserved.
 #
@@ -62,7 +63,6 @@ from neutron.api.rpc.handlers import securitygroups_rpc
 from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
-from neutron.common import utils
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
@@ -84,6 +84,7 @@ from neutron_lib import constants as const
 from neutron_lib import context as qcontext
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
+from neutron_lib.utils import runtime
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.db import porttracker_db
@@ -871,7 +872,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             self.servers.rest_delete_port(tenant_id, net_id, port['id'])
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
-    @utils.synchronized('bsn-port-barrier')
+    @runtime.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
         session = db.get_writer_session()
         try:
@@ -1213,7 +1214,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         return new_port
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
-    @utils.synchronized('bsn-port-barrier')
+    @runtime.synchronized('bsn-port-barrier')
     @put_context_in_serverpool
     def delete_port(self, context, port_id, l3_port_check=True):
         """Delete a port.
