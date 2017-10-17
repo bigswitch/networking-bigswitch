@@ -279,7 +279,7 @@ class ReachabilityTestsRun(extension.ClientExtensionUpdate,
     shell_command = 'reachability-tests-run'
     list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result', 'test_result',
-                    'detail', 'test_time']
+                    'detail', 'logical_path', 'test_time']
 
     def args2body(self, parsed_args):
         body = {}
@@ -361,7 +361,7 @@ class ReachabilityQuickTestsRun(extension.ClientExtensionUpdate,
     shell_command = 'reachability-quick-tests-run'
     list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result', 'test_result',
-                    'detail', 'test_time']
+                    'detail', 'logical_path', 'test_time']
 
     def args2body(self, parsed_args):
         body = {}
