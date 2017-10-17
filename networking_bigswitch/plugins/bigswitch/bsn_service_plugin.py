@@ -118,7 +118,11 @@ class BSNServicePlugin(service_base.ServicePluginBase,
     def parse_result(self, response, expected_result):
         if not response:
             test_result = "fail"
-            detail = [{'path-index': "No result"}]
+            detail = [{'path-index': "No result", 'hop-index': '',
+                       'hop-name': ''}]
+            logical_path = [{'path-index': "No result", 'hop-index': '',
+                             'hop-name': ''}]
+            return test_result, detail, logical_path
         elif response[0].get("summary", [{}])[0].get("forward-result") != \
                 expected_result:
             test_result = "fail"
@@ -144,7 +148,10 @@ class BSNServicePlugin(service_base.ServicePluginBase,
         detail[0]['path-index'] = detail[0].get('path-index', '')
         detail[0]['hop-index'] = detail[0].get('hop-index', '')
         detail[0]['hop-name'] = detail[0].get('hop-name', '')
-        return test_result, detail
+
+        # also get logical-path
+        logical_path = response[0].get("logical-path", [{}])
+        return test_result, detail, logical_path
 
     # public CRUD methods for Reachability Test
     def get_reachabilitytests(self, context, filters=None, fields=None,
@@ -173,10 +180,11 @@ class BSNServicePlugin(service_base.ServicePluginBase,
             src = reachabilitytest.get_connection_source()
             dst = reachabilitytest.get_connection_destination()
             response = self.servers.rest_get_testpath(src, dst)
-            test_result, detail = self.parse_result(
+            test_result, detail, logical_path = self.parse_result(
                 response, reachabilitytest.expected_result)
             reachabilitytest_data['test_result'] = test_result
             reachabilitytest_data['detail'] = detail
+            reachabilitytest_data['logical_path'] = logical_path
             # reset run_test to false and set timestamp to now
             reachabilitytest_data['run_test'] = False
             reachabilitytest_data['test_time'] = datetime.now()
@@ -234,10 +242,11 @@ class BSNServicePlugin(service_base.ServicePluginBase,
             src = reachabilityquicktest.get_connection_source()
             dst = reachabilityquicktest.get_connection_destination()
             response = self.servers.rest_get_testpath(src, dst)
-            test_result, detail = self.parse_result(
+            test_result, detail, logical_path = self.parse_result(
                 response, reachabilityquicktest.expected_result)
             reachabilityquicktest_data['test_result'] = test_result
             reachabilityquicktest_data['detail'] = detail
+            reachabilityquicktest_data['logical_path'] = logical_path
             # reset run_test to false and set timestamp to now
             reachabilityquicktest_data['run_test'] = False
             reachabilityquicktest_data['test_time'] = datetime.now()
