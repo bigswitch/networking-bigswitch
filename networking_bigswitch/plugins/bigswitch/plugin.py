@@ -576,7 +576,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if tenant_name:
             resource['tenant_name'] = tenant_name
         else:
-            self.servers._update_tenant_cache(ratelimit=True)
+            self.servers._update_tenant_cache()
             tenant_name = self.servers.keystone_tenants.get(
                 resource['tenant_id'])
             if tenant_name:
