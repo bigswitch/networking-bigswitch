@@ -1,0 +1,8 @@
+Code-Review+2: Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com>
+Workflow+1: Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 19 Oct 2017 00:41:44 +0000
+Reviewed-on: https://review.openstack.org/513203
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/ocata
