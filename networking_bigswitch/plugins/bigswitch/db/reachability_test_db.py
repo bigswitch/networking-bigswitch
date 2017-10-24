@@ -77,6 +77,7 @@ class ReachabilityTest(model_base.BASEV2,
     test_result = sa.Column(Enum("pass", "fail", "pending"),
                             default="pending", nullable=False)
     detail = sa.Column(JSONEncodedDict(8192), nullable=True)
+    logical_path = sa.Column(JSONEncodedDict(8192), nullable=True)
     run_test = sa.Column(sa.Boolean, nullable=False, default=False)
 
     def get_connection_source(self):
@@ -111,6 +112,7 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
             'test_time': reachabilitytest.test_time,
             'test_result': reachabilitytest.test_result,
             'detail': reachabilitytest.detail,
+            'logical_path': reachabilitytest.logical_path,
             'run_test': reachabilitytest.run_test}, fields)
 
     def _get_reachabilitytest(self, context, id):
@@ -210,6 +212,7 @@ class ReachabilityQuickTest(model_base.BASEV2,
     test_result = sa.Column(Enum("pass", "fail", "pending"),
                             default="pending", nullable=False)
     detail = sa.Column(JSONEncodedDict(8192), nullable=True)
+    logical_path = sa.Column(JSONEncodedDict(8192), nullable=True)
     run_test = sa.Column(sa.Boolean, nullable=False, default=False)
     save_test = sa.Column(sa.Boolean, nullable=False, default=False)
 
@@ -246,6 +249,7 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
             'test_time': reachabilityquicktest.test_time,
             'test_result': reachabilityquicktest.test_result,
             'detail': reachabilityquicktest.detail,
+            'logical_path': reachabilityquicktest.logical_path,
             'run_test': reachabilityquicktest.run_test}, fields)
 
     def _get_reachabilityquicktest(self, context, id):
