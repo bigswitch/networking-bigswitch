@@ -1,0 +1,8 @@
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Tue, 24 Oct 2017 22:48:26 +0000
+Reviewed-on: https://review.openstack.org/512860
+Project: openstack/networking-bigswitch
+Branch: refs/heads/master
