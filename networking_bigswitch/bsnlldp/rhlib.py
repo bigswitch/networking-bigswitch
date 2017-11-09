@@ -24,7 +24,7 @@ import time
 # constants for RHOSP
 NET_CONF_PATH = "/etc/os-net-config/config.json"
 HIERA_DIR_PATH = "/etc/puppet/hieradata"
-COMPUTE_FILE_PATH = "%s/compute.yaml" % HIERA_DIR_PATH
+COMPUTE_FILE_PATH = "%s/compute.json" % HIERA_DIR_PATH
 SUPPORTED_BOND = ['ovs_bond', 'linux_bond']
 _SYS_CLASS_NET = '/sys/class/net'
 
