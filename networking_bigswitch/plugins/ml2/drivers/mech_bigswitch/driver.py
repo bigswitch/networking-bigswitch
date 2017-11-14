@@ -27,11 +27,11 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import rpc as n_rpc
-from neutron.plugins.ml2 import driver_api as api
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as ctx
 from neutron_lib.plugins import directory
+from neutron_lib.plugins.ml2 import api
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
