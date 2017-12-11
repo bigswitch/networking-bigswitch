@@ -18,6 +18,8 @@ CHANGE_LOG=`git for-each-ref refs/tags/11.*.* --sort="-*committerdate" --format=
 CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
 # remove timestamp from changelog string
 CHANGE_LOG=`echo "$CHANGE_LOG" | sed -E "s/[0-9]{2}:[0-9]{2}:[0-9]{2}\ //g"`
+# replace forward slash in CHANGE_LOG with underscore
+CHANGE_LOG=`echo $CHANGE_LOG | sed -E "s/\//_/g"`
 # replace variables in spec file
 sed -i -e "s/\${version_number}/$CURR_VERSION/" -e "s/\${change_log}/$CHANGE_LOG/" rhel/python-networking-bigswitch.spec
 
