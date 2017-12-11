@@ -19,7 +19,7 @@ import functools
 import mock
 from oslo_serialization import jsonutils
 
-from neutron.conf.plugins.ml2 import config as ml2_config
+from neutron.plugins.ml2 import config as ml2_config
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.db import test_db_base_plugin_v2
