@@ -10,7 +10,7 @@ cd /networking-bigswitch
 git config --global user.name "Big Switch Networks"
 git config --global user.email "support@bigswitch.com"
 
-# get version info from tags
+# get version info from tags (done as part of build job, skipped here)
 # git fetch --tags
 # NOTE update refs/tags/10.*.* according to version string for each branch
 CURR_VERSION=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
