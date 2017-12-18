@@ -29,9 +29,9 @@ from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
 from neutron.db import api as db
-from neutron.extensions import l3
 
 from neutron_lib import constants as lib_constants
+from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib import exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
@@ -143,7 +143,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             fips = self.get_floatingips_count(context.elevated(),
                                               filters=router_filter)
             if fips:
-                raise l3.RouterInUse(router_id=router_id)
+                raise exceptions.l3.RouterInUse(router_id=router_id)
 
             device_owner = lib_constants.DEVICE_OWNER_ROUTER_INTF
             device_filter = {'device_id': [router_id],
@@ -151,7 +151,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             ports = self.get_ports_count(context.elevated(),
                                          filters=device_filter)
             if ports:
-                raise l3.RouterInUse(router_id=router_id)
+                raise exceptions.l3.RouterInUse(router_id=router_id)
             # TODO(wolverineav): hack until fixed at right place
             setattr(context, 'GUARD_TRANSACTION', False)
             super(L3RestProxy, self).delete_router(context, router_id)
@@ -327,12 +327,12 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         return router_ids
 
     def _update_ext_gateway_info(self, context, updated_router):
-        if updated_router.get(l3.EXTERNAL_GW_INFO):
-            ext_net_id = updated_router[l3.EXTERNAL_GW_INFO].get('network_id')
+        if updated_router.get(l3_apidef.EXTERNAL_GW_INFO):
+            ext_net_id = updated_router[l3_apidef.EXTERNAL_GW_INFO].get('network_id')
             ext_net = self.get_network(context, ext_net_id)
             ext_tenant_id = ext_net.get('tenant_id')
             if ext_tenant_id:
-                updated_router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                updated_router[l3_apidef.EXTERNAL_GW_INFO]['tenant_id'] = (
                     ext_tenant_id)
         router = self._map_tenant_name(updated_router)
         router = self._map_state_and_status(router)
