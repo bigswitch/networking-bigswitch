@@ -31,6 +31,7 @@ from neutron.extensions import l3
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
 from neutron.tests.unit.extensions import test_l3 as test_l3
+from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib import context
 from neutron_lib.plugins import directory
 
@@ -43,7 +44,7 @@ _uuid = uuidutils.generate_uuid
 class RouterRulesTestExtensionManager(object):
 
     def get_resources(self):
-        l3.RESOURCE_ATTRIBUTE_MAP['routers'].update(
+        l3_apidef.RESOURCE_ATTRIBUTE_MAP['routers'].update(
             routerrule.EXTENDED_ATTRIBUTES_2_0['routers'])
         return l3.L3.get_resources()
 
