@@ -73,11 +73,11 @@ from neutron.db import l3_db
 from neutron.db.models import securitygroup as sg_db
 from neutron.db import models_v2
 from neutron.db import securitygroups_rpc_base as sg_db_rpc
-from neutron.extensions import l3
 
 from neutron_lib.api.definitions import allowedaddresspairs as addr_pair
 from neutron_lib.api.definitions import external_net as extnet_apidef
 from neutron_lib.api.definitions import extra_dhcp_opt as edo_ext
+from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
@@ -303,13 +303,13 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             for router in all_routers:
                 try:
                     # Add tenant_id of the external gateway network
-                    if router.get(l3.EXTERNAL_GW_INFO):
-                        ext_net_id = router[l3.EXTERNAL_GW_INFO].get(
+                    if router.get(l3_apidef.EXTERNAL_GW_INFO):
+                        ext_net_id = router[l3_apidef.EXTERNAL_GW_INFO].get(
                             'network_id')
                         ext_net = self.get_network(admin_context, ext_net_id)
                         ext_tenant_id = ext_net.get('tenant_id')
                         if ext_tenant_id:
-                            router[l3.EXTERNAL_GW_INFO]['tenant_id'] = (
+                            router[l3_apidef.EXTERNAL_GW_INFO]['tenant_id'] = (
                                 ext_tenant_id)
 
                     interfaces = []
