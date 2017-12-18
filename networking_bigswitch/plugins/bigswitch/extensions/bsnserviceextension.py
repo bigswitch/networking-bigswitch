@@ -20,6 +20,7 @@ from neutron_lib.api import extensions
 from neutron_lib.plugins import directory
 
 import abc
+from networking_bigswitch.plugins.bigswitch import constants
 from networking_bigswitch.plugins.bigswitch import extensions as bsn_extensions
 
 # Ensure the extension is loaded at startup
@@ -124,6 +125,39 @@ RESOURCE_ATTRIBUTE_MAP = {
         'save_test': {'allow_post': False, 'allow_put': True,
                       'is_visible': True},
     },
+    'tenantpolicies': {
+        'id': {'allow_post': False, 'allow_put': False,
+               'is_visible': True},
+        'tenant_id': {'allow_post': True, 'allow_put': False,
+                      'validate': {'type:string': None},
+                      'is_visible': True},
+        'priority': {'allow_post': True, 'allow_put': False,
+                     'validate': {'type:integer': None},
+                     'is_visible': True},
+        'source': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'source_port': {'allow_post': True, 'allow_put': True,
+                        'validate': {'type:integer': None},
+                        'is_visible': True,
+                        'default': 0},
+        'destination': {'allow_post': True, 'allow_put': True,
+                        'validate': {'type:string': None},
+                        'is_visible': True},
+        'destination_port': {'allow_post': True, 'allow_put': True,
+                             'validate': {'type:integer': None},
+                             'is_visible': True, 'default': 0},
+        'protocol': {'allow_post': True, 'allow_put': True,
+                     'validate': {'type:string': None},
+                     'is_visible': True, 'default': ''},
+        'action': {'allow_post': True, 'allow_put': True,
+                   'validate': {'type:string': None},
+                   'is_visible': True},
+        'nexthops': {'allow_post': True, 'allow_put': True,
+                     'validate': {'type:string': None},
+                     'is_visible': True,
+                     'default': ''},
+    },
 }
 
 
@@ -156,7 +190,7 @@ class Bsnserviceextension(extensions.ExtensionDescriptor):
     def get_resources(cls):
         """Returns Extended Resources."""
         resources = []
-        net_template_inst = directory.get_plugin('BSNSERVICEPLUGIN')
+        net_template_inst = directory.get_plugin(constants.BSN_SERVICE_PLUGIN)
         plural_mappings = resource_helper.build_plural_mappings(
             {}, RESOURCE_ATTRIBUTE_MAP)
         for collection in RESOURCE_ATTRIBUTE_MAP:
@@ -269,4 +303,27 @@ class BSNServicePluginBase(object):
 
     @abc.abstractmethod
     def delete_reachabilityquicktest(self, context, id):
+        pass
+
+    # Tenant router policies
+    @abc.abstractmethod
+    def get_tenantpolicies(self, context, filters=None, fields=None,
+                           sorts=None, limit=None, marker=None,
+                           page_reverse=False):
+        pass
+
+    @abc.abstractmethod
+    def get_tenantpolicy(self, context, id, fields=None):
+        pass
+
+    @abc.abstractmethod
+    def create_tenantpolicy(self, context, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def update_tenantpolicy(self, context, id, tenantpolicy):
+        pass
+
+    @abc.abstractmethod
+    def delete_tenantpolicy(self, context, id):
         pass
