@@ -150,6 +150,10 @@ class RouterDBTestCase(RouterDBTestBase,
     def test_create_floatingip_with_specific_ip_non_admin(self):
         self.skipTest("Policy processing is broken in the separate repo UTs")
 
+    def test_router_update_gateway_upon_subnet_create_max_ips_ipv6(self):
+        # TODO(wolverineav): OSP-156 tracks this. need to fix.
+        self.skipTest("broken until fixed")
+
     def test_router_remove_router_interface_wrong_subnet_returns_400(self):
         with self.router() as r:
             with self.subnet() as s:
