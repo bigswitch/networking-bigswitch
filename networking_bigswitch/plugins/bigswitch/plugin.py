@@ -59,7 +59,6 @@ from neutron.api.rpc.agentnotifiers import dhcp_rpc_agent_api
 from neutron.api.rpc.handlers import dhcp_rpc
 from neutron.api.rpc.handlers import metadata_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc
-from neutron.common import exceptions
 from neutron.common import rpc as n_rpc
 from neutron.common import topics
 from neutron.db import agents_db
@@ -81,6 +80,7 @@ from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
+from neutron_lib import exceptions as lib_exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
 from neutron_lib.utils import runtime
@@ -858,7 +858,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     "NeutronRestProxyV2: Unable to create port: %s", e)
                 try:
                     self._set_port_status(port['id'], const.PORT_STATUS_ERROR)
-                except exceptions.PortNotFound:
+                except lib_exceptions.PortNotFound:
                     # If port is already gone from DB and there was an error
                     # creating on the backend, everything is already consistent
                     pass
@@ -871,7 +871,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                       else const.PORT_STATUS_DOWN)
         try:
             self._set_port_status(port['id'], new_status)
-        except exceptions.PortNotFound:
+        except lib_exceptions.PortNotFound:
             # This port was deleted before the create made it to the controller
             # so it now needs to be deleted since the normal delete request
             # would have deleted an non-existent port.
@@ -887,7 +887,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             port['status'] = status
             session.flush()
         except sqlexc.NoResultFound:
-            raise exceptions.PortNotFound(port_id=port_id)
+            raise lib_exceptions.PortNotFound(port_id=port_id)
 
 
 def put_context_in_serverpool(f):
