@@ -200,13 +200,12 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
     def test_create404_triggers_sync(self):
         # allow async port thread for this patch
         self.spawn_p.stop()
-        with contextlib.nested(
-            self.subnet(),
-            patch(HTTPCON, create=True,
-                  new=fake_server.HTTPConnectionMock404),
-            patch(bsn_test_base.RESTPROXY_PKG_PATH
-                  + '.NeutronRestProxyV2._send_all_data')
-        ) as (s, mock_http, mock_send_all):
+        with self.subnet() as s, \
+                patch(HTTPCON, create=True,
+                      new=fake_server.HTTPConnectionMock404) as mock_http, \
+                patch(bsn_test_base.RESTPROXY_PKG_PATH +
+                              '.NeutronRestProxyV2._send_all_data') as \
+                        mock_send_all:
             with self.port(subnet=s, device_id='somedevid') as p:
                 # wait for the async port thread to finish
                 plugin = directory.get_plugin()
@@ -323,11 +322,10 @@ class TestBigSwitchProxyNetworksV2(test_plugin.TestNetworksV2,
     def test_notify_on_security_group_change(self):
         plugin = directory.get_plugin()
         with self.port() as p:
-            with contextlib.nested(
-                mock.patch.object(plugin, 'notifier'),
-                mock.patch.object(plugin, 'is_security_group_member_updated',
-                                  return_value=True)
-            ) as (n_mock, s_mock):
+            with mock.patch.object(plugin, 'notifier') as n_mock, \
+                    mock.patch.object(
+                        plugin, 'is_security_group_member_updated',
+                        return_value=True) as s_mock:
                 # any port update should trigger a notification due to s_mock
                 data = {'port': {'name': 'aNewName'}}
                 self.new_update_request(

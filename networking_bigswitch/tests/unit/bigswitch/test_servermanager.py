@@ -91,19 +91,17 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl = directory.get_plugin()
         pl.servers.capabilities = []
         self.watch_p.stop()
-        with contextlib.nested(
-            mock.patch('eventlet.sleep'),
-            mock.patch(
-                SERVERMANAGER + '.ServerPool.rest_call',
-                side_effect=servermanager.RemoteRestError(
-                    reason='Failure to trigger except clause.'
-                )
-            ),
-            mock.patch(
-                SERVERMANAGER + '.LOG.exception',
-                side_effect=KeyError('Failure to break loop')
-            )
-        ) as (smock, rmock, lmock):
+        with mock.patch('eventlet.sleep') as smock, \
+                mock.patch(
+                    SERVERMANAGER + '.ServerPool.rest_call',
+                    side_effect=servermanager.RemoteRestError(
+                        reason='Failure to trigger except clause.'
+                    )
+                ) as rmock, \
+                mock.patch(
+                    SERVERMANAGER + '.LOG.exception',
+                    side_effect=KeyError('Failure to break loop')
+                ) as lmock:
             # should return immediately without consistency capability
             pl.servers._consistency_watchdog()
             self.assertFalse(smock.called)
@@ -355,12 +353,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists, 3 children don't, and host cert does
-        with contextlib.nested(
-            mock.patch('os.path.exists', side_effect=[True, False, False,
-                                                      False, True]),
-            mock.patch('os.makedirs'),
-            mock.patch(SERVERMANAGER + '.ServerPool._combine_certs_to_file')
-        ) as (exmock, makemock, combmock):
+        with mock.patch('os.path.exists', side_effect=[
+            True, False, False, False, True]) as exmock, \
+                mock.patch('os.makedirs') as makemock, \
+                mock.patch(SERVERMANAGER +
+                            '.ServerPool._combine_certs_to_file') as combmock:
             # will raise error because no certs found
             self.assertIn(
                 'example.org',
@@ -403,11 +400,10 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_retry_on_unavailable(self):
         pl = directory.get_plugin()
-        with contextlib.nested(
-            mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                       return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)),
-            mock.patch(SERVERMANAGER + '.time.sleep')
-        ) as (srestmock, tmock):
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)) \
+                as srestmock, \
+                mock.patch(SERVERMANAGER + '.time.sleep') as tmock:
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
             rest_call = [mock.call('GET', '/', '', None, False, reconnect=True,
@@ -475,12 +471,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_no_sync_without_keystone(self):
         pl = directory.get_plugin()
-        with contextlib.nested(
-            mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
-                       return_value=(False)),
-            mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                       return_value=(httplib.CONFLICT, 0, 0, 0))
-        ) as (fmock, srestmock):
+        with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
+                        return_value=(False)) as fmock,\
+                mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                           return_value=(httplib.CONFLICT, 0, 0, 0)) \
+                        as srestmock:
             # making a call should trigger a conflict sync
             pl.servers.rest_call('GET', '/', '', None, [])
             srestmock.assert_called_once_with(
@@ -693,11 +688,9 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         handler1 = consistency_db.HashHandler()
         handler1.read_for_update()  # lock the table
         handler2 = consistency_db.HashHandler()
-        with contextlib.nested(
-            mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME'),
-            mock.patch.object(handler2, '_optimistic_update_hash_record',
-                              side_effect=[False, True])
-        ) as (mlock, oplock):
+        with mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME') as mlock,\
+                mock.patch.object(handler2, '_optimistic_update_hash_record',
+                                  side_effect=[False, True]) as oplock:
             # handler2 will go through 2 iterations since the lock will fail on
             # the first attempt
             mlock.__lt__.side_effect = [False, True, False, True]

@@ -201,9 +201,7 @@ class RouterDBTestCase(RouterDBTestBase,
 
     def test_add_network_to_ext_gw_backend_body(self):
         plugin_obj = directory.get_plugin()
-        with contextlib.nested(
-            self.network(), self.router()
-        ) as (n1, r1):
+        with self.network() as n1, self.router() as r1:
             with self.subnet(network=n1, cidr='10.10.10.10/24') as s1:
                 self._set_net_external(s1['subnet']['network_id'])
                 with mock.patch.object(plugin_obj.servers,
@@ -219,19 +217,15 @@ class RouterDBTestCase(RouterDBTestBase,
     def test_multi_tenant_flip_alllocation(self):
         tenant1_id = _uuid()
         tenant2_id = _uuid()
-        with contextlib.nested(
-            self.network(tenant_id=tenant1_id),
-            self.network(tenant_id=tenant2_id)) as (n1, n2):
-            with contextlib.nested(
-                self.subnet(network=n1, cidr='11.0.0.0/24'),
-                self.subnet(network=n2, cidr='12.0.0.0/24'),
-                self.subnet(cidr='13.0.0.0/24')) as (s1, s2, psub):
-                with contextlib.nested(
-                    self.router(tenant_id=tenant1_id),
-                    self.router(tenant_id=tenant2_id),
-                    self.port(subnet=s1, tenant_id=tenant1_id),
-                    self.port(subnet=s2, tenant_id=tenant2_id)) as (r1, r2,
-                                                                    p1, p2):
+        with self.network(tenant_id=tenant1_id) as n1, \
+                self.network(tenant_id=tenant2_id) as n2:
+            with self.subnet(network=n1, cidr='11.0.0.0/24') as s1, \
+                    self.subnet(network=n2, cidr='12.0.0.0/24') as s2, \
+                    self.subnet(cidr='13.0.0.0/24') as psub:
+                with self.router(tenant_id=tenant1_id) as r1, \
+                        self.router(tenant_id=tenant2_id) as r2, \
+                        self.port(subnet=s1, tenant_id=tenant1_id) as p1, \
+                        self.port(subnet=s2, tenant_id=tenant2_id) as p2:
                     self._set_net_external(psub['subnet']['network_id'])
                     s1id = p1['port']['fixed_ips'][0]['subnet_id']
                     s2id = p2['port']['fixed_ips'][0]['subnet_id']

@@ -171,12 +171,10 @@ class TestRestProxyAgent(BaseAgentTestCase):
                      'CONF.RESTPROXYAGENT.virtual_switch_type': 'ovs',
                      'CONF.AGENT.root_helper': 'helper',
                      'CONF.AGENT.report_interval': 60}
-        with contextlib.nested(
-            mock.patch(AGENTMOD + '.cfg', **cfg_attrs),
-            mock.patch(AGENTMOD + '.config.init'),
-            mock.patch(NEUTRONCFG),
-            mock.patch(PLCONFIG),
-        ) as (mock_conf, mock_init, mock_log_conf, mock_pluginconf):
+        with mock.patch(AGENTMOD + '.cfg', **cfg_attrs) as mock_conf, \
+                mock.patch(AGENTMOD + '.config.init') as mock_init, \
+                mock.patch(NEUTRONCFG) as mock_log_conf, \
+                mock.patch(PLCONFIG) as mock_pluginconf:
             self.mod_agent.main()
 
         mock_log_conf.assert_has_calls([
