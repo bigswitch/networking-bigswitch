@@ -23,11 +23,11 @@ import oslo_messaging
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
-from neutron.callbacks import events
-from neutron.callbacks import registry
-from neutron.callbacks import resources
 from neutron.common import rpc as n_rpc
 from neutron_lib.api.definitions import portbindings
+from neutron_lib.callbacks import events
+from neutron_lib.callbacks import registry
+from neutron_lib.callbacks import resources
 from neutron_lib import constants as const
 from neutron_lib import context as ctx
 from neutron_lib.plugins import directory
