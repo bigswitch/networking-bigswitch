@@ -1,13 +1,12 @@
 %global pypi_name networking-bigswitch
 %global pypi_name_underscore networking_bigswitch
-%global rpm_name networking-bigswitch
 %global rpm_prefix openstack-neutron-bigswitch
 %global os_vif_plugin_name vif-plug-ivs
 %global os_vif_plugin_name_underscore vif_plug_ivs
 %global docpath doc/build/html
 %global lib_dir %{buildroot}%{python2_sitelib}/%{pypi_name}/plugins/bigswitch
 
-Name:           python-%{rpm_name}
+Name:           python-%{pypi_name}
 Version:        ${version_number}
 Release:        1%{?dist}
 Epoch:          2
@@ -43,7 +42,7 @@ neutron plugins and agents
 
 %package -n %{rpm_prefix}-agent
 Summary:        Neutron Big Switch Networks agent
-Requires:       python-%{rpm_name} = %{epoch}:%{version}-%{release}
+Requires:       python-%{pypi_name} = %{epoch}:%{version}-%{release}
 
 %description -n %{rpm_prefix}-agent
 This package contains the Big Switch Networks
@@ -51,14 +50,14 @@ neutron agent for security groups.
 
 %package -n %{rpm_prefix}-lldp
 Summary:        Neutron Big Switch Networks LLDP service
-Requires:       python-%{rpm_name} = %{epoch}:%{version}-%{release}
+Requires:       python-%{pypi_name} = %{epoch}:%{version}-%{release}
 
 %description -n %{rpm_prefix}-lldp
 This package contains the Big Switch Networks neutron LLDP agent.
 
 %package -n %{rpm_prefix}-%{os_vif_plugin_name}
 Summary:        Neutron Big Switch Networks os-vif plugin for IVS
-Requires:       python-%{rpm_name} = %{epoch}:%{version}-%{release}
+Requires:       python-%{pypi_name} = %{epoch}:%{version}-%{release}
 
 %description -n %{rpm_prefix}-%{os_vif_plugin_name}
 This package contains the Big Switch Networks os-vif plugin for IVS
