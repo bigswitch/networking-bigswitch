@@ -23,12 +23,17 @@ import neutron.common.test_lib as test_lib
 
 from networking_bigswitch.plugins.bigswitch import config
 from networking_bigswitch.plugins.bigswitch.db import consistency_db
+from networking_bigswitch.plugins.bigswitch.db import network_template_db  # noqa
+from networking_bigswitch.plugins.bigswitch.db import reachability_test_db  # noqa
+from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db  # noqa
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 
 
 RESTPROXY_PKG_PATH = 'networking_bigswitch.plugins.bigswitch.plugin'
 L3_RESTPROXY_PKG_PATH = ('networking_bigswitch.plugins.bigswitch'
                          '.l3_router_plugin')
+BSN_SERVICE_PLUGIN_PATH = ('networking_bigswitch.plugins.bigswitch'
+                           '.bsn_service_plugin')
 NOTIFIER = 'networking_bigswitch.plugins.bigswitch.plugin.AgentNotifierApi'
 DHCP_NOTIFIER = ('neutron.api.rpc.agentnotifiers.dhcp_rpc_agent_api.'
                  'DhcpAgentNotifyAPI.notify')
@@ -49,6 +54,8 @@ class BigSwitchTestBase(object):
 
     _plugin_name = ('%s.NeutronRestProxyV2' % RESTPROXY_PKG_PATH)
     _l3_plugin_name = ('%s.L3RestProxy' % L3_RESTPROXY_PKG_PATH)
+    _bsn_service_plugin_name = ('%s.BSNServicePlugin'
+                                % BSN_SERVICE_PLUGIN_PATH)
 
     def setup_config_files(self):
         etc_path = os.path.join(os.path.dirname(__file__), 'etc')
