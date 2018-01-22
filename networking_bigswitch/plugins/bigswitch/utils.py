@@ -12,6 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+from networking_bigswitch.plugins.bigswitch.i18n import _
 from neutron_lib import exceptions as n_exc
 
 
