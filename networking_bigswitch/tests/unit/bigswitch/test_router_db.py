@@ -118,8 +118,8 @@ class RouterDBTestCase(RouterDBTestBase,
             res = router_req.get_response(self.ext_api)
             router = self.deserialize(self.fmt, res)
             self.assertEqual(
-                s['subnet']['tenant_id'],
-                router['router']['external_gateway_info']['tenant_id'])
+                False,
+                'tenant_id' in router['router']['external_gateway_info'])
 
     def test_router_add_interface_port(self):
         orig_update_port = self.plugin.update_port
