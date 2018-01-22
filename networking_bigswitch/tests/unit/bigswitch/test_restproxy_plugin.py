@@ -28,6 +28,7 @@ from neutron_lib import context
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
+from networking_bigswitch.plugins.bigswitch import constants as bsn_constants
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 from networking_bigswitch.tests.unit.bigswitch \
     import test_base as bsn_test_base
@@ -48,12 +49,13 @@ class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
         self.setup_patches()
         if plugin_name:
             self._plugin_name = plugin_name
-        l3_plugin = {'L3_ROUTER_NAT': self._l3_plugin_name}
+        bsn_service_plugins = {'L3_ROUTER_NAT': self._l3_plugin_name,
+                               bsn_constants.BSN_SERVICE_PLUGIN:
+                                   self._bsn_service_plugin_name}
         if service_plugins:
-            service_plugins.update(l3_plugin)
+            service_plugins.update(bsn_service_plugins)
         else:
-            service_plugins = l3_plugin
-
+            service_plugins = bsn_service_plugins
         super(BigSwitchProxyPluginV2TestCase,
               self).setUp(self._plugin_name,
                           service_plugins=service_plugins,
