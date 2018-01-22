@@ -20,6 +20,7 @@ import mock
 from oslo_serialization import jsonutils
 
 from neutron.conf.plugins.ml2 import config as ml2_config
+from neutron.db import l3_db
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
 from neutron.tests.unit.api import test_extensions
 from neutron.tests.unit.db import test_db_base_plugin_v2
@@ -27,7 +28,9 @@ from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_securitygroup as test_sg
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.api.definitions import portbindings
+from neutron_lib import constants as lib_constants
 from neutron_lib import context as neutron_context
+from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
@@ -35,6 +38,9 @@ from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.plugins.ml2.drivers.mech_bigswitch \
     import driver as bsn_driver
 import networking_bigswitch.tests.unit.bigswitch.test_restproxy_plugin as trp
+from oslo_utils import uuidutils
+
+_uuid = uuidutils.generate_uuid
 
 PHYS_NET = 'physnet1'
 VLAN_START = 1000
@@ -121,6 +127,57 @@ class TestBigSwitchML2Router(test_l3.L3NatTestCaseBase,
     def test_floatingip_with_invalid_create_port(self):
         # TODO(Joe): This test fails. Why?
         pass
+
+    def test_router_add_interface_by_port_fails_nested(self):
+        # Force _validate_router_port_info failure
+        plugin = directory.get_plugin(lib_constants.L3)
+        if not isinstance(plugin, l3_db.L3_NAT_dbonly_mixin):
+            self.skipTest("Plugin is not L3_NAT_dbonly_mixin")
+        orig_update_port = self.plugin.update_port
+
+        def mock_fail__validate_router_port_info(ctx, router, port_id):
+            # Fail with raising BadRequest exception
+            msg = "Failure mocking..."
+            raise n_exc.BadRequest(resource='router', msg=msg)
+
+        def mock_update_port_with_transaction(ctx, id, port):
+            # Update port within a sub-transaction
+            with ctx.session.begin(subtransactions=True):
+                orig_update_port(ctx, id, port)
+
+        def add_router_interface_with_transaction(ctx, router_id,
+                                                  interface_info):
+            # Call add_router_interface() within a sub-transaction
+            with ctx.session.begin():
+                plugin.add_router_interface(ctx, router_id, interface_info)
+
+        tenant_id = _uuid()
+        ctx = neutron_context.Context('', tenant_id)
+        with self.network(tenant_id=tenant_id) as network, (
+                self.router(name='router1', admin_state_up=True,
+                            tenant_id=tenant_id)) as router:
+            with self.subnet(network=network, cidr='10.0.0.0/24',
+                             tenant_id=tenant_id) as subnet:
+                fixed_ips = [{'subnet_id': subnet['subnet']['id']}]
+                with self.port(subnet=subnet, fixed_ips=fixed_ips,
+                               tenant_id=tenant_id) as port:
+                    mock.patch.object(
+                        self.plugin, 'update_port',
+                        side_effect=(
+                            mock_update_port_with_transaction)).start()
+                    mock.patch.object(
+                        plugin, '_validate_router_port_info',
+                        side_effect=(
+                            mock_fail__validate_router_port_info)).start()
+                    self.assertRaises(RuntimeError,
+                                      add_router_interface_with_transaction,
+                                      ctx, router['router']['id'],
+                                      {'port_id': port['port']['id']})
+
+                    # fetch port and confirm device_id and device_owner
+                    body = self._show('ports', port['port']['id'])
+                    self.assertEqual('', body['port']['device_owner'])
+                    self.assertEqual('', body['port']['device_id'])
 
 
 class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
