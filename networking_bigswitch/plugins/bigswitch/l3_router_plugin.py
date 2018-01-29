@@ -207,7 +207,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
     def create_router(self, context, router):
         self._warn_on_state_status(router['router'])
         # this also validates if the current tenant can create this router
-        tenant_id = Util.get_tenant_id_for_create(context, router)
+        tenant_id = Util.get_tenant_id_for_create(context, router['router'])
         # cache the transaction_id
         bsn_transaction_id = uuidutils.generate_uuid()
         # add this unique identifier to the router object upstream, so that it
