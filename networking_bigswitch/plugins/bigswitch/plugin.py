@@ -100,7 +100,7 @@ SYNTAX_ERROR_MESSAGE = _('Syntax error in server config file, aborting plugin')
 METADATA_SERVER_IP = '169.254.169.254'
 
 
-class AgentNotifierApi(sg_rpc.SecurityGroupAgentRpcApiMixin):
+class AgentNotifierApi(securitygroups_rpc.SecurityGroupAgentRpcApiMixin):
 
     def __init__(self, topic):
         self.topic = topic
