@@ -18,7 +18,7 @@ from networking_bigswitch.plugins.bigswitch.utils import Util
 from neutron.db import api as db
 from neutron.db.api import _tag_retriables_as_unretriable
 from neutron.db import common_db_mixin
-from neutron.db import l3_db
+from neutron.db.models import l3 as l3_models
 from neutron_lib.api import validators
 from neutron_lib.db import model_base
 from neutron_lib import exceptions as n_exc
@@ -229,7 +229,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         tenantpolicy_data = self._validate_and_cleanse_policy(
             context, tenantpolicy_data)
         with db.context_manager.writer.using(context):
-            router_exists = context.session.query(l3_db.Router).filter_by(
+            router_exists = context.session.query(l3_models.Router).filter_by(
                 project_id=tenantpolicy_data['project_id']).first()
             if not router_exists:
                 raise TenantRouterDoesNotExist()
