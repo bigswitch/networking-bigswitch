@@ -1,0 +1,8 @@
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 07 Mar 2018 02:46:34 +0000
+Reviewed-on: https://review.openstack.org/550270
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/queens
