@@ -1,0 +1,17 @@
+- project:
+    name: openstack/networking-bigswitch
+    templates:
+      - system-required
+      - openstack-python-jobs-neutron
+      - openstack-python-jobs-trusty
+      - publish-to-pypi
+    check:
+      jobs:
+        - openstack-tox-pep8:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
+        - openstack-tox-py27:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
