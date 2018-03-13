@@ -1,0 +1,8 @@
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Tue, 13 Mar 2018 21:58:22 +0000
+Reviewed-on: https://review.openstack.org/552685
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/ocata
