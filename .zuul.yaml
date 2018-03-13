@@ -1,0 +1,46 @@
+# how to define in-repo zuul job to override the existing:
+# https://docs.openstack.org/infra/manual/zuulv3.html#howto-add-an-in-repo-job
+# current networking-bigswitch job defined at:
+# https://github.com/openstack-infra/project-config/blob/master/zuul.d/projects.yaml#L9095-L9101
+# openstack-python-jobs-neutron has a required-projects field that specifies
+# neutron - and by default, when zuul doesn't find a branch called
+# stable/newton, it will checkout master - causing tox py27 failures.
+# zuul doesn't use the branch as given in test-requirements.txt
+# we override it by creating an in-repo zuul job to override-checkout for that
+# project and specify the newton-eol.
+# the format that we specify below is based on openstack-python-jobs-neutron:
+# https://github.com/openstack-infra/openstack-zuul-jobs/blob/5f6d861f4316a09965ad3b96acf386b67ee1efee/zuul.d/project-templates.yaml#L340-L366
+
+- project:
+    name: openstack/networking-bigswitch
+    templates:
+      - system-required
+      - openstack-python-jobs-neutron
+      - openstack-python-jobs-trusty
+      - publish-to-pypi
+    check:
+      jobs:
+        - openstack-tox-pep8:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
+        - openstack-tox-py27:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
+    gate:
+      jobs:
+        - openstack-tox-pep8:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
+        - openstack-tox-py27:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
+    post:
+      jobs:
+        - publish-openstack-python-branch-tarball:
+            required-projects:
+              - name: openstack/neutron
+                override-checkout: newton-eol
