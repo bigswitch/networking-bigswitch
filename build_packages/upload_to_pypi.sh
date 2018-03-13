@@ -26,7 +26,7 @@ python setup.py sdist
 twine upload dist/* -r pypi -s -i "Big Switch Networks" || true
 # delay of 10 seconds
 sleep 10
-sudo -H pip install --upgrade networking-bigswitch==$CURR_VERSION
+pip install --upgrade networking-bigswitch==$CURR_VERSION
 if [ "$?" -eq "0" ]
 then
   echo "PYPI upload successful."
@@ -34,7 +34,7 @@ else
   echo "PYPI upload FAILED. Check the logs."
 fi
 # remove the package
-sudo -H pip uninstall -y networking-bigswitch
+pip uninstall -y networking-bigswitch
 
 # revert the permissions
 chown -R $OUTER_UID:$OUTER_GID /networking-bigswitch
