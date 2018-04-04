@@ -317,8 +317,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                     for port in router_ports:
                         subnet_id = port['fixed_ips'][0]['subnet_id']
                         intf_details = self._get_router_intf_details(
-                            admin_context, subnet_id)
+                            admin_context, port, subnet_id)
+
                         interfaces.append(intf_details)
+
                     mapped_router['interfaces'] = interfaces
 
                     routers.append(mapped_router)
@@ -738,7 +740,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                 "plugin. Ignoring setting status=%s."),
                             resource['status'])
 
-    def _get_router_intf_details(self, context, subnet_id):
+    def _get_router_intf_details(self, context, port, subnet_id):
 
         # we will use the network id as interface's id
         subnet = self.get_subnet(context, subnet_id)
@@ -753,6 +755,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             "network": mapped_network,
             "subnet": mapped_subnet
         }
+
+        # get gateway_ip from port instead of gateway_ip
+        if port.get("fixed_ips"):
+            data['ip_address'] = port["fixed_ips"][0]['ip_address']
 
         return data
 
