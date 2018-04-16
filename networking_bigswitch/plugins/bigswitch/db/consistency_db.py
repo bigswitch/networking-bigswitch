@@ -40,6 +40,12 @@ DBLOCK_ID_LEN = 12
 DBLOCK_PREFIX_TOPO = "TOPO"
 DBLOCK_PREFIX_AUTOGEN = "A"
 
+# SQL query to get revision for any object, given: table_name and obj_id
+GET_REVISION_QUERY = ("SELECT sa.revision_number FROM standardattributes AS sa"
+                      " INNER JOIN {table_name} AS obj_table "
+                      "ON sa.id = obj_table.standard_attr_id "
+                      "WHERE obj_table.id = \'{obj_id}\'")
+
 
 class ConsistencyHash(model_base.BASEV2):
     '''
@@ -99,6 +105,45 @@ class HashHandler(object):
                                       for _ in range(length))
         self.random_lock_id = prefix + self.random_lock_id
         self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
+
+    def is_valid_revision(self, data):
+        """
+        validates the object in data dict - compares the revision in db vs
+        object in the REST query to ensure BCF does not get stale data
+        :param data:
+        :return: boolean valid/invalid
+        """
+        if len(data) < 1 or 'port' not in data:
+            LOG.debug('OSP165: empty data dict or PORT object not in data. '
+                      'Skipping.')
+            return True
+
+        resource_type = 'port'
+        table_name = 'ports'
+        obj_id = data[resource_type]['id']
+        if 'revision_number' not in data[resource_type]:
+            LOG.debug("OSP165: revision not present in the object. skipping.")
+            return True
+        obj_revision = data[resource_type]['revision_number']
+
+        with self.session.begin(subtransactions=True):
+            res = self.session.execute(GET_REVISION_QUERY.format(
+                **{'table_name': table_name, 'obj_id': obj_id}))
+            rows = [row['revision_number'] for row in res]
+            if len(rows) < 1:
+                LOG.debug("OSP165: revision not found in DB i.e. new object, "
+                          "returning True.")
+                return True
+            db_revision = rows[0]
+            LOG.debug("OSP165: revision in db is %s", db_revision)
+            LOG.debug("OSP165: current obj revision is %s", obj_revision)
+            if abs(db_revision - obj_revision) > 1:
+                # a diff of 1 happens when updating port status. otherwise all
+                # other updates are at version diffs.
+                LOG.debug('OSP165: db_revision is higher than obj_revision.'
+                          'DO NOT SYNC WITH BCF.')
+                return False
+            return True
 
     def _get_current_record(self):
         with self.session.begin(subtransactions=True):
