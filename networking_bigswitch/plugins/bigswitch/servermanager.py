@@ -95,7 +95,6 @@ NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
-
 # RE pattern for checking BCF supported names
 BCF_IDENTIFIER_UUID_RE = re.compile(r"[0-9a-zA-Z][-.0-9a-zA-Z_]*")
 
@@ -312,6 +311,14 @@ class ServerProxy(object):
         elif hash_handler:
             # For calls that need hash checks
             headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
+            # check for revision to be latest
+            if action != 'DELETE' and not hash_handler.is_valid_revision(data):
+                    hash_handler.clear_lock()
+                    LOG.warning(_('OSP165: Port revision is not latest, '
+                                  'ignoring the update to BCF. '
+                                  'Port obj is %s', data))
+                    ret = httplib.OK, httplib.OK, True, True
+                    return ret
         else:
             # For calls that don't need hash checks CapabilityCheck
             hash_handler = cdb.HashHandler()
