@@ -40,6 +40,18 @@ DBLOCK_ID_LEN = 12
 DBLOCK_PREFIX_TOPO = "TOPO"
 DBLOCK_PREFIX_AUTOGEN = "A"
 
+# testing for OSP-165
+OSP_PORT = "port"
+
+OSP_OBJ_TO_TABLE_DICT = {
+    OSP_PORT : 'ports'
+}
+
+GET_REVISION_QUERY = ("SELECT sa.revision_number FROM standardattributes AS sa "
+                      "INNER JOIN {table_name} AS obj_table "
+                      "ON sa.id = obj_table.standard_attr_id "
+                      "WHERE obj_table.id = \'{obj_id}\'")
+
 
 class ConsistencyHash(model_base.BASEV2):
     '''
@@ -99,6 +111,39 @@ class HashHandler(object):
                                       for _ in range(length))
         self.random_lock_id = prefix + self.random_lock_id
         self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
+
+    def is_valid_revision(self, data):
+        LOG.debug("OSP165: Checking revision for %s", data)
+        if len(data) < 1:
+            LOG.debug("OSP165: len(obj) < 1. skipping.")
+            return True
+        resource_type = list(data)[0]
+        if resource_type not in OSP_OBJ_TO_TABLE_DICT:
+            LOG.debug("OSP-165: obj type is not PORT, skipping.")
+            return True
+        table_name = OSP_OBJ_TO_TABLE_DICT[resource_type]
+        obj_id = data[resource_type]['id']
+        if 'revision_number' not in data[resource_type]:
+            LOG.debug("OSP165: revision not present in the object. skipping.")
+            return True
+        obj_revision = data[resource_type]['revision_number']
+
+        with self.session.begin(subtransactions=True):
+            res = self.session.execute(GET_REVISION_QUERY.format(
+                **{'table_name': table_name, 'obj_id': obj_id}))
+            rows = [row['revision_number'] for row in res]
+            if len(rows) < 1:
+                LOG.debug("OSP165: revision not found in DB i.e. new object, "
+                          "returning True.")
+                return True
+            db_revision = rows[0]
+            LOG.debug("OSP165: revision in db is %s", db_revision)
+            LOG.debug("OSP165: current obj revision is %s", obj_revision)
+            if db_revision > obj_revision:
+                LOG.debug("OSP165: db_revision is higher than current "
+                          "obj revision! return False")
+                return False
+            return True
 
     def _get_current_record(self):
         with self.session.begin(subtransactions=True):

@@ -312,6 +312,14 @@ class ServerProxy(object):
         elif hash_handler:
             # For calls that need hash checks
             headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
+            # check for revision to be latest
+            if action != 'DELETE':
+                # query the db for revision_number
+                if not hash_handler.is_valid_revision(data):
+                    LOG.warning("OSP165: Port revision is not latest, ignoring"
+                                " the update to BCF. Port obj is %s", data)
+                    ret = 0, None, None, None
+                    return ret
         else:
             # For calls that don't need hash checks CapabilityCheck
             hash_handler = cdb.HashHandler()
