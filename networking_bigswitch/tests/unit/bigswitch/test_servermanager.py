@@ -76,7 +76,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 *('example.org', 443)
             )
             sslgetmock.assert_has_calls([mock.call(
-                  ('example.org', 443), ssl_version=ssl.PROTOCOL_TLSv1)])
+                  ('example.org', 443), ssl_version=ssl.PROTOCOL_SSLv23)])
 
     def test_consistency_watchdog_stops_with_0_polling_interval(self):
         pl = manager.NeutronManager.get_plugin()
@@ -523,7 +523,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         )])
         self.wrap_mock.assert_has_calls([mock.call(
             self.socket_mock(), None, None, cert_reqs=ssl.CERT_NONE,
-            ssl_version=ssl.PROTOCOL_TLSv1
+            ssl_version=ssl.PROTOCOL_SSLv23
         )])
         self.assertEqual(con.sock, self.wrap_mock())
 
@@ -539,7 +539,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         self.wrap_mock.assert_has_calls([mock.call(
             self.socket_mock(), None, None, ca_certs='SOMECERTS.pem',
             cert_reqs=ssl.CERT_REQUIRED,
-            ssl_version=ssl.PROTOCOL_TLSv1
+            ssl_version=ssl.PROTOCOL_SSLv23
         )])
         self.assertEqual(con.sock, self.wrap_mock())
 
@@ -557,7 +557,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         )])
         self.wrap_mock.assert_has_calls([mock.call(
             self.socket_mock(), None, None, cert_reqs=ssl.CERT_NONE,
-            ssl_version=ssl.PROTOCOL_TLSv1
+            ssl_version=ssl.PROTOCOL_SSLv23
         )])
         # _tunnel() doesn't take any args
         tunnel_mock.assert_has_calls([mock.call()])

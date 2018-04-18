@@ -112,7 +112,7 @@ class TestSslSticky(test_ssl_certificate_base):
             # cert should have been fetched via SSL lib
             self.sslgetcert_m.assert_has_calls(
                 [mock.call((self.servername, 443),
-                           ssl_version=ssl.PROTOCOL_TLSv1)]
+                           ssl_version=ssl.PROTOCOL_SSLv23)]
             )
 
             # cert should have been recorded
