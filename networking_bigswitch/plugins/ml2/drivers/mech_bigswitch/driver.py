@@ -30,6 +30,7 @@ from neutron.common import constants as const
 from neutron.common import rpc as n_rpc
 from neutron import context as ctx
 from neutron.extensions import portbindings
+from neutron.extensions import securitygroup as ext_sg
 from neutron import manager
 from neutron.plugins.common import constants as pconst
 from neutron.plugins.ml2 import driver_api as api
@@ -159,7 +160,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
         context = kwargs.get('context')
         if context:
-            LOG.debug("Callback deleted sg_rule belones to tenant: %s"
+            LOG.debug("Callback delete sg_rule belongs to tenant: %s"
                       % context.tenant_id)
             sgs = self.get_security_groups(context, filters={}) or []
             for sg in sgs:
@@ -168,7 +169,16 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                 sg_id = sg.get('id')
                 LOG.debug("Callback delete rule in sg_id: %s" % sg_id)
                 # we over write the sg on bcf controller instead of deleting
-                self.bsn_create_security_group(sg_id=sg_id, context=context)
+                try:
+                    self.bsn_create_security_group(sg_id=sg_id,
+                                                   context=context)
+                except ext_sg.SecurityGroupNotFound:
+                    # DB query will throw exception when security group is
+                    # being deleted. delete_security_group_rule callback would
+                    # try to update BCF with new set of rules.
+                    LOG.warning(
+                        _LW("Security group with ID %(sg_id)s not found "
+                            "when trying to update."), {'sg_id': sg_id})
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """

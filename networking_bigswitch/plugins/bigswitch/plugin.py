@@ -460,7 +460,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                            context=context)
                 self.servers.rest_create_securitygroup(sg)
         else:
-            LOG.warning(_LW("No scurity group is provided for creation."))
+            LOG.warning(_LW("No security group is provided for creation."))
 
     def bsn_delete_security_group(self, sg_id, context=None):
         self.servers.rest_delete_securitygroup(sg_id)
