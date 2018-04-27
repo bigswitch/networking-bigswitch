@@ -79,6 +79,7 @@ from neutron.extensions import external_net
 from neutron.extensions import extra_dhcp_opt as edo_ext
 from neutron.extensions import l3
 from neutron.extensions import portbindings
+from neutron.extensions import securitygroup as ext_sg
 from neutron import manager
 from neutron.plugins.common import constants as pconst
 from neutron_lib import constants as const
@@ -445,7 +446,14 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
             # overwrite sg if both sg and sg_id are given
-            sg = self.get_security_group(context, sg_id)
+            try:
+                sg = self.get_security_group(context, sg_id)
+            except ext_sg.SecurityGroupNotFound:
+                # DB query will throw exception when security group is being
+                # deleted. delete_security_group_rule callback would try to
+                # update BCF with new set of rules. exception is acceptable
+                LOG.warning(_LW("Security group with ID %(sg_id)s not found "
+                                "when trying to update."), {'sg_id': sg_id})
 
         if sg:
             sg['name'] = Util.format_resource_name(sg['name'])
@@ -460,7 +468,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                            context=context)
                 self.servers.rest_create_securitygroup(sg)
         else:
-            LOG.warning(_LW("No scurity group is provided for creation."))
+            LOG.warning(_LW("No security group is provided for creation."))
 
     def bsn_delete_security_group(self, sg_id, context=None):
         self.servers.rest_delete_securitygroup(sg_id)

@@ -159,7 +159,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
     def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
         context = kwargs.get('context')
         if context:
-            LOG.debug("Callback deleted sg_rule belones to tenant: %s"
+            LOG.debug("Callback delete sg_rule belongs to tenant: %s"
                       % context.tenant_id)
             sgs = self.get_security_groups(context, filters={}) or []
             for sg in sgs:
