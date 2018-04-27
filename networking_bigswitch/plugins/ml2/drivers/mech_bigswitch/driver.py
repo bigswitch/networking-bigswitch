@@ -338,7 +338,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         net = context.network.current
         tenant_id = net['tenant_id']
         if not tenant_id:
-            tenant_id = plugin.SERVICE_TENANT
+            tenant_id = servermanager.SERVICE_TENANT
         self.servers.rest_delete_port(tenant_id, net["id"], port['id'])
 
     def _prepare_port_for_controller(self, context):
