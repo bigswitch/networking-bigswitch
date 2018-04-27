@@ -12,6 +12,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import eventlet
 import random
 import re
 import string
@@ -183,7 +184,7 @@ class HashHandler(object):
                     # a concurrent insert occured. Start process over to
                     # find the new record.
                     LOG.debug("Concurrent record inserted. Retrying.")
-                    time.sleep(retry_sleep_time)
+                    eventlet.sleep(retry_sleep_time)
                     continue
                 # The empty hash was successfully inserted with our lock
                 LOG.debug("LockID %s has grabbed the lock", lock_id)
@@ -200,7 +201,7 @@ class HashHandler(object):
                         "Failed to acquire lock. Restarting lock wait. "
                         "Previous hash: %(prev)s. Attempted update: %(new)s",
                         {'prev': res.hash, 'new': new})
-                    time.sleep(retry_sleep_time)
+                    eventlet.sleep(retry_sleep_time)
                     continue
                 # successfully got the lock
                 LOG.debug("LockID %s has grabbed the lock", lock_id)
@@ -239,7 +240,7 @@ class HashHandler(object):
                 LOG.debug("LockID %s has grabbed the lock", lock_id)
                 return db_lock_hash
 
-            time.sleep(retry_sleep_time)
+            eventlet.sleep(retry_sleep_time)
 
     def clear_lock(self):
         LOG.debug("Clearing hash record of LockID  %s", self.random_lock_id)

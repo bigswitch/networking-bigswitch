@@ -398,9 +398,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_retry_on_unavailable(self):
         pl = directory.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                        return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)) \
-                as srestmock, \
-                mock.patch(SERVERMANAGER + '.time.sleep') as tmock:
+                        return_value=(httplib.SERVICE_UNAVAILABLE,
+                                      0, 0, 0)) as srestmock,\
+                mock.patch(SERVERMANAGER + '.eventlet.sleep') as tmock:
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
             rest_call = [mock.call('GET', '/', '', None, False, reconnect=True,
