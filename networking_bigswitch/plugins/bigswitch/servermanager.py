@@ -728,7 +728,7 @@ class ServerPool(object):
                                               hash_handler=hash_handler)
                 if ret[0] != httplib.SERVICE_UNAVAILABLE:
                     break
-                time.sleep(HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL)
+                eventlet.sleep(HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL)
 
             # If inconsistent, do a full synchronization
             if ret[0] == httplib.CONFLICT and hash_handler.is_db_lock_owner():

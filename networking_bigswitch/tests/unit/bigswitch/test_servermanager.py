@@ -406,7 +406,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         with contextlib.nested(
             mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
                        return_value=(httplib.SERVICE_UNAVAILABLE, 0, 0, 0)),
-            mock.patch(SERVERMANAGER + '.time.sleep')
+            mock.patch(SERVERMANAGER + '.eventlet.sleep')
         ) as (srestmock, tmock):
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
