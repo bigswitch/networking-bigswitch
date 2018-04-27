@@ -90,6 +90,7 @@ from networking_bigswitch.plugins.bigswitch import constants as bsn_constants
 from networking_bigswitch.plugins.bigswitch.db import porttracker_db
 from networking_bigswitch.plugins.bigswitch import extensions
 from networking_bigswitch.plugins.bigswitch.i18n import _
+from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.plugins.bigswitch.utils import Util
 from networking_bigswitch.plugins.bigswitch import version
@@ -500,7 +501,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                            context=context)
                 self.servers.rest_create_securitygroup(sg)
         else:
-            LOG.warning("No scurity group is provided for creation.")
+            LOG.warning(_LW("No security group is provided for creation."))
 
     def bsn_delete_security_group(self, sg_id, context=None):
         self.servers.rest_delete_securitygroup(sg_id)
