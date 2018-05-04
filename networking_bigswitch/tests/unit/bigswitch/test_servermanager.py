@@ -431,7 +431,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # a failed delete call should put a bad hash in the DB
             pl.servers.rest_call('DELETE', '/', '', None, [])
             self.assertEqual('INCONSISTENT,INCONSISTENT',
-                             hash_handler.read_for_update())
+                             hash_handler.lock())
 
     def test_conflict_triggers_sync(self):
         pl = manager.NeutronManager.get_plugin()
@@ -593,7 +593,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_hash_handle_lock_no_initial_record(self):
         handler = consistency_db.HashHandler()
-        h1 = handler.read_for_update()
+        h1 = handler.lock()
         # return to caller should be empty even with lock in DB
         self.assertFalse(h1)
         # db should have a lock marker
@@ -607,7 +607,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         handler = consistency_db.HashHandler()
         handler.put_hash('DIGEST')  # set initial hash
 
-        h1 = handler.read_for_update()
+        h1 = handler.lock()
         self.assertEqual('DIGEST', h1)
         self.assertEqual(handler.lock_marker + 'DIGEST',
                          self._get_hash_from_handler_db(handler))
@@ -621,7 +621,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         with mock.patch.object(
             handler.session, 'add', side_effect=[db_exc.DBDuplicateEntry, '']
         ) as add_mock:
-            handler.read_for_update()
+            handler.lock()
             # duplicate insert failure should result in retry
             self.assertEqual(2, add_mock.call_count)
 
@@ -638,15 +638,15 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             secondresult = mock.Mock()
             secondresult.rowcount = 1
             conn.execute.side_effect = [firstresult, secondresult]
-            handler.read_for_update()
+            handler.lock()
             # update should have been called again after the failure
             self.assertEqual(2, conn.execute.call_count)
 
     def test_handler_already_holding_lock(self):
         handler = consistency_db.HashHandler()
-        handler.read_for_update()  # lock the table
+        handler.lock()  # lock the table
         with mock.patch.object(handler._FACADE, 'get_engine') as ge:
-            handler.read_for_update()
+            handler.lock()
             # get engine should not have been called because no update
             # should have been made
             self.assertFalse(ge.called)
@@ -654,32 +654,32 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_clear_lock(self):
         handler = consistency_db.HashHandler()
         handler.put_hash('SOMEHASH')
-        handler.read_for_update()  # lock the table
+        handler.lock()  # lock the table
         self.assertEqual(handler.lock_marker + 'SOMEHASH',
                          self._get_hash_from_handler_db(handler))
-        handler.clear_lock()
+        handler.unlock()
         self.assertEqual('SOMEHASH',
                          self._get_hash_from_handler_db(handler))
 
     def test_clear_lock_skip_after_steal(self):
         handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
+        handler1.lock()  # lock the table
         handler2 = consistency_db.HashHandler()
         with mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME', new=0):
-            handler2.read_for_update()
+            handler2.lock()
             before = self._get_hash_from_handler_db(handler1)
             # handler1 should not clear handler2's lock
-            handler1.clear_lock()
+            handler1.unlock()
             self.assertEqual(before, self._get_hash_from_handler_db(handler1))
 
     def test_take_lock_from_other(self):
         handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
+        handler1.lock()  # lock the table
         handler2 = consistency_db.HashHandler()
         with mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME') as mlock:
             # make handler2 wait for only one iteration
             mlock.__lt__.side_effect = [False, True]
-            handler2.read_for_update()
+            handler2.lock()
             # once MAX LOCK exceeded, comparisons should stop due to lock steal
             self.assertEqual(2, mlock.__lt__.call_count)
             dbentry = self._get_hash_from_handler_db(handler1)
@@ -691,7 +691,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_failure_to_steal_lock(self):
         handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
+        handler1.lock()  # lock the table
         handler2 = consistency_db.HashHandler()
         with contextlib.nested(
             mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME'),
@@ -701,6 +701,6 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # handler2 will go through 2 iterations since the lock will fail on
             # the first attempt
             mlock.__lt__.side_effect = [False, True, False, True]
-            handler2.read_for_update()
+            handler2.lock()
             self.assertEqual(4, mlock.__lt__.call_count)
             self.assertEqual(2, oplock.call_count)
