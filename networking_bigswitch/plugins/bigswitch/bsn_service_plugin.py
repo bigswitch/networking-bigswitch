@@ -14,12 +14,14 @@
 #    under the License.
 
 from datetime import datetime
+import eventlet
 
 from neutron.db import common_db_mixin
 from neutron.services import service_base
 from oslo_log import log
 from oslo_serialization import jsonutils
 
+from networking_bigswitch.plugins.bigswitch.db import consistency_db
 from networking_bigswitch.plugins.bigswitch.db import network_template_db
 from networking_bigswitch.plugins.bigswitch.db import reachability_test_db
 from networking_bigswitch.plugins.bigswitch.extensions \
@@ -259,3 +261,48 @@ class BSNServicePlugin(service_base.ServicePluginBase,
     def delete_reachabilityquicktest(self, context, id):
         self.reachabilityquicktest_db_mixin.delete_reachabilityquicktest(
             context=context, id=id)
+
+    # public CRUD methods for Topology Sync command
+    def update_forcesynctopology(self, context, id, forcesynctopology):
+        eventlet.spawn(self.servers.force_topo_sync, **{'check_ts': False})
+        return {'id': '1',
+                'tenant_id': context.project_id,
+                'project_id': context.project_id,
+                'timestamp_ms': '0',
+                'timestamp_datetime': '0',
+                'status': 'Topology Sync scheduled for execution.'}
+
+    def get_forcesynctopologies(self, context, filters=None, fields=None,
+                                sorts=None, limit=None, marker=None,
+                                page_reverse=False):
+        with context.session.begin(subtransactions=True):
+            res = (context.session.query(consistency_db.ConsistencyHash).
+                   filter_by(hash_id='1').first())
+            if res:
+                if 'TOPO_SYNC' in res.hash:
+                    timestamp_ms = consistency_db.get_lock_owner(res.hash)
+                    timestamp_datetime = consistency_db.convert_ts_to_datetime(
+                        timestamp_ms)
+                    result = 'Topology sync in progress..'
+                else:
+                    timestamp_ms = res.hash
+                    timestamp_datetime = consistency_db.convert_ts_to_datetime(
+                        timestamp_ms)
+                    result = 'Topology sync complete.'
+                # return the result
+                return [{'id': '1',
+                         'tenant_id': context.project_id,
+                         'project_id': context.project_id,
+                         'timestamp_ms': timestamp_ms,
+                         'timestamp_datetime': timestamp_datetime,
+                         'status': result}]
+            else:
+                return [{'id': '1',
+                         'tenant_id': context.project_id,
+                         'project_id': context.project_id,
+                         'timestamp_ms': '0',
+                         'timestamp_datetime': '0',
+                         'status': 'FAILURE'}]
+
+    def get_forcesynctopology(self, context, id, fields=None):
+        return self.get_forcesynctopologies(context=context)[0]
