@@ -45,6 +45,8 @@ from keystoneauth1 import session
 from keystoneclient.v3 import client as ksclient
 from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
 from networking_bigswitch.plugins.bigswitch.i18n import _
+from networking_bigswitch.plugins.bigswitch.i18n import _LE
+from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.utils import Util
 import os
 from oslo_config import cfg
@@ -95,6 +97,9 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
 HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 KEYSTONE_SYNC_RATE_LIMIT = 30  # Limit KeyStone sync to once in 30 secs
+# TOPO_SYNC Responses
+TOPO_RESPONSE_OK = (httplib.OK, httplib.OK, True, True)
+TOPO_RESPONSE_FAIL = (0, None, None, None)
 
 # RE pattern for checking BCF supported names
 BCF_IDENTIFIER_UUID_RE = re.compile(r"[0-9a-zA-Z][-.0-9a-zA-Z_]*")
@@ -277,7 +282,7 @@ class ServerProxy(object):
         return self.capabilities
 
     def rest_call(self, action, resource, data='', headers=None,
-                  timeout=False, reconnect=False, hash_handler=None):
+                  timeout=False, reconnect=False):
         uri = self.base_uri + resource
         body = jsonutils.dumps(data)
         headers = headers or {}
@@ -286,19 +291,6 @@ class ServerProxy(object):
         headers['NeutronProxy-Agent'] = self.name
         headers['Instance-ID'] = self.neutron_id
         headers['Orchestration-Service-ID'] = ORCHESTRATION_SERVICE_ID
-        lock_start_time = time.time()
-        if resource == TOPOLOGY_PATH:
-            # TopoSync call provides hash_handler but doesn't need hash checks
-            pass
-        elif hash_handler:
-            # For calls that need hash checks
-            headers[HASH_MATCH_HEADER] = hash_handler.read_for_update()
-        else:
-            # For calls that don't need hash checks CapabilityCheck
-            hash_handler = cdb.HashHandler()
-        lock_end_time = time.time()
-        LOG.debug("Time waited to get DB lock %.2fsecs",
-                  (lock_end_time - lock_start_time))
 
         # TODO(kevinbenton): Re-enable keep-alive in a thread-safe fashion.
         # When multiple workers are enabled the saved connection gets mangled
@@ -347,39 +339,20 @@ class ServerProxy(object):
                     return 0, None, None, None
 
         try:
+            bcf_request_time = time.time()
             currentconn.request(action, uri, body, headers)
             response = currentconn.getresponse()
             respstr = response.read()
             respdata = respstr
             bcf_response_time = time.time()
             LOG.debug("Time waited to get response from BCF %.2fsecs",
-                      (bcf_response_time - lock_end_time))
+                      (bcf_response_time - bcf_request_time))
             if response.status in self.success_codes:
-                hash_value = response.getheader(HASH_MATCH_HEADER)
-                if hash_value is not None:
-                    # There maybe be (rare) cases when the response takes too
-                    # long and thread looses the DB lock. In such cases
-                    # updating the HASH could result in chaos (eg: current
-                    # thread's lock is overwritten without mercy and would
-                    # allow another thread to grab the lock). Safest way
-                    # forward seems to be to check lock ownership prior to
-                    # updating Hash else let next REQUEST trigger a TopoSync
-                    if not hash_handler.put_hash_if_owner(hash_value):
-                        LOG.warning("Thread is no longer DB lock owner")
-                else:
-                    # Don't clear hash from DB if a hash header wasn't present
-                    hash_handler.clear_lock()
                 try:
                     respdata = jsonutils.loads(respstr)
                 except ValueError:
                     # response was not JSON, ignore the exception
                     pass
-            else:
-                # BVS-6979: race-condition(#2) on HashConflict, don't unlock
-                # to ensure topo_sync is scheduled next (it force grabs lock)
-                if response.status != httplib.CONFLICT:
-                    # release lock so others don't have to wait for timeout
-                    hash_handler.clear_lock()
 
             ret = (response.status, response.reason, respstr, respdata)
         except httplib.HTTPException:
@@ -666,18 +639,6 @@ class ServerPool(object):
         """
         return resp[0] in SUCCESS_CODES
 
-    def dblock_mark_toposync_started(self, orig_hash_handler):
-        """Insert DBLock with TopoSync start marker
-
-        marker = 'TOPO' + original call's lockID
-        @return: new HashHandler for TopoSync
-        """
-        prefix = cdb.DBLOCK_PREFIX_TOPO + orig_hash_handler.random_lock_id
-        handler = cdb.HashHandler(prefix=prefix)
-        new = handler.lock_marker + "initial:hash,code"
-        handler.put_hash(new)
-        return handler
-
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
         context = self.get_context_ref()
@@ -691,7 +652,6 @@ class ServerPool(object):
                 cdict['tenant_name'] = Util.format_resource_name(
                     cdict['tenant_name'])
             headers[REQ_CONTEXT_HEADER] = jsonutils.dumps(cdict)
-        hash_handler = cdb.HashHandler()
         good_first = sorted(self.servers, key=lambda x: x.failed)
         first_response = None
         for active_server in good_first:
@@ -704,43 +664,10 @@ class ServerPool(object):
             for x in range(HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT + 1):
                 ret = active_server.rest_call(action, resource, data, headers,
                                               timeout,
-                                              reconnect=self.always_reconnect,
-                                              hash_handler=hash_handler)
+                                              reconnect=self.always_reconnect)
                 if ret[0] != httplib.SERVICE_UNAVAILABLE:
                     break
                 eventlet.sleep(HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL)
-
-            # If inconsistent, do a full synchronization
-            if ret[0] == httplib.CONFLICT and hash_handler.is_db_lock_owner():
-                if not self.get_topo_function:
-                    raise cfg.Error(_('Server requires synchronization, '
-                                      'but no topology function was defined.'))
-
-                LOG.info("ServerProxy: HashConflict detected with request "
-                         "%(action)s %(resource)s Starting Topology sync",
-                         {'action': action, 'resource': resource})
-                topo_hh = self.dblock_mark_toposync_started(hash_handler)
-                try:
-                    data = self.get_topo_function(
-                        **self.get_topo_function_args)
-                    if data:
-                        ret_ts = active_server.rest_call('POST', TOPOLOGY_PATH,
-                                                         data, timeout=None,
-                                                         hash_handler=topo_hh)
-                        if self.server_failure(ret_ts, ignore_codes):
-                            LOG.error("ServerProxy: Topology sync failed")
-                            raise RemoteRestError(reason=ret_ts[2],
-                                                  status=ret_ts[0])
-                finally:
-                    LOG.info("ServerProxy: Topology sync completed")
-                    if data is None:
-                        return None
-            elif ret[0] == httplib.CONFLICT and \
-                    not hash_handler.is_db_lock_owner():
-                # DB lock ownership lost, allow current owner to detect hash
-                # conflict and perform needed TopoSync
-                LOG.warning("HashConflict detected but thread is no longer"
-                            " DB lock owner. Skipping TopoSync call")
 
             # Store the first response as the error to be bubbled up to the
             # user since it was a good server. Subsequent servers will most
@@ -771,13 +698,6 @@ class ServerPool(object):
                              'ret': ret[2], 'data': ret[3]})
                 active_server.failed = True
 
-        # A failure on a delete means the object is gone from Neutron but not
-        # from the controller. Set the consistency hash to a bad value to
-        # trigger a sync on the next check.
-        # NOTE: The hash must have a comma in it otherwise it will be ignored
-        # by the backend.
-        if action == 'DELETE':
-            hash_handler.put_hash('INCONSISTENT,INCONSISTENT')
         # All servers failed, reset server list and try again next time
         LOG.error('ServerProxy: %(action)s failure for all servers: '
                   '%(server)r',
@@ -802,8 +722,18 @@ class ServerPool(object):
         resp = self.rest_call(action, resource, data, headers, ignore_codes,
                               timeout)
         if self.server_failure(resp, ignore_codes):
-            LOG.error(errstr, resp[2])
-            raise RemoteRestError(reason=resp[2], status=resp[0])
+            # Request wasn't success, nor can be ignored,
+            # do a full synchronization if auto_sync_on_failure is True
+            if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
+                    resource != TOPOLOGY_PATH):
+                LOG.error(_LE("NeutronRestProxyV2: Inconsistency with backend "
+                              "controller, triggering full synchronization. "
+                              "%(action)s %(resource)s."),
+                          {'action': action, 'resource': resource})
+                return self.force_topo_sync(check_ts=True)
+            else:
+                LOG.error(errstr, resp[2])
+                raise RemoteRestError(reason=resp[2], status=resp[0])
         if resp[0] in ignore_codes:
             LOG.info("NeutronRestProxyV2: Received and ignored error "
                      "code %(code)s on %(action)s action to resource "
@@ -1040,6 +970,63 @@ class ServerPool(object):
                 LOG.exception("Encountered an error checking controller "
                               "health.")
 
+    def force_topo_sync(self, check_ts=True):
+        """Execute a topology_sync between OSP and BCF.
+
+        Topology sync collects all data from Openstack and pushes to BCF in
+        one single REST call. This is a heavy operation and is not executed
+        automatically.
+
+        Conditions when this would be called:
+        (1) during ServerPool initialization
+            (a) must check previous timestamp
+        (2) if periodic keystone tenant_cache find a diff in tenant list
+            (a) should not check previous timestamp
+        (3) externally triggered by neutron force-bcf-sync command
+            (a) should not check previous timestamp
+        (4) a rest_call to BCF fails on both servers and failure_code is not
+            part of the ignore_codes list
+            (a) must check previous timestamp
+
+        :param check_ts: boolean flag to check previous
+                         timestamp < TOPO_SYNC_EXPIRED_SECS
+        :return: boolean - True if sync is skipped, else result from rest query
+        """
+        LOG.info(_LI('TOPO_SYNC requested with check_ts %s'), check_ts)
+
+        if not self.get_topo_function:
+            raise cfg.Error(_('Server requires synchronization, '
+                              'but no topology function was defined.'))
+
+        # get current timestamp
+        curr_ts = str(time.time())
+        hash_handler = cdb.HashHandler(timestamp_ms=curr_ts)
+
+        if not hash_handler.lock(check_ts):
+            LOG.info(_LI("TOPO_SYNC: lock() returned False. Skipping."))
+            return TOPO_RESPONSE_OK
+
+        # else, perform topo_sync
+        try:
+            LOG.debug("TOPO_SYNC: requested at %(request_ts)s started at "
+                      "%(start_ts)s",
+                      {'request_ts': cdb.convert_ts_to_datetime(curr_ts),
+                       'start_ts': cdb.convert_ts_to_datetime(time.time())})
+            data = self.get_topo_function(
+                **self.get_topo_function_args)
+            if data:
+                LOG.debug("TOPO_SYNC: data received from OSP, sending "
+                          "request to BCF.")
+                errstr = _("Unable to perform forced topology_sync: %s")
+                self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
+                return TOPO_RESPONSE_OK
+        finally:
+            hash_handler.unlock()
+            diff = time.time() - float(hash_handler.lock_ts)
+            LOG.info(_LI("TOPO_SYNC: took %s seconds to execute topo_sync. "
+                         "consistency_db unlocked."),
+                     str(diff))
+
     def _ensure_tenant_cache(self, tenant_id):
         if tenant_id not in self.keystone_tenants:
             self._update_tenant_cache()
@@ -1078,15 +1065,8 @@ class ServerPool(object):
                     LOG.debug("TENANT delete: id %s", tenant_id)
                     self.rest_delete_tenant(tenant_id)
                 if diff.changed():
-                    hash_handler = cdb.HashHandler()
-                    res = hash_handler._get_current_record()
-                    if res:
-                        lock_owner = hash_handler._get_lock_owner(res.hash)
-                        if lock_owner and cdb.DBLOCK_PREFIX_TOPO in lock_owner:
-                            # topology sync is still going on
-                            return True
-                    LOG.debug("TENANT changed: force topo sync")
-                    hash_handler.put_hash('initial:hash,code')
+                    LOG.debug("Tenant cache outdated. Forcing topo_sync.")
+                    self.force_topo_sync(check_ts=False)
             return True
         except Exception:
             LOG.exception("Encountered an error syncing with keystone.")
