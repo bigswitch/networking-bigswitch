@@ -381,3 +381,20 @@ class ReachabilityQuickTestsShow(extension.ClientExtensionShow,
     """Show a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-show'
+
+
+# Force Sync Topology
+class ForceSyncTopology(extension.NeutronClientExtension):
+    resource = 'forcesynctopology'
+    resource_plural = 'forcesynctopologies'
+    object_path = '/%s' % resource_plural
+    resource_path = '/%s/%%s' % resource_plural
+    versions = ['2.0']
+
+
+class ForceSyncTopologiesList(extension.ClientExtensionList,
+                              ForceSyncTopology):
+    """Force a complete Topology Sync to BCF controller."""
+
+    shell_command = 'force-bcf-sync'
+    list_columns = ['result']
