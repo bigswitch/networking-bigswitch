@@ -14,6 +14,7 @@
 import httplib
 import socket
 import ssl
+import time
 
 import mock
 from oslo_config import cfg
@@ -108,52 +109,6 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                               pl.servers._consistency_watchdog)
             rmock.assert_called_with('GET', '/health', '', {}, [], False)
             self.assertEqual(1, len(lmock.mock_calls))
-
-    def test_consistency_hash_header(self):
-        # mock HTTP class instead of rest_call so we can see headers
-        with mock.patch(HTTPCON) as conmock:
-            rv = conmock.return_value
-            rv.getresponse.return_value.getheader.return_value = 'HASHHEADER'
-            rv.getresponse.return_value.status = 200
-            rv.getresponse.return_value.read.return_value = ''
-            with self.network() as network:
-                callheaders = rv.request.mock_calls[0][1][3]
-                self.assertIn('X-BSN-BVS-HASH-MATCH', callheaders)
-                # first call will be empty to indicate no previous state hash
-                self.assertEqual(callheaders['X-BSN-BVS-HASH-MATCH'], '')
-                # change the header that will be received on delete call
-                rv.getresponse.return_value.getheader.return_value = 'HASH2'
-            self._delete('networks', network['network']['id'])
-            # net delete should have used header received on create
-            callheaders = rv.request.mock_calls[1][1][3]
-            self.assertEqual(callheaders['X-BSN-BVS-HASH-MATCH'], 'HASHHEADER')
-
-            # create again should now use header received from prev delete
-            with self.network():
-                callheaders = rv.request.mock_calls[2][1][3]
-                self.assertIn('X-BSN-BVS-HASH-MATCH', callheaders)
-                self.assertEqual(callheaders['X-BSN-BVS-HASH-MATCH'],
-                                 'HASH2')
-
-    def test_consistency_hash_header_no_update_on_bad_response(self):
-        # mock HTTP class instead of rest_call so we can see headers
-        with mock.patch(HTTPCON) as conmock:
-            rv = conmock.return_value
-            rv.getresponse.return_value.getheader.return_value = 'HASHHEADER'
-            rv.getresponse.return_value.status = 200
-            rv.getresponse.return_value.read.return_value = ''
-            with self.network() as net:
-                # change the header that will be received on delete call
-                rv.getresponse.return_value.getheader.return_value = 'EVIL'
-                rv.getresponse.return_value.status = 'GARBAGE'
-                self._delete('networks', net['network']['id'])
-
-            # create again should not use header from delete call
-            with self.network():
-                callheaders = rv.request.mock_calls[2][1][3]
-                self.assertIn('X-BSN-BVS-HASH-MATCH', callheaders)
-                self.assertEqual(callheaders['X-BSN-BVS-HASH-MATCH'],
-                                 'HASHHEADER')
 
     def test_file_put_contents(self):
         pl = directory.get_plugin()
@@ -405,8 +360,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 mock.patch(SERVERMANAGER + '.eventlet.sleep') as tmock:
             # making a call should trigger retries with sleeps in between
             pl.servers.rest_call('GET', '/', '', None, [])
-            rest_call = [mock.call('GET', '/', '', None, False, reconnect=True,
-                                   hash_handler=mock.ANY)]
+            rest_call = [mock.call('GET', '/', '', None, False,
+                                   reconnect=True)]
             rest_call_count = (
                 servermanager.HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT + 1)
             srestmock.assert_has_calls(rest_call * rest_call_count)
@@ -416,52 +371,60 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             sleep_call_count = rest_call_count - 1
             tmock.assert_has_calls(sleep_call * sleep_call_count)
 
-    def test_delete_failure_sets_bad_hash(self):
+    def test_delete_failure_forces_topo_sync(self):
         pl = directory.get_plugin()
-        hash_handler = consistency_db.HashHandler()
-        with mock.patch(
-            SERVERMANAGER + '.ServerProxy.rest_call',
-            return_value=(httplib.INTERNAL_SERVER_ERROR, 0, 0, 0)
-        ):
-            # a failed delete call should put a bad hash in the DB
-            pl.servers.rest_call('DELETE', '/', '', None, [])
-            self.assertEqual('INCONSISTENT,INCONSISTENT',
-                             hash_handler.read_for_update())
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.INTERNAL_SERVER_ERROR,
+                                      0, 0, 0)), \
+                mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
+                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                as topo_mock:
+            # a failed DELETE call should trigger a forced topo_sync
+            # with check_ts True
+            pl.servers.rest_action('DELETE', '/', '', None, [])
+            topo_mock.assert_called_once_with(**{'check_ts': True})
 
-    def test_conflict_triggers_sync(self):
+    def test_post_failure_forces_topo_sync(self):
         pl = directory.get_plugin()
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.INTERNAL_SERVER_ERROR,
+                                      0, 0, 0)), \
+                mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
+                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                as topo_mock:
+            # a failed POST call should trigger a forced topo_sync
+            # with check_ts True
+            pl.servers.rest_action('POST', '/', '', None, [])
+            topo_mock.assert_called_once_with(**{'check_ts': True})
+
+    def test_topo_sync_failure_does_not_force_topo_sync(self):
+        pl = directory.get_plugin()
+        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
+                        return_value=(httplib.INTERNAL_SERVER_ERROR,
+                                      0, 0, 0)), \
+                mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
+                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                as topo_mock:
+            # a failed POST call for topology path should raise an exception
+            # and not call force_topo_sync like other failed rest_action
+            try:
+                pl.servers.rest_action('POST', '/topology', '', None, [])
+            except Exception as e:
+                isinstance(e, servermanager.RemoteRestError)
+            topo_mock.assert_not_called()
+
+    def test_not_found_sync_raises_error_without_topology(self):
+        pl = directory.get_plugin()
+        pl.servers.get_topo_function = None
         with \
             mock.patch(
                 SERVERMANAGER + '.ServerProxy.rest_call',
-                return_value=(httplib.CONFLICT, 0, 0, 0)) as srestmock, \
-            mock.patch(
-                CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
-                return_value=True):
-            # making a call should trigger a conflict sync
-            pl.servers.rest_call('GET', '/', '', None, [])
-            srestmock.assert_has_calls([
-                mock.call('GET', '/', '', None, False, reconnect=True,
-                          hash_handler=mock.ANY),
-                mock.call('POST', '/topology',
-                          {'routers': [], 'security-groups': [],
-                           'networks': [],
-                           'tenants': {'VRRP_Service': 'VRRP_Service'}},
-                          hash_handler=mock.ANY, timeout=None)
-            ])
-
-    def test_conflict_sync_raises_error_without_topology(self):
-        pl = directory.get_plugin()
-        pl.servers.get_topo_function = None
-        with mock.patch(SERVERMANAGER + '.ServerProxy.rest_call',
-                        return_value=(httplib.CONFLICT, 0, 0, 0)), \
-                mock.patch(
-                    CONSISTENCYDB + '.HashHandler.is_db_lock_owner',
-                    return_value=True,):
+                return_value=(httplib.NOT_FOUND, 0, 0, 0)):
             # making a call should trigger a conflict sync that will
             # error without the topology function set
             self.assertRaises(
                 cfg.Error,
-                pl.servers.rest_call,
+                pl.servers.rest_action,
                 *('GET', '/', '', None, [])
             )
 
@@ -475,8 +438,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # making a call should trigger a conflict sync
             pl.servers.rest_call('GET', '/', '', None, [])
             srestmock.assert_called_once_with(
-                'GET', '/', '', None, False, reconnect=True,
-                hash_handler=mock.ANY)
+                'GET', '/', '', None, False, reconnect=True)
 
     def test_no_send_all_data_without_keystone(self):
         pl = directory.get_plugin()
@@ -582,45 +544,136 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
                    filter_by(hash_id=handler.hash_id).first())
             return res.hash
 
-    def test_hash_handle_lock_no_initial_record(self):
+    def test_lock_no_initial_record(self):
         handler = consistency_db.HashHandler()
-        h1 = handler.read_for_update()
-        # return to caller should be empty even with lock in DB
-        self.assertFalse(h1)
+        h1 = handler.lock()
+        # lock() request on empty DB should succeed
+        self.assertTrue(h1)
         # db should have a lock marker
         self.assertEqual(handler.lock_marker,
                          self._get_hash_from_handler_db(handler))
-        # an entry should clear the lock
-        handler.put_hash('DIGEST')
-        self.assertEqual('DIGEST', self._get_hash_from_handler_db(handler))
-
-    def test_hash_handle_lock_existing_record(self):
-        handler = consistency_db.HashHandler()
-        handler.put_hash('DIGEST')  # set initial hash
-
-        h1 = handler.read_for_update()
-        self.assertEqual('DIGEST', h1)
-        self.assertEqual(handler.lock_marker + 'DIGEST',
+        # unlock() should clear the lock
+        handler.unlock()
+        self.assertEqual(handler.lock_ts,
                          self._get_hash_from_handler_db(handler))
-
-        # make sure update works
-        handler.put_hash('DIGEST2')
-        self.assertEqual('DIGEST2', self._get_hash_from_handler_db(handler))
 
     def test_db_duplicate_on_insert(self):
         handler = consistency_db.HashHandler()
         with mock.patch.object(
             handler.session, 'add', side_effect=[db_exc.DBDuplicateEntry, '']
         ) as add_mock:
-            handler.read_for_update()
+            handler.lock()
             # duplicate insert failure should result in retry
             self.assertEqual(2, add_mock.call_count)
 
-    def test_update_hit_no_records(self):
-        handler = consistency_db.HashHandler()
-        # set initial hash so update will be required
-        handler.put_hash('DIGEST')
-        with mock.patch.object(handler._FACADE, 'get_engine') as ge:
+    def test_lock_check_ts_true_prev_lock_exists(self):
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+
+        # 2nd thread came in just 10 millisecs after first one, and first one
+        # still holds the lock, expired  = False
+        timestamp_2 = float(handler1.lock_ts) + 10
+        handler2 = consistency_db.HashHandler(timestamp_ms=timestamp_2)
+        h2 = handler2.lock()
+        self.assertFalse(h2)
+
+    def test_lock_check_ts_false_prev_lock_exists(self):
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+
+        hh2_ts_hh1_ts_plus_1780 = float(handler1.lock_ts) + 1780
+        handler2 = consistency_db.HashHandler(
+            hash_id='1', timestamp_ms=hh2_ts_hh1_ts_plus_1780)
+        with mock.patch(CONSISTENCYDB + '.eventlet.sleep',
+                        side_effect=[Exception]) as emock:
+            try:
+                handler2.lock(check_ts=False)
+            except Exception:
+                pass
+        self.assertEqual(1, emock.call_count)
+
+    def test_lock_check_ts_true_prev_lock_not_expired(self):
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+
+        handler1.unlock()
+        self.assertEqual(handler1.lock_ts,
+                         self._get_hash_from_handler_db(handler1))
+
+        # thread 1 has executed the complete lock-unlock cycle
+        # thread 2 now tries to get lock with check_ts True
+        # TOPO_SYNC_EXPIRED_SECS = 1800
+        hh2_ts_under_limit = float(handler1.lock_ts) + 1000
+        handler2 = consistency_db.HashHandler(hash_id=1,
+                                              timestamp_ms=hh2_ts_under_limit)
+        h2 = handler2.lock()
+        self.assertFalse(h2)
+
+    def test_lock_check_ts_true_prev_lock_expired(self):
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+
+        handler1.unlock()
+        self.assertEqual(handler1.lock_ts,
+                         self._get_hash_from_handler_db(handler1))
+
+        # thread 1 has executed the complete lock-unlock cycle
+        # thread 2 now tries to get lock with check_ts True
+        # TOPO_SYNC_EXPIRED_SECS = 1 for testing
+        time.sleep(1)
+        handler2 = consistency_db.HashHandler()
+        # only for testing
+        consistency_db.TOPO_SYNC_EXPIRED_SECS = 1
+        h2 = handler2.lock()
+        self.assertTrue(h2)
+
+    def test_lock_check_ts_false_prev_lock_not_expired(self):
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+
+        handler1.unlock()
+        self.assertEqual(handler1.lock_ts,
+                         self._get_hash_from_handler_db(handler1))
+
+        # thread 1 has executed the complete lock-unlock cycle
+        # thread 2 now tries to get lock with check_ts True
+        # TOPO_SYNC_EXPIRED_SECS = 1800
+        hh2_ts_under_limit = float(handler1.lock_ts) + 1000
+        handler2 = consistency_db.HashHandler(hash_id=1,
+                                              timestamp_ms=hh2_ts_under_limit)
+        h2 = handler2.lock(check_ts=False)
+        self.assertTrue(h2)
+
+    def test_lock_check_ts_false_lock_clash(self):
+        # 2 threads try to lock the DB at the same time when check_ts is False
+        # and no thread holds the lock
+        handler1 = consistency_db.HashHandler()
+        h1 = handler1.lock()
+        self.assertTrue(h1)
+        handler1.unlock()
+        self.assertEqual(handler1.lock_ts,
+                         self._get_hash_from_handler_db(handler1))
+
+        handler2 = consistency_db.HashHandler()
+
+        with mock.patch.object(handler2._FACADE, 'get_engine') as ge, \
+                mock.patch(CONSISTENCYDB + '.eventlet.sleep',
+                           side_effect=[None]) as emock:
             conn = ge.return_value.begin.return_value.__enter__.return_value
             firstresult = mock.Mock()
             # a rowcount of 0 simulates the effect of another db client
@@ -629,68 +682,27 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             secondresult = mock.Mock()
             secondresult.rowcount = 1
             conn.execute.side_effect = [firstresult, secondresult]
-            handler.read_for_update()
+            h2 = handler2.lock(check_ts=False)
+            self.assertTrue(h2)
             # update should have been called again after the failure
             self.assertEqual(2, conn.execute.call_count)
-
-    def test_handler_already_holding_lock(self):
-        handler = consistency_db.HashHandler()
-        handler.read_for_update()  # lock the table
-        with mock.patch.object(handler._FACADE, 'get_engine') as ge:
-            handler.read_for_update()
-            # get engine should not have been called because no update
-            # should have been made
-            self.assertFalse(ge.called)
+            # sleep should have been called once, during first result failure
+            emock.assert_called_once()
 
     def test_clear_lock(self):
         handler = consistency_db.HashHandler()
-        handler.put_hash('SOMEHASH')
-        handler.read_for_update()  # lock the table
-        self.assertEqual(handler.lock_marker + 'SOMEHASH',
+        handler.lock()  # lock the table
+        self.assertEqual(handler.lock_marker,
                          self._get_hash_from_handler_db(handler))
-        handler.clear_lock()
-        self.assertEqual('SOMEHASH',
+        handler.unlock()
+        self.assertEqual(handler.lock_ts,
                          self._get_hash_from_handler_db(handler))
 
-    def test_clear_lock_skip_after_steal(self):
-        handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
-        handler2 = consistency_db.HashHandler()
-        with mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME', new=0):
-            handler2.read_for_update()
-            before = self._get_hash_from_handler_db(handler1)
-            # handler1 should not clear handler2's lock
-            handler1.clear_lock()
-            self.assertEqual(before, self._get_hash_from_handler_db(handler1))
-
-    def test_take_lock_from_other(self):
-        handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
-        handler2 = consistency_db.HashHandler()
-        with mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME') as mlock:
-            # make handler2 wait for only one iteration
-            mlock.__lt__.side_effect = [False, True]
-            handler2.read_for_update()
-            # once MAX LOCK exceeded, comparisons should stop due to lock steal
-            self.assertEqual(2, mlock.__lt__.call_count)
-            dbentry = self._get_hash_from_handler_db(handler1)
-            # handler2 should have the lock
-            self.assertIn(handler2.lock_marker, dbentry)
-            self.assertNotIn(handler1.lock_marker, dbentry)
-            # lock protection only blocks read_for_update, anyone can change
-            handler1.put_hash('H1')
-
-    def test_failure_to_steal_lock(self):
-        handler1 = consistency_db.HashHandler()
-        handler1.read_for_update()  # lock the table
-        handler2 = consistency_db.HashHandler()
-        with\
-            mock.patch.object(consistency_db, 'MAX_LOCK_WAIT_TIME') as mlock,\
-            mock.patch.object(handler2, '_optimistic_update_hash_record',
-                              side_effect=[False, True]) as oplock:
-            # handler2 will go through 2 iterations since the lock will fail on
-            # the first attempt
-            mlock.__lt__.side_effect = [False, True, False, True]
-            handler2.read_for_update()
-            self.assertEqual(4, mlock.__lt__.call_count)
-            self.assertEqual(2, oplock.call_count)
+    def test_handler_already_holding_lock(self):
+        handler = consistency_db.HashHandler()
+        handler.lock()  # lock the table
+        with mock.patch.object(handler._FACADE, 'get_engine') as ge:
+            handler.lock()
+            # get engine should not have been called because no update
+            # should have been made
+            self.assertFalse(ge.called)
