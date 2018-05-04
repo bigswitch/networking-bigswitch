@@ -392,10 +392,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
-        return self._send_all_data(send_floating_ips=self.l3_bsn_plugin,
-                                   send_routers=self.l3_bsn_plugin,
-                                   timeout=timeout,
-                                   triggered_by_tenant=triggered_by_tenant)
+        return self._send_all_data(
+            send_floating_ips=self.l3_bsn_plugin,
+            send_routers=self.l3_bsn_plugin,
+            timeout=timeout,
+            triggered_by_tenant=triggered_by_tenant)
 
     def _send_all_data(self, send_ports=True, send_floating_ips=True,
                        send_routers=True, send_sgs=True, timeout=None,
@@ -404,18 +405,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         This gives the controller an option to re-sync it's persistent store
         with neutron's current view of that data.
-        """
-        data = self._get_all_data(
-            send_ports, send_floating_ips, send_routers, send_sgs)
-        # Lost keystone connection if data is None
-        # Log an error and continue
-        if data is None:
-            return None
 
-        data['triggered_by_tenant'] = triggered_by_tenant
-        errstr = _("Unable to update remote topology: %s")
-        return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
-                                        data, errstr, timeout=timeout)
+        All args are ignored. The `_get_all_data` method dynamically pulls the
+        relevant information i.e. if its L2 only or L2+L3.
+        """
+        return self.servers.force_topo_sync()
 
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or

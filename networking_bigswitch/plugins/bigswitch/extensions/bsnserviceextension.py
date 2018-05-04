@@ -158,6 +158,22 @@ RESOURCE_ATTRIBUTE_MAP = {
                      'is_visible': True,
                      'default': ''},
     },
+    'forcesynctopologies': {
+        'id': {'allow_post': False, 'allow_put': False,
+               'is_visible': True},
+        'project_id': {'allow_post': True, 'allow_put': False,
+                       'validate': {'type:string': None},
+                       'is_visible': True},
+        'timestamp_ms': {'allow_post': False, 'allow_put': True,
+                         'validate': {'type:string': None},
+                         'is_visible': True},
+        'timestamp_datetime': {'allow_post': False, 'allow_put': False,
+                               'validate': {'type:string': None},
+                               'is_visible': True},
+        'status': {'allow_post': False, 'allow_put': False,
+                   'validate': {'type:string': None},
+                   'is_visible': True}
+    },
 }
 
 
@@ -326,4 +342,19 @@ class BSNServicePluginBase(object):
 
     @abc.abstractmethod
     def delete_tenantpolicy(self, context, id):
+        pass
+
+    # Force Topology Sync command
+    @abc.abstractmethod
+    def update_forcesynctopology(self, context, id, forcesynctopology):
+        pass
+
+    @abc.abstractmethod
+    def get_forcesynctopologies(self, context, filters=None, fields=None,
+                                sorts=None, limit=None, marker=None,
+                                page_reverse=False):
+        pass
+
+    @abc.abstractmethod
+    def get_forcesynctopology(self, context, id, fields=None):
         pass
