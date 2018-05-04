@@ -75,15 +75,13 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
-        hash_handler = cdb.HashHandler()
-        if hash_handler.is_db_hash_empty():
-            LOG.debug("Forcing topology sync as consistency hash is empty")
-            hash_handler.read_for_update()
-            hash_handler.put_hash('initial:hash,code')
-
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
         self.servers.get_topo_function = self._get_all_data_auto
+
+        LOG.debug("Performing initial topo_sync")
+        self.servers.force_topo_sync(check_ts=True)
+
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # Track hosts running IVS to avoid excessive calls to the backend
         self.vswitch_host_cache = {}
