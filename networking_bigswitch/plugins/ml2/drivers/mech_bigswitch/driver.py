@@ -35,7 +35,6 @@ from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
-from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import plugin
@@ -67,15 +66,18 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         pl_config.register_config()
         self.evpool = eventlet.GreenPool(cfg.CONF.RESTPROXY.thread_pool_size)
 
-        hash_handler = cdb.HashHandler()
-        if hash_handler.is_db_hash_empty():
-            LOG.debug("Forcing topology sync as consistency hash is empty")
-            hash_handler.read_for_update()
-            hash_handler.put_hash('initial:hash,code')
-
         # init network ctrl connections
         self.servers = servermanager.ServerPool()
-        self.servers.get_topo_function = self._get_all_data_auto
+        self.servers.get_topo_function = self._get_all_data
+        self.servers.get_topo_function_args = {'get_ports': True,
+                                               'get_floating_ips': True,
+                                               'get_routers': True,
+                                               'get_sgs': True}
+        # perform one forced topo_sync after 60secs. delayed to let plugin
+        # initialization complete
+        eventlet.spawn_after(60, self.servers.force_topo_sync,
+                             **{'check_ts': True})
+
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
