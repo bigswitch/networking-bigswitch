@@ -365,17 +365,18 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         This gives the controller an option to re-sync it's persistent store
         with neutron's current view of that data.
         """
-        data = self._get_all_data(
-            send_ports, send_floating_ips, send_routers, send_sgs)
-        # Lost keystone connection if data is None
-        # Log an error and continue
-        if data is None:
-            return None
-
-        data['triggered_by_tenant'] = triggered_by_tenant
-        errstr = _("Unable to update remote topology: %s")
-        return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
-                                        data, errstr, timeout=timeout)
+        return self.servers.force_topo_sync()
+        # data = self._get_all_data(
+        #     send_ports, send_floating_ips, send_routers, send_sgs)
+        # # Lost keystone connection if data is None
+        # # Log an error and continue
+        # if data is None:
+        #     return None
+        #
+        # data['triggered_by_tenant'] = triggered_by_tenant
+        # errstr = _("Unable to update remote topology: %s")
+        # return self.servers.rest_action('POST', servermanager.TOPOLOGY_PATH,
+        #                                 data, errstr, timeout=timeout)
 
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
