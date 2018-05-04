@@ -123,6 +123,16 @@ RESOURCE_ATTRIBUTE_MAP = {
         'save_test': {'allow_post': False, 'allow_put': True,
                      'is_visible': True},
     },
+    'bsnforcetopologies': {
+        'id': {'allow_post': False, 'allow_put': False,
+               'is_visible': True},
+        'project_id': {'allow_post': True, 'allow_put': False,
+                       'validate': {'type:string': None},
+                       'is_visible': True},
+        'result': {'allow_post': False, 'allow_put': False,
+                   'validate': {'type:string': None},
+                   'is_visible': True}
+    },
 }
 
 
@@ -268,4 +278,10 @@ class BSNServicePluginBase(object):
 
     @abc.abstractmethod
     def delete_reachabilityquicktest(self, context, id):
+        pass
+
+    # Topology Sync command
+    def get_bsnforcetopologies(self, context, filters=None, fields=None,
+                               sorts=None, limit=None, marker=None,
+                               page_reverse=False):
         pass
