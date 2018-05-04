@@ -381,3 +381,32 @@ class ReachabilityQuickTestsShow(extension.ClientExtensionShow,
     """Show a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-show'
+
+
+# Force Sync Topology
+class ForceSyncTopology(extension.NeutronClientExtension):
+    resource = 'forcesynctopology'
+    resource_plural = 'forcesynctopologies'
+    object_path = '/%s' % resource_plural
+    resource_path = '/%s/%%s' % resource_plural
+    versions = ['2.0']
+
+
+class ForceSyncTopologiesUpdate(extension.ClientExtensionUpdate,
+                                ForceSyncTopology):
+    """Force a complete Topology Sync to BCF controller."""
+
+    shell_command = 'force-bcf-sync'
+    list_columns = ['id', 'status']
+
+    def args2body(self, parsed_args):
+        body = {'timestamp_ms': 'now'}
+        return {'forcesynctopology': body}
+
+
+class ForceSyncTopologiesList(extension.ClientExtensionList,
+                              ForceSyncTopology):
+    """Show the status of last scheduled Topology Sync to BCF."""
+
+    shell_command = 'bcf-sync-status'
+    list_columns = ['id', 'timestamp_ms', 'timestamp_datetime', 'status']
