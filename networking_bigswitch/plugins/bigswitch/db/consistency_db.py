@@ -15,7 +15,6 @@
 import eventlet
 import random
 import re
-import string
 import time
 
 from oslo_config import cfg
@@ -37,6 +36,7 @@ MAX_LOCK_WAIT_TIME = 15  # seconds
 MAX_LOCK_TOPOSYNC_WAIT_TIME = 300  # seconds
 MIN_LOCK_RETRY_SLEEP_TIME = 100  # milliseconds
 MAX_LOCK_RETRY_SLEEP_TIME = 250  # milliseconds
+TOPO_SYNC_EXPIRED_SECS = 1800
 DBLOCK_ID_LEN = 12
 DBLOCK_PREFIX_TOPO = "TOPO"
 DBLOCK_PREFIX_AUTOGEN = "A"
@@ -83,23 +83,16 @@ class HashHandler(object):
     '''
     _FACADE = None
 
-    def __init__(self, hash_id='1', prefix=None):
+    def __init__(self, hash_id='1', timestamp_ms=None):
         if HashHandler._FACADE is None:
             HashHandler._FACADE = session.EngineFacade.from_config(
                 cfg.CONF, sqlite_fk=True)
 
-        if not prefix:
-            prefix = DBLOCK_PREFIX_AUTOGEN
-        length = max((DBLOCK_ID_LEN - len(prefix)), 0)
-
         self.hash_id = hash_id
         self.session = HashHandler._FACADE.get_session(autocommit=True,
                                                        expire_on_commit=False)
-        self.random_lock_id = ''.join(random.choice(string.ascii_uppercase
-                                                    + string.digits)
-                                      for _ in range(length))
-        self.random_lock_id = prefix + self.random_lock_id
-        self.lock_marker = 'LOCKED_BY[%s]' % self.random_lock_id
+        self.lock_ts = str(timestamp_ms) if timestamp_ms else str(time.time())
+        self.lock_marker = 'LOCKED_BY[%s]' % self.lock_ts
 
     def _get_current_record(self):
         with self.session.begin(subtransactions=True):
@@ -140,7 +133,7 @@ class HashHandler(object):
         return result.rowcount != 0
 
     def _get_lock_owner(self, record):
-        matches = re.findall(r"^LOCKED_BY\[(\w+)\]", record)
+        matches = re.findall(r"^LOCKED_BY\[(\d+\.\d+)\]", record)
         if not matches:
             return None
         return matches[0]
@@ -150,7 +143,7 @@ class HashHandler(object):
         @return: DB_HASH, on success
                  None, otherwise
         """
-        lock_id = self.random_lock_id
+        lock_id = self.lock_ts
         current_lock_owner = self._get_lock_owner(res.hash)
         LOG.warning(_LW("Gave up waiting for consistency DB lock, trying to "
                         "take it. Current hash is: %s"), res.hash)
@@ -163,7 +156,7 @@ class HashHandler(object):
                  {'this': lock_id})
         return None
 
-    def read_for_update(self):
+    def lock(self):
         # An optimistic locking strategy with a timeout to avoid using a
         # consistency hash while another server is using it. This will
         # not return until a lock is acquired either normally or by stealing
@@ -171,7 +164,7 @@ class HashHandler(object):
         # MAX_LOCK_WAIT_TIME.
         lock_wait_start = None
         last_lock_owner = None
-        lock_id = self.random_lock_id
+        lock_id = self.lock_ts
         retry_sleep_time = random.randint(MIN_LOCK_RETRY_SLEEP_TIME,
                                           MAX_LOCK_RETRY_SLEEP_TIME) / 1000.0
         LOG.debug("This request's LockID is %s", lock_id)
@@ -193,7 +186,7 @@ class HashHandler(object):
             current_lock_owner = self._get_lock_owner(res.hash)
             if not current_lock_owner:
                 # no current lock. attempt to lock
-                new = self.lock_marker + res.hash
+                new = self.lock_marker
                 if not self._optimistic_update_hash_record(res, new):
                     # someone else beat us to it. restart process to wait
                     # for new lock ID to be removed
@@ -229,11 +222,11 @@ class HashHandler(object):
 
             db_lock_hash = None
             time_waited = cur_time - lock_wait_start
-            if current_lock_owner.startswith(DBLOCK_PREFIX_TOPO):
-                # Extended timeout for TopoSync as it could take more time
-                if time_waited > MAX_LOCK_TOPOSYNC_WAIT_TIME:
-                    db_lock_hash = self._try_force_acquire_db_lock(res)
-            elif time_waited > MAX_LOCK_WAIT_TIME:
+            # if current_lock_owner.startswith(DBLOCK_PREFIX_TOPO):
+            #     # Extended timeout for TopoSync as it could take more time
+            #     if time_waited > MAX_LOCK_TOPOSYNC_WAIT_TIME:
+            #         db_lock_hash = self._try_force_acquire_db_lock(res)
+            if time_waited > MAX_LOCK_WAIT_TIME:
                 db_lock_hash = self._try_force_acquire_db_lock(res)
 
             if db_lock_hash:
@@ -242,8 +235,9 @@ class HashHandler(object):
 
             eventlet.sleep(retry_sleep_time)
 
-    def clear_lock(self):
-        LOG.debug("Clearing hash record of LockID  %s", self.random_lock_id)
+    def unlock(self):
+        LOG.debug("Unlocking and setting timestamp_ms to LockID  %s",
+                  self.lock_ts)
         with self.session.begin(subtransactions=True):
             res = (self.session.query(ConsistencyHash).
                    filter_by(hash_id=self.hash_id).first())
@@ -257,76 +251,4 @@ class HashHandler(object):
                 LOG.warning(_LW("Another server already removed the lock. %s"),
                             res.hash)
                 return
-            res.hash = res.hash.replace(self.lock_marker, '')
-
-    def put_hash(self, hash):
-        hash = hash or ''
-        with self.session.begin(subtransactions=True):
-            res = (self.session.query(ConsistencyHash).
-                   filter_by(hash_id=self.hash_id).first())
-            if res:
-                res.hash = hash
-            else:
-                conhash = ConsistencyHash(hash_id=self.hash_id, hash=hash)
-                self.session.merge(conhash)
-        LOG.debug("Consistency hash for group %(hash_id)s updated "
-                  "to %(hash)s by LockID %(this)s",
-                  {'hash_id': self.hash_id, 'hash': hash,
-                   'this': self.random_lock_id})
-
-    def put_hash_if_owner(self, new_hash):
-        """Update the DB Hash if the current thread is the DB lock owner
-        @:return: True, if DB hash was successfully updated
-                  False, otherwise
-        """
-        new_hash = new_hash or ''
-        lock_marker = self.lock_marker + '%'
-        query = sa.update(ConsistencyHash.__table__).values(hash=new_hash)
-        query = query.where(ConsistencyHash.hash_id == self.hash_id)
-        query = query.where(ConsistencyHash.hash.like(lock_marker))
-
-        success = True
-        try:
-            with self._FACADE.get_engine().begin() as conn:
-                result = conn.execute(query)
-        except db_exc.DBDeadlock:
-            success = False
-
-        # We need to check update row count for successful update
-        if success and (result.rowcount != 0):
-            # DB Hash update was successful
-            LOG.debug("Consistency hash for group %(hash_id)s updated "
-                      "to %(hash)s by LockID %(this)s",
-                      {'hash_id': self.hash_id, 'hash': new_hash,
-                       'this': self.random_lock_id})
-            return True
-
-        LOG.debug("LockID %s is no longer DB lock owner. Consistency "
-                  "hash not updated", self.random_lock_id)
-        return False
-
-    def is_db_lock_owner(self):
-        """Check if the current thread is the DB lock owner
-        @:return True, if thread is the DB lock owner
-                 False, otherwise
-        """
-        res = self._get_current_record()
-        if not res:
-            return False
-
-        lock_owner = self._get_lock_owner(res.hash)
-        if not lock_owner:
-            return False
-
-        if lock_owner == self.random_lock_id:
-            return True
-        return False
-
-    def is_db_hash_empty(self):
-        """Check if DB hash record exists
-        :return: True, if there is no hash entry
-                 False, otherwise
-        """
-        if not self._get_current_record():
-            return True
-        return False
+            res.hash = res.hash.replace(self.lock_marker, self.lock_ts)
