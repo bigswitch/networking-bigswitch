@@ -259,3 +259,13 @@ class BSNServicePlugin(service_base.ServicePluginBase,
     def delete_reachabilityquicktest(self, context, id):
         self.reachabilityquicktest_db_mixin.delete_reachabilityquicktest(
             context=context, id=id)
+
+    # public CRUD methods for Topology Sync command
+    def create_forcesynctopology(self, context, forcesynctopology):
+        data = forcesynctopology['forcesynctopology']
+        ret = self.servers.force_topo_sync(check_ts=False)
+        # append result to data and return
+        data['result'] = ('SUCCESS'
+                          if ret[0] in servermanager.SUCCESS_CODES
+                          else 'FAILURE')
+        return data
