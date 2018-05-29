@@ -24,9 +24,13 @@
             required-projects:
               - name: openstack/neutron
                 override-checkout: newton-eol
+              - name: openstack/cliff
+                override-checkout: newton-eol
         - openstack-tox-py27:
             required-projects:
               - name: openstack/neutron
+                override-checkout: newton-eol
+              - name: openstack/cliff
                 override-checkout: newton-eol
     gate:
       jobs:
@@ -34,13 +38,19 @@
             required-projects:
               - name: openstack/neutron
                 override-checkout: newton-eol
+              - name: openstack/cliff
+                override-checkout: newton-eol
         - openstack-tox-py27:
             required-projects:
               - name: openstack/neutron
+                override-checkout: newton-eol
+              - name: openstack/cliff
                 override-checkout: newton-eol
     post:
       jobs:
         - publish-openstack-python-branch-tarball:
             required-projects:
               - name: openstack/neutron
+                override-checkout: newton-eol
+              - name: openstack/cliff
                 override-checkout: newton-eol
