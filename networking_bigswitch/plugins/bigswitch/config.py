@@ -110,21 +110,12 @@ VIF_TYPES = [
 
 PROVIDER_NETWORK_TYPE = 'provider:network_type'
 PROVIDER_PHYSNET = 'provider:physical_network'
-VIF_DET_BSN_VSWITCH_HOST_ID = "bsn_vswitch_host_id"
-VHOST_USER_SOCKET_DIR = "/run/vhost/"
 
 # SR-IOV related constants
 UNSUPPORTED_VNIC_TYPES = [portbindings.VNIC_DIRECT_PHYSICAL]
 VNIC_TYPE_SRIOV = [portbindings.VNIC_DIRECT]
 SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR = 'BSN-ACTIVE-'
 SRIOV_ACTIVE_PHYSNET = SRIOV_ACTIVE_ACTIVE_MODE_PHYSNET_SUBSTR + '1'
-
-
-class VSwitchType(enumerate):
-    """Enums declaring the different Virtual Switch types"""
-    VIRTUAL = "virtual"        # Indigo virtual switch (IVS)
-    NFVSWITCH = "nfvswitch"    # NFV switch
-
 
 # Each VIF Type can have a list of nova host IDs that are fixed to that type
 for i in VIF_TYPES:
