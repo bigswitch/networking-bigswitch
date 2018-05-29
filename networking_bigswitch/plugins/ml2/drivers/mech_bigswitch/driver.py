@@ -42,7 +42,6 @@ from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import plugin
 from networking_bigswitch.plugins.bigswitch import servermanager
 
-from networking_bigswitch.plugins.bigswitch.config import VHOST_USER_SOCKET_DIR
 from networking_bigswitch.plugins.bigswitch.config \
     import VIF_DET_BSN_VSWITCH_HOST_ID
 from networking_bigswitch.plugins.bigswitch.config import VSwitchType
@@ -363,74 +362,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         prepped_port = self._map_port_hostid(prepped_port, net)
         return prepped_port
 
-    def _bind_port_nfvswitch(self, context, segment, host_id):
-        """Perform bind_port for nfvswitch.
-
-        A NFV VM needs to be attached to a nfv-switch socket. So, during
-        bind_port() we create a NFV VM endpoint on BCF, thereby reserving the
-        socket for it's use. Then pass the sock_path in the set_binding() for
-        Nova to plug the VM to the nfv-switch.
-
-        @param context: PortContext object
-        """
-        vif_type = portbindings.VIF_TYPE_VHOST_USER
-        port = self._prepare_port_for_controller(context)
-        if not port:
-            LOG.warning("nfv-switch bind_port() skipped due to missing "
-                        "Host ID.")
-            return
-
-        # Create an endpoint corresponding to the port on the Controller,
-        # thereby asking the Controller to reserve a vhost_sock for it
-        tenant_id = port["network"]["tenant_id"]
-        network_id = port["network"]["id"]
-        # Set vif_type to 'vhost_user' for the Controller to reserve vhost_sock
-        port[portbindings.VIF_TYPE] = vif_type
-        # Update host_id so that endpoint create will have the correct value
-        port[portbindings.HOST_ID] = host_id
-        try:
-            self.async_port_create(tenant_id, network_id, port)
-        except servermanager.RemoteRestError as e:
-            with excutils.save_and_reraise_exception() as ctxt:
-                if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
-                        e.status == httplib.NOT_FOUND and
-                        servermanager.NXNETWORK in e.reason):
-                    ctxt.reraise = False
-                    LOG.error("Inconsistency with backend controller "
-                              "triggering full synchronization.")
-                    self._send_all_data_auto(triggered_by_tenant=tenant_id)
-
-        # Retrieve the vhost_socket reserved for the port(endpoint) by the
-        # Controller and use it in set_binding()
-        resp = self.servers.rest_get_port(tenant_id, network_id, port["id"])
-        if not resp or not isinstance(resp, list):
-            LOG.warning("Controller failed to reserve a nfv-switch sock")
-            return
-
-        vhost_sock = None
-        attachment_point = resp[0].get('attachment-point')
-        if attachment_point:
-            vhost_sock = attachment_point.get('interface')
-
-        if not vhost_sock:
-            LOG.warning("Controller failed to reserve a nfv-switch sock")
-            return
-
-        vhost_sock_path = self._get_vhost_user_sock_path(vhost_sock)
-        LOG.info('nfv-switch VM %(port)s alloted sock_path %(sock)s',
-                 {'port': port['id'], 'sock': vhost_sock_path})
-
-        # Update vif_details with host_id. This way, for all BCF
-        # communications, we we shall use it as HOST_ID (i.e. interface-group
-        # on BCF)
-        vif_details = {portbindings.CAP_PORT_FILTER: False,
-                       portbindings.VHOST_USER_MODE:
-                       portbindings.VHOST_USER_MODE_SERVER,
-                       portbindings.VHOST_USER_OVS_PLUG: False,
-                       portbindings.VHOST_USER_SOCKET: vhost_sock_path,
-                       VIF_DET_BSN_VSWITCH_HOST_ID: host_id}
-        context.set_binding(segment[api.ID], vif_type, vif_details)
-
     def _bind_port_ivswitch(self, context, segment, host_id):
         """Perform bind_port for Indigo virtual switch.
 
@@ -481,9 +412,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             if segment[api.NETWORK_TYPE] == const.TYPE_VLAN:
                 (vswitch_type, host_id) = self.get_vswitch_type(context.host,
                                                                 segment)
-                if vswitch_type == VSwitchType.NFVSWITCH:
-                    self._bind_port_nfvswitch(context, segment, host_id)
-                elif vswitch_type == VSwitchType.VIRTUAL:
+                if vswitch_type == VSwitchType.VIRTUAL:
                     self._bind_port_ivswitch(context, segment, host_id)
 
     def get_vswitch_type(self, host, segment=None):
@@ -559,7 +488,3 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         if entry['exists']:
             return entry['type']
         return None
-
-    def _get_vhost_user_sock_path(self, sock):
-        """Get the socket path for the vhost_user socket. """
-        return VHOST_USER_SOCKET_DIR + str(sock)
