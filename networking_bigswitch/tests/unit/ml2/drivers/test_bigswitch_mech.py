@@ -195,71 +195,12 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_bind_ivs_port(self):
         host_arg = {portbindings.HOST_ID: 'hostname'}
         with mock.patch(SERVER_POOL + '.rest_get_switch',
-                        return_value=[{"fabric-role": "virtual"}]) as rmock, \
+                        return_value=[{"fabric-role": "virtual"}]),\
                 self.port(arg_list=(portbindings.HOST_ID,),
                           **host_arg) as port:
-            rmock.assert_called_once_with('hostname.' + PHYS_NET)
             p = port['port']
             self.assertEqual('hostname', p[portbindings.HOST_ID])
             self.assertEqual(pl_config.VIF_TYPE_IVS,
-                             p[portbindings.VIF_TYPE])
-            # get port to check status
-            ctx = neutron_context.Context(user_id=None,
-                                          tenant_id=p['tenant_id'],
-                                          is_admin=False)
-            pl = directory.get_plugin()
-            new_port = pl.get_port(ctx, p['id'])
-            self.assertEqual('ACTIVE', new_port['status'])
-
-    def test_bind_nfvswitch_port(self):
-        host_arg = {portbindings.HOST_ID: 'hostname'}
-        vhost_sock = "vhost0"
-        with mock.patch(SERVER_POOL + '.rest_get_switch',
-                        return_value=[{"fabric-role": "nfvswitch"}]) \
-                as rmock1, \
-                mock.patch(SERVER_POOL + '.rest_create_port',
-                           return_value=None), \
-                mock.patch(SERVER_POOL + '.rest_get_port',
-                           return_value=[{'attachment-point': {
-                               'interface': vhost_sock}}]), \
-                self.port(arg_list=(portbindings.HOST_ID,),
-                          **host_arg) as port:
-            rmock1.assert_called_with('hostname.' + PHYS_NET)
-            p = port['port']
-            self.assertEqual('hostname', p[portbindings.HOST_ID])
-            self.assertEqual(portbindings.VIF_TYPE_VHOST_USER,
-                             p[portbindings.VIF_TYPE])
-
-            vif_details = p['binding:vif_details']
-            self.assertEqual(vif_details[portbindings.VHOST_USER_SOCKET],
-                             "/run/vhost/" + vhost_sock)
-            self.assertEqual(vif_details[portbindings.VHOST_USER_MODE],
-                             portbindings.VHOST_USER_MODE_SERVER)
-            self.assertEqual(vif_details[portbindings.CAP_PORT_FILTER], False)
-            self.assertEqual(vif_details[portbindings.VHOST_USER_OVS_PLUG],
-                             False)
-            # get port to check status
-            ctx = neutron_context.Context(user_id=None,
-                                          tenant_id=p['tenant_id'],
-                                          is_admin=False)
-            pl = directory.get_plugin()
-            new_port = pl.get_port(ctx, p['id'])
-            self.assertEqual('ACTIVE', new_port['status'])
-
-    def test_bind_nfvswitch_port_nosock_fail(self):
-        host_arg = {portbindings.HOST_ID: 'hostname'}
-        with mock.patch(SERVER_POOL + '.rest_get_switch',
-                        return_value=[{"fabric-role": "nfvswitch"}]) as rmock1,\
-                mock.patch(SERVER_POOL + '.rest_create_port',
-                           return_value=None), \
-                mock.patch(SERVER_POOL + '.rest_get_port',
-                           return_value=None), \
-                self.port(arg_list=(portbindings.HOST_ID,),
-                          **host_arg) as port:
-            rmock1.assert_called_with('hostname.' + PHYS_NET)
-            p = port['port']
-            self.assertEqual('hostname', p[portbindings.HOST_ID])
-            self.assertEqual(portbindings.VIF_TYPE_BINDING_FAILED,
                              p[portbindings.VIF_TYPE])
 
     def test_bind_vswitch_on_host(self):
@@ -333,12 +274,10 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
                 portbindings.HOST_ID: 'hostname'})
 
             with makeport() as p1, makeport() as p2, makeport() as p3:
-                ports = [p1, p2, p3]
-                # response from first should be cached
-                rmock.assert_called_once_with('hostname.' + PHYS_NET)
-                for port in ports:
+                for p in [p1, p2, p3]:
+                    # response from first should be cached
                     self.assertEqual(pl_config.VIF_TYPE_IVS,
-                                     port['port'][portbindings.VIF_TYPE])
+                                     p['port'][portbindings.VIF_TYPE])
             rmock.reset_mock()
             # expired cache should result in new calls
             mock.patch(DRIVER_MOD + '.CACHE_VSWITCH_TIME', new=0).start()

@@ -708,7 +708,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
         # Update HOST_ID (to be used by BCF).
         # - For SR-IOV it is a function of HostID & physnet info
-        # - For IVS and NFVSwitch, this is a param in vif_details
         if self._is_port_sriov(prepped_port):
             vif_type = prepped_port.get(portbindings.VIF_TYPE)
             if not vif_type or vif_type == portbindings.VIF_TYPE_UNBOUND:
@@ -719,12 +718,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             if not hostid:
                 return False
             prepped_port[portbindings.HOST_ID] = hostid
-        else:
-            vif_details = prepped_port.get(portbindings.VIF_DETAILS)
-            if vif_details:
-                hostid = vif_details.get(pl_config.VIF_DET_BSN_VSWITCH_HOST_ID)
-                if hostid:
-                    prepped_port[portbindings.HOST_ID] = hostid
 
         return prepped_port
 
