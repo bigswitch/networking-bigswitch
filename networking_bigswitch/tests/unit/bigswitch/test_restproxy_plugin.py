@@ -239,22 +239,6 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
         with self.port(**kwargs) as port:
             self.assertEqual(port['port']['binding:vif_type'], self.VIF_TYPE)
 
-    def test_port_nfvswitch_vif_details_override(self):
-        # nfvhost is in the test config to override to vhostuser
-        kwargs = {'name': 'name', 'binding:host_id': 'nfvhost',
-                  'device_id': 'override_dev',
-                  'arg_list': ('binding:host_id',)}
-        with self.port(**kwargs) as port:
-            self.assertEqual(port['port']['binding:vif_type'],
-                             portbindings.VIF_TYPE_VHOST_USER)
-
-        self._delete('ports', port['port']['id'])
-        self._delete('networks', port['port']['network_id'])
-        kwargs = {'name': 'name2', 'binding:host_id': 'someotherhost',
-                  'device_id': 'other_dev'}
-        with self.port(**kwargs) as port:
-            self.assertEqual(port['port']['binding:vif_type'], self.VIF_TYPE)
-
     def test_port_move(self):
         # ivshost is in the test config to override to IVS
         kwargs = {'name': 'name', 'binding:host_id': 'ivshost',
