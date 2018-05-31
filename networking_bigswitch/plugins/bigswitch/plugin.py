@@ -166,7 +166,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         self._setup_rpc()
 
     def _setup_rpc(self):
-        self.conn = n_rpc.create_connection()
+        self.conn = n_rpc.Connection()
         self.topic = topics.PLUGIN
         self.notifier = AgentNotifierApi(topics.AGENT)
         # init dhcp agent support
