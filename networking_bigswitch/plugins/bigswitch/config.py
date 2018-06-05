@@ -110,7 +110,6 @@ VIF_TYPES = [
 
 PROVIDER_NETWORK_TYPE = 'provider:network_type'
 PROVIDER_PHYSNET = 'provider:physical_network'
-VIF_DET_BSN_VSWITCH_HOST_ID = "bsn_vswitch_host_id"
 
 # SR-IOV related constants
 UNSUPPORTED_VNIC_TYPES = [portbindings.VNIC_DIRECT_PHYSICAL]

@@ -357,15 +357,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         prepped_port = self._map_port_hostid(prepped_port, net)
         return prepped_port
 
-    def _bind_port_ivswitch(self, context, segment, host_id):
+    def _bind_port_ivswitch(self, context, segment):
         """Perform bind_port for Indigo virtual switch.
 
         @param context: PortContext object
         """
         vif_type = pl_config.VIF_TYPE_IVS
         vif_details = {portbindings.CAP_PORT_FILTER: True,
-                       portbindings.OVS_HYBRID_PLUG: True,
-                       pl_config.VIF_DET_BSN_VSWITCH_HOST_ID: host_id}
+                       portbindings.OVS_HYBRID_PLUG: True}
         context.set_binding(segment[api.ID], vif_type, vif_details)
 
     @put_context_in_serverpool
@@ -400,7 +399,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         if self.does_vswitch_exist(context.host):
             for segment in context.segments_to_bind:
                 if segment[api.NETWORK_TYPE] == const.TYPE_VLAN:
-                    self._bind_port_ivswitch(context, segment, context.host)
+                    self._bind_port_ivswitch(context, segment)
 
     def does_vswitch_exist(self, host):
         """Check if Indigo vswitch exists with the given hostname.
