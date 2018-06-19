@@ -92,13 +92,79 @@ def get_mac_str(network_interface):
         return f.read().strip()
 
 
-def get_uplinks_and_chassisid():
-    """Get uplinks and chassis_id in RHOSP environment.
+def add_intf_to_map(intf_map, bridge_or_bond, config_type, intf_index):
+    """Adds an interface to the interface map, after performing validation
 
-    :returns: a list of uplinks names and one chassis_id
-        which is the first active nic's mac address.
+    interface_map has a specific structure. this method checks and inserts
+    keys if they're missing for the bridge or interface being added.
+
+    :param intf_map: interface map object to which the interface is added
+    :param bridge_or_bond: bridge or bond name to which the interface belongs
+    :param config_type: type of object - either bridge or bond
+    :param intf_index: name or index number of the interface
+                       if interface is in nicX format, this will be a
+                       numerical index, else name. both would be string.
+    :return: intf_map after being updated
     """
-    intf_indexes = []
+    if bridge_or_bond not in intf_map:
+        intf_map[bridge_or_bond] = {}
+    if 'config_type' not in intf_map[bridge_or_bond]:
+        intf_map[bridge_or_bond]['config_type'] = config_type
+    if 'members' not in intf_map[bridge_or_bond]:
+        intf_map[bridge_or_bond]['members'] = []
+    intf_map[bridge_or_bond]['members'].append(intf_index)
+    return intf_map
+
+
+def _get_intf_index(nic_name):
+    """os-net-config can have interface name stored nicX, where X is a number
+
+    in this case, REAL interface name is not used. derive the index if it is in
+    nicX format.
+    otherwise, simply use the name.
+
+    :param nic_name:
+    :return: index or name. both in string format.
+    """
+    indexes = map(int, re.findall(r'\d+', nic_name))
+    if len(indexes) == 1 and nic_name.startswith("nic"):
+        intf_index = str(indexes[0] - 1)
+    else:
+        intf_index = str(nic_name)
+    return intf_index
+
+
+def get_network_interface_map():
+    """Get interface map for bonds and bridges relevant on this RHOSP node
+
+    :return: returns a mapping of network interfaces with its parent being a
+             bridge or bond. syntax:
+             {
+                'bridge_or_bond_name': {
+                    'type': 'bond or bridge type',
+                    'bonded_nics': boolean, False if interface is not part of
+                                    a bond, absent otherwise,
+                    'members': [ list of interfaces ]
+                }
+             }
+
+             sample output of a mix of bonds and bridges:
+
+             {
+                 u 'bond_api': {
+                     'type': 'linux_bond',
+                     'members': ['p1p1']
+                 }, u 'br-link': {
+                     'type': 'ovs_bridge',
+                     'bonded_nics': False,
+                     'members': ['p1p2']
+                 }, u 'br-ex': {
+                     'type': 'ovs_bridge',
+                     'members': ['p1p1', 'p1p2']
+                 }
+             }
+    """
+    intf_map = {}
     while True:
         if not os.path.isfile(NET_CONF_PATH):
             time.sleep(1)
@@ -111,50 +177,96 @@ def get_uplinks_and_chassisid():
             continue
         network_config = data.get('network_config')
         for config in network_config:
-            if config.get('type') != 'ovs_bridge':
-                continue
-            if config.get('name') != 'br-ex':
-                continue
-            members = config.get('members')
-            for member in members:
-                if member.get('type') not in SUPPORTED_BOND:
-                    continue
-                nics = member.get('members')
-                for nic in nics:
+            config_type = config.get('type')
+            if config_type == 'ovs_bridge':
+                bridge_name = config.get('name').encode('ascii', 'ignore')
+                members = config.get('members')
+                for member in members:
+                    # member can be a bond or single interface in case of
+                    # ovs_bridge on DPDK controller
+                    member_type = member.get('type')
+                    if member_type == 'interface':
+                        intf_index = _get_intf_index(
+                            member.get('name').encode('ascii', 'ignore'))
+                        add_intf_to_map(
+                            intf_map=intf_map, bridge_or_bond=bridge_name,
+                            config_type='ovs_bridge', intf_index=intf_index)
+                        intf_map[bridge_name]['bonded_nics'] = False
+                        break
+                    elif member_type in SUPPORTED_BOND:
+                        nics = member.get('members')
+                        for nic in nics:
+                            if nic.get('type') != 'interface':
+                                continue
+                            intf_index = _get_intf_index(
+                                nic.get('name').encode('ascii', 'ignore'))
+                            add_intf_to_map(
+                                intf_map=intf_map, bridge_or_bond=bridge_name,
+                                config_type='ovs_bridge',
+                                intf_index=intf_index)
+                        break
+                    else:
+                        # either a vlan type interface or unsupported type
+                        continue
+            elif config_type == 'linux_bond':
+                bond_name = config.get('name').encode('ascii', 'ignore')
+                members = config.get('members')
+                for nic in members:
                     if nic.get('type') != 'interface':
                         continue
-                    nic_name = nic.get('name')
-                    indexes = map(int, re.findall(r'\d+', nic_name))
-                    if len(indexes) == 1 and nic_name.startswith("nic"):
-                        intf_indexes.append(str(indexes[0] - 1))
+                    intf_index = _get_intf_index(
+                        nic.get('name').encode('ascii', 'ignore'))
+                    add_intf_to_map(
+                        intf_map=intf_map, bridge_or_bond=bond_name,
+                        config_type='linux_bond', intf_index=intf_index)
+            elif config_type == 'ovs_user_bridge':
+                bridge_name = config.get('name').encode('ascii', 'ignore')
+                members = config.get('members')
+                for nic in members:
+                    nic_type = nic.get('type')
+                    if nic_type == 'ovs_dpdk_port':
+                        intf_name = nic.get('name').encode('ascii', 'ignore')
+                        add_intf_to_map(
+                            intf_map=intf_map, bridge_or_bond=bridge_name,
+                            config_type='ovs_user_bridge',
+                            intf_index=intf_name)
+                        break
+                    elif nic_type == 'ovs_dpdk_bond':
+                        bond_interfaces = nic.get('members')
+                        for bond_intf in bond_interfaces:
+                            if bond_intf.get('type') != 'ovs_dpdk_port':
+                                LOG.syslog("DPDK ovs_dpdk_bond has NON "
+                                           "ovs_dpdk_port %s" %
+                                           bond_intf.get('name'))
+                                continue
+                            intf_name = (bond_intf.get('name')
+                                         .encode('ascii', 'ignore'))
+                            add_intf_to_map(
+                                intf_map=intf_map, bridge_or_bond=bridge_name,
+                                config_type='ovs_user_bridge',
+                                intf_index=intf_name)
                     else:
-                        intf_indexes.append(str(nic_name))
-                break
-            break
+                        continue
         break
-
-    intfs = []
-    chassis_id = "00:00:00:00:00:00"
-    at_least_one_nic_ready = False
-    while True:
-        # get active interfaces from os_net_config
-        active_intfs = utils.ordered_active_nics()
-        intf_len = len(active_intfs)
-        if intf_len != 0:
-            chassis_id = get_mac_str(active_intfs[0])
-        intfs = []
-        for index in intf_indexes:
-            try:
-                idx = int(index)
-                if idx < intf_len:
-                    intfs.append(active_intfs[idx])
-                    at_least_one_nic_ready = True
-            except ValueError:
-                intfs.append(index)
-                at_least_one_nic_ready = True
-        if at_least_one_nic_ready:
-            break
-        # if no nics found active, retry in a sec
-        LOG.syslog("LLDP has no active uplinks %s" % intfs)
-        time.sleep(1)
-    return intfs, chassis_id
+    # get active interfaces from os_net_config
+    active_intfs = utils.ordered_active_nics()
+    intf_len = len(active_intfs)
+    # use the intf_map and work out the chassisid
+    for br_or_bond in intf_map:
+        if intf_map[br_or_bond]['config_type'] == 'ovs_user_bridge':
+            # do not try to map interface name with kernel entries
+            # ovs_user_bridge is used for DPDK compute nodes, interfaces are
+            # owned by DPDK driver and not kernel network driver
+            continue
+        if 'members' in intf_map[br_or_bond]:
+            intfs = []
+            for index in intf_map[br_or_bond]['members']:
+                try:
+                    idx = int(index)
+                    if idx < intf_len:
+                        intfs.append(active_intfs[idx])
+                except ValueError:
+                    intfs.append(index)
+            intf_map[br_or_bond]['members'] = intfs
+    LOG.syslog("Network interface map is %s" % intf_map)
+    return intf_map
