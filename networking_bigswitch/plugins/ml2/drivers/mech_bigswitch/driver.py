@@ -15,6 +15,7 @@
 import copy
 import datetime
 import httplib
+import os
 
 import eventlet
 from oslo_config import cfg
@@ -39,17 +40,65 @@ from neutron_lib.plugins import directory
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
+from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch import plugin
 from networking_bigswitch.plugins.bigswitch import servermanager
 
 EXTERNAL_PORT_OWNER = 'neutron:external_port'
 ROUTER_GATEWAY_PORT_OWNER = 'network:router_gateway'
+OVS_AGENT_INI_FILEPATH = '/etc/neutron/plugins/ml2/openvswitch_agent.ini'
+RH_NET_CONF_PATH = "/etc/os-net-config/config.json"
 LOG = log.getLogger(__name__)
 put_context_in_serverpool = plugin.put_context_in_serverpool
 
 # time in seconds to maintain existence of vswitch response
 CACHE_VSWITCH_TIME = 60
+
+
+def _read_ovs_bridge_mappings():
+    """Read the 'bridge_mappings' property from openvswitch_agent.ini
+
+    This is done for Redhat environments, to allow an improved
+    learning/programming of interface groups based on ports and the network
+    to which the ports belong to.
+
+    :return: bridge_mappings dictionary {'physnet_name': 'bridge_name', ...}
+                {} empty dictionary when not found
+    """
+    mapping = {}
+    mapping_str = None
+    # read openvswitch_agent.ini for bridge_mapping info
+    if not os.path.isfile(OVS_AGENT_INI_FILEPATH):
+        # if ovs_agent.ini doesn't exists, return empty mapping
+        LOG.warning(_LW("Unable to read OVS bridge_mappings, "
+                        "openvswitch_agent.ini file not present."))
+        return mapping
+
+    with open(OVS_AGENT_INI_FILEPATH) as f:
+        for line in f:
+            if ('#' not in line and
+                    ('=' in line and 'bridge_mappings' in line)):
+                # typical config line looks like the following:
+                # bridge_mappings = datacentre:br-ex,dpdk:br-link
+                key, value = line.split('=', 1)
+                mapping_str = value.strip()
+
+    # parse comma separated physnet list into individual mappings
+    if not mapping_str:
+        # if file did not have bridge_mappings, return empty mapping
+        LOG.warning(_LW(
+            "Unable to read OVS bridge_mappings, either the line is commented "
+            "or not present in openvswitch_agent.ini."))
+        return mapping
+
+    phy_map_list = mapping_str.split(',')
+    for phy_map in phy_map_list:
+        phy, bridge = phy_map.split(':')
+        mapping[phy.strip()] = bridge.strip()
+
+    LOG.info(_LI("OVS bridge_mappings are: %(br_map)s"), {'br_map': mapping})
+    return mapping
 
 
 class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
@@ -82,6 +131,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                              **{'check_ts': True})
 
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
+        # if os-net-config is present, attempt to read physnet bridge_mappings
+        # from openvswitch_agent.ini
+        self.bridge_mappings = {}
+        if os.path.isfile(RH_NET_CONF_PATH):
+            self.bridge_mappings = _read_ovs_bridge_mappings()
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
         self.setup_rpc_callbacks()
@@ -326,11 +380,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         if port:
-            # For vhostuser type ports, membership rule and endpoint was
-            # created during bind_port, so skip this
-            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
-                return
-
             try:
                 # For SR-IOV ports, we shouldn't update the port status
                 update_status = not self._is_port_sriov(port)
