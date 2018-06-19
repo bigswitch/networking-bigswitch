@@ -36,15 +36,17 @@ import socket
 from socket import AF_INET
 from socket import AF_INET6
 from socket import inet_ntop
+import subprocess
 import syslog as LOG
 import time
 try:
-    from rhlib import get_uplinks_and_chassisid
+    from rhlib import get_network_interface_map
 except ImportError:
     pass
 
 LLDP_DST_MAC = "01:80:c2:00:00:0e"
-SYSTEM_DESC = "5c:16:c7:00:00:04"
+SYSTEM_DESC_LACP = "5c:16:c7:00:00:04"
+SYSTEM_DESC_STATIC = "5c:16:c7:00:00:00"
 LLDP_ETHERTYPE = 0x88cc
 TTL = 120
 INTERVAL = 10
@@ -196,8 +198,73 @@ def raw_bytes_of_int(int_value, num_bytes, name=None):
 
 
 def get_mac_str(network_interface):
-    with open("/sys/class/net/%s/address" % network_interface) as f:
-        return f.read().strip()
+    """Attempts to get MAC addr from kernel /sys/class/net files.
+
+    Returns None if nic is not controlled by kernel network driver file is
+    missing.
+
+    :param network_interface:
+    :return:
+    """
+    try:
+        with open("/sys/class/net/%s/address" % network_interface) as f:
+            return f.read().strip()
+    except Exception as e:
+        LOG.syslog("Exception getting MAC address of interface %s: %s" %
+                   (network_interface, e.message))
+        return None
+
+
+def execute_cmd(cmd):
+    """Execute a command on host and return output.
+
+    Returns None if there is an exception during execution.
+
+    :param cmd:
+    :return:
+    """
+    try:
+        output = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True)
+        return output.strip().strip("\"")
+    except Exception as e:
+        msg = ("Error executing command %s: %s\n" % (cmd, e))
+        LOG.syslog(msg)
+        return None
+
+
+def get_intf_ofport_number(intf_name):
+    """Return OFPort Number of an interface from ovs-db's Interface table
+
+    :param intf_name:
+    :return:
+    """
+    cmd = ("ovs-vsctl get Interface %(intf_name)s ofport"
+           % {'intf_name': intf_name})
+    return execute_cmd(cmd)
+
+
+def get_dpdk_intf_mac_addr(intf_name):
+    """Returns MAC addr of an interface from ovs-db's Interface table
+
+    :param intf_name:
+    :return:
+    """
+    cmd = ("ovs-vsctl get Interface %(intf_name)s mac_in_use"
+           % {'intf_name': intf_name})
+    return execute_cmd(cmd)
+
+
+def get_fqdn_cli():
+    """Returns output of 'hostname -f'
+
+    In some cases, socket.getfqdn() does not return domain name. This is a more
+    robust way to get hostname with domain name.
+
+    :return:
+    """
+    cmd = "hostname -f"
+    return execute_cmd(cmd)
 
 
 def readfile(path):
@@ -266,8 +333,10 @@ def lldp_frame_of(chassis_id,
                   network_interface,
                   ttl,
                   system_name=None,
-                  system_desc=None):
-    port_mac_str = get_mac_str(network_interface)
+                  system_desc=None,
+                  port_mac_str=None):
+    if not port_mac_str:
+        port_mac_str = get_mac_str(network_interface)
     contents = [
         # Ethernet header
         raw_bytes_of_mac_str(LLDP_DST_MAC),
@@ -288,7 +357,6 @@ def lldp_frame_of(chassis_id,
 
     # End TLV
     contents.append(end_tlv())
-
     return "".join(contents)
 
 
@@ -330,7 +398,7 @@ def find_pci_id(uplink):
         return pci_id
 
     if not os.path.exists("/sys/class/net/%s" % uplink):
-        raise RuntimeError(_("No such network device %s") % uplink)
+        raise RuntimeError("No such network device %s" % uplink)
 
     pci_id = os.path.basename(os.readlink("/sys/class/net/%s/device" % uplink))
 
@@ -432,51 +500,188 @@ def save_and_restore_x710_intf_lldp(intf):
         update_x710_lldp_status(pci_id, lldp_status[intf.strip()])
 
 
+def send_pktout_via_ovs(bridge_name, intf_ofport_num, hex_pkt):
+    """Performs packet-out on OVS as described in ovs-ofctl manual [1]
+
+    Complete params and options given at [1].
+
+    [1] http://www.openvswitch.org/support/dist-docs/ovs-ofctl.8.txt
+
+    :param bridge_name: bridge name to which interface belongs
+    :param intf_ofport_num: OFPort number of the interface w.r.t the bridge
+    :param hex_pkt: packet to be sent out in hex format
+    :return:
+    """
+    cmd = ("ovs-ofctl packet-out %(bridge_name)s LOCAL %(intf_ofport_num)s "
+           "%(hex_pkt)s" % {'bridge_name': bridge_name,
+                            'intf_ofport_num': intf_ofport_num,
+                            'hex_pkt': hex_pkt})
+    return execute_cmd(cmd)
+
+
+def _generate_senders_frames(intfs, chassisid, args):
+    senders = []
+    frames = []
+    systemname = socket.getfqdn()
+    if args.system_name:
+        systemname = args.system_name
+    LOG.syslog("LLDP system-name is %s" % systemname)
+    systemdesc = SYSTEM_DESC_LACP
+    if args.system_desc:
+        systemdesc = args.system_desc
+    LOG.syslog("LLDP system-desc is %s" % systemdesc)
+    for intf in intfs:
+        interface = intf.strip()
+        frame = lldp_frame_of(chassis_id=chassisid,
+                              network_interface=interface,
+                              ttl=TTL,
+                              system_name=systemname,
+                              system_desc=systemdesc)
+        frames.append(frame)
+        s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
+        s.bind((interface, 0))
+        senders.append(s)
+    return senders, frames
+
+
+def _send_frames_kernel_socket(network_map, br_bond_name, args):
+    """Send LLDP frames on all interfaces for the br_bond_name specified.
+
+    :param network_map:
+    :param br_bond_name:
+    :param args:
+    :return:
+    """
+    LOG.syslog("LLDP generating frames for %s" % br_bond_name)
+    senders = []
+    frames = []
+
+    hostname_fqdn = get_fqdn_cli()
+    if not hostname_fqdn:
+        hostname_fqdn = socket.getfqdn()
+    systemname = hostname_fqdn + '_' + br_bond_name
+    LOG.syslog("LLDP system-name is %s" % systemname)
+    if ('bonded_nics' in network_map[br_bond_name] and
+            not network_map[br_bond_name]['bonded_nics']):
+        systemdesc = SYSTEM_DESC_STATIC
+    else:
+        systemdesc = SYSTEM_DESC_LACP
+    LOG.syslog("LLDP system-desc is %s" % systemdesc)
+    chassis_id = None
+
+    for member in network_map[br_bond_name]['members']:
+        intf_name = member
+        LOG.syslog("LLDP interface name is %s" % intf_name)
+        mac_addr = get_mac_str(intf_name)
+        LOG.syslog("LLDP interface mac is %s" % systemdesc)
+        if not chassis_id:
+            chassis_id = mac_addr
+        LOG.syslog("LLDP chassis-id is %s" % chassis_id)
+        frame = lldp_frame_of(
+            chassis_id=chassis_id, network_interface=intf_name, ttl=TTL,
+            system_name=systemname, system_desc=systemdesc,
+            port_mac_str=mac_addr)
+        frames.append(frame)
+        s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
+        s.bind((intf_name, 0))
+        senders.append(s)
+
+    # send frames
+    for idx, s in enumerate(senders):
+        try:
+            s.send(frames[idx])
+        except Exception:
+            continue
+
+
+def send_lldp_on_all_interfaces(args, network_map):
+    """Given a network_map of all bridges, bonds and their interfaces
+
+    respectively. Send LLDP packets on each interface accordingly.
+
+    :param args:
+    :param network_map:
+    :return:
+    """
+    for br_or_bond in network_map:
+        root_type = network_map[br_or_bond]['type']
+        if root_type == 'ovs_bridge':
+            # save state in case of x710 nic
+            for intf in network_map[br_or_bond]['members']:
+                save_and_stop_x710_intf_lldp(intf)
+            # send packet via kernel socket
+            _send_frames_kernel_socket(
+                network_map=network_map, br_bond_name=br_or_bond, args=args)
+        elif root_type == 'linux_bond':
+            # send  packet via kernel socket
+            _send_frames_kernel_socket(
+                network_map=network_map, br_bond_name=br_or_bond, args=args)
+        elif root_type == 'ovs_user_bridge':
+            # send packet via OVS packet out
+            bridge_name = br_or_bond
+            LOG.syslog("LLDP generating frames for %s" % bridge_name)
+
+            chassis_id = "00:00:00:00:00:00"
+            intf_tuple_list = []
+            for member in network_map[br_or_bond]['members']:
+                intf_name = member
+                ofport_num = get_intf_ofport_number(intf_name=intf_name)
+                mac_addr = get_dpdk_intf_mac_addr(intf_name=intf_name)
+                intf_tuple_list.append((intf_name, ofport_num, mac_addr))
+                LOG.syslog("LLDP DPDK interface name %s ofport_num %s "
+                           "mac_addr %s" % (intf_name, ofport_num, mac_addr))
+            if len(intf_tuple_list) != 0:
+                chassis_id = intf_tuple_list[0][2]
+            LOG.syslog("LLDP chassis-id is %s" % chassis_id)
+            hostname_fqdn = get_fqdn_cli()
+            systemname = hostname_fqdn + '_' + bridge_name
+            LOG.syslog("LLDP system-name is %s" % systemname)
+            # default system-desc for compute node's DPDK interface is STATIC
+            systemdesc = SYSTEM_DESC_STATIC
+            if args.system_desc:
+                systemdesc = args.system_desc
+            LOG.syslog("LLDP system-desc is %s" % systemdesc)
+            # generate ovs-ofctl packet-out command for each interface
+            for (intf_name, ofport_num, mac_addr) in intf_tuple_list:
+                raw_frame = lldp_frame_of(
+                    chassis_id=chassis_id, network_interface=intf_name,
+                    ttl=120, system_name=systemname, system_desc=systemdesc,
+                    port_mac_str=mac_addr)
+                hex_pkt = raw_frame.encode('hex')
+                send_pktout_via_ovs(bridge_name=bridge_name,
+                                    intf_ofport_num=ofport_num,
+                                    hex_pkt=hex_pkt)
+
+
+def send_lldp_redhat(args):
+    interval = INTERVAL
+    if args.interval:
+        interval = args.interval
+    LOG.syslog("LLDP interval is %d" % interval)
+    while True:
+        network_map = get_network_interface_map()
+        send_lldp_on_all_interfaces(args, network_map)
+        time.sleep(interval)
+
+
 def send_lldp():
     args = parse_args()
     if args.daemonize:
         daemonize()
 
-    def _generate_senders_frames(intfs, chassisid, args):
-        senders = []
-        frames = []
-        systemname = socket.getfqdn()
-        if args.system_name:
-            systemname = args.system_name
-        LOG.syslog("LLDP system-name is %s" % systemname)
-        systemdesc = SYSTEM_DESC
-        if args.system_desc:
-            systemdesc = args.system_desc
-        LOG.syslog("LLDP system-desc is %s" % systemdesc)
-        for intf in intfs:
-            interface = intf.strip()
-            frame = lldp_frame_of(chassis_id=chassisid,
-                                  network_interface=interface,
-                                  ttl=TTL,
-                                  system_name=systemname,
-                                  system_desc=systemdesc)
-            frames.append(frame)
-            s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
-            s.bind((interface, 0))
-            senders.append(s)
-        return senders, frames
-
     intfs = []
     platform_os = platform.linux_distribution()[0]
+    os_is_redhat = "red hat" in platform_os.strip().lower()
+
+    if os_is_redhat and not args.sriov:
+        send_lldp_redhat(args)
+
     chassisid = "00:00:00:00:00:00"
     if args.network_interface:
         intfs = args.network_interface.split(',')
-    elif "red hat" in platform_os.strip().lower() and not args.sriov:
-        try:
-            intfs, chassisid = get_uplinks_and_chassisid()
-        except Exception:
-            intfs = []
+
     LOG.syslog("LLDP interfaces are %s" % ','.join(intfs))
     LOG.syslog("LLDP chassisid is %s" % chassisid)
-
-    # save lldp status of x710 interfaces and update it to stop
-    for intf in intfs:
-        save_and_stop_x710_intf_lldp(intf)
 
     senders, frames = _generate_senders_frames(intfs, chassisid, args)
     interval = INTERVAL
@@ -484,36 +689,6 @@ def send_lldp():
         interval = args.interval
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
-        if "red hat" in platform_os.strip().lower() and not args.sriov:
-            # refresh interface list, since a new link may have come up
-            new_intfs, new_chassisid = get_uplinks_and_chassisid()
-            if (intfs, chassisid) != (new_intfs, new_chassisid):
-
-                # restore lldp for x710 devices that are no longer uplinks
-                non_uplink_intfs = list_a_minus_list_b(list_a=intfs,
-                                                       list_b=new_intfs)
-                for intf in non_uplink_intfs:
-                    save_and_restore_x710_intf_lldp(intf)
-
-                # stop lldp for x710 interfaces that are uplinks
-                new_uplink_intfs = list_a_minus_list_b(list_a=new_intfs,
-                                                       list_b=intfs)
-                for intf in new_uplink_intfs:
-                    save_and_stop_x710_intf_lldp(intf)
-
-                # something changed, update it
-                LOG.syslog("LLDP interfaces updated from %(old_intfs)s"
-                           " to %(new_intfs)s" %
-                           {'old_intfs': ','.join(intfs),
-                            'new_intfs': ','.join(new_intfs)})
-                LOG.syslog("LLDP chassisid updated from %(old_chassisid)s"
-                           " to %(new_chassisid)s" %
-                           {'old_chassisid': chassisid,
-                            'new_chassisid': new_chassisid})
-                # update vars to identify diff next time
-                intfs, chassisid = new_intfs, new_chassisid
-                senders, frames = _generate_senders_frames(
-                    intfs, chassisid, args)
         for idx, s in enumerate(senders):
             try:
                 s.send(frames[idx])
