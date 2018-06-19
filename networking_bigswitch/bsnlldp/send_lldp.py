@@ -36,9 +36,13 @@ import socket
 from socket import AF_INET
 from socket import AF_INET6
 from socket import inet_ntop
+import subprocess
 import syslog as LOG
 import time
 try:
+    from rhlib import get_dpdk_linux_bond_uplinks_and_chassisid
+    from rhlib import get_dpdk_ovs_bridge_uplinks_and_chassisid
+    from rhlib import get_dpdk_ovs_user_bridge_uplinks
     from rhlib import get_uplinks_and_chassisid
 except ImportError:
     pass
@@ -169,6 +173,10 @@ def parse_args():
     parser.add_argument("-d", "--daemonize",
                         action="store_true", default=False)
     parser.add_argument("--sriov", action="store_true", default=False)
+    parser.add_argument("--dpdk-ctrl-bridge",
+                        action="store_true", default=False)
+    parser.add_argument("--dpdk-cmpt-bridge",
+                        action="store_true", default=False)
 
     return parser.parse_args()
 
@@ -266,8 +274,10 @@ def lldp_frame_of(chassis_id,
                   network_interface,
                   ttl,
                   system_name=None,
-                  system_desc=None):
-    port_mac_str = get_mac_str(network_interface)
+                  system_desc=None,
+                  port_mac_str=None):
+    if not port_mac_str:
+        port_mac_str = get_mac_str(network_interface)
     contents = [
         # Ethernet header
         raw_bytes_of_mac_str(LLDP_DST_MAC),
@@ -288,7 +298,6 @@ def lldp_frame_of(chassis_id,
 
     # End TLV
     contents.append(end_tlv())
-
     return "".join(contents)
 
 
@@ -432,51 +441,190 @@ def save_and_restore_x710_intf_lldp(intf):
         update_x710_lldp_status(pci_id, lldp_status[intf.strip()])
 
 
+def detect_rhosp_uplinks_and_chassisid(dpdk_ctrl_bridge):
+    """Detect interfaces and chassisid in case of RHOSP environments.
+
+    :return: (intfs, chassisid, is_dpdk_linux_bond)
+            intfs - list of interfaces or empty list []
+            chassisid - string mac address
+            is_dpdk_linux_bond - boolean specifying if interfaces detected
+                                 were dpdk based linux_bond  or regular
+                                 ovs-bridge br-ex
+    """
+    is_dpdk_linux_bond = False
+    chassisid = "00:00:00:00:00:00"
+
+    if dpdk_ctrl_bridge:
+        # this is a forced different flow
+        while True:
+            try:
+                intfs, chassisid = get_dpdk_ovs_bridge_uplinks_and_chassisid()
+            except Exception:
+                intfs = []
+            if len(intfs) > 0:
+                break
+            LOG.syslog("LLDP active uplink not detected. Retrying...")
+            time.sleep(1)
+        return intfs, chassisid, is_dpdk_linux_bond
+
+    while True:
+        try:
+            intfs, chassisid = get_uplinks_and_chassisid()
+        except Exception:
+            intfs = []
+        if len(intfs) > 0:
+            break
+        # if DPDK based deployment, ovs-bridge br-ex not present
+        # send LLDP on linux_bond's interfaces
+        try:
+            intfs, chassisid = get_dpdk_linux_bond_uplinks_and_chassisid()
+        except Exception:
+            intfs = []
+        if len(intfs) > 0:
+            is_dpdk_linux_bond = True
+            break
+        LOG.syslog("LLDP active uplink not detected. Retrying...")
+        time.sleep(1)
+    return intfs, chassisid, is_dpdk_linux_bond
+
+
+def execute_cmd(cmd):
+    try:
+        output = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True)
+        return output.strip().strip("\"")
+    except Exception as e:
+        msg = "Error executing command %s: %s\n" % (cmd, e)
+        LOG.syslog(msg)
+        return msg
+
+
+def get_intf_ofport_number(intf_name):
+    cmd = ("ovs-vsctl get Interface %(intf_name)s ofport"
+           % {'intf_name': intf_name})
+    return execute_cmd(cmd)
+
+
+def get_intf_mac_addr(intf_name):
+    cmd = ("ovs-vsctl get Interface %(intf_name)s mac_in_use"
+           % {'intf_name': intf_name})
+    return execute_cmd(cmd)
+
+
+def detect_rhosp_dpdk_compute_uplinks_and_chassisid():
+    """
+
+    :return: tuple of (bridge_name, chassis_id, list of interface tuples)
+             interface tuples consist of
+             (intf_name, intf_ofport_num, intf_mac_addr)
+    """
+    # rhlib magic to read from os-net-config
+    bridge_name, interfaces = get_dpdk_ovs_user_bridge_uplinks()
+    # get some more info about the interfaces to form the packet.
+    # get ofport number and mac address of the interfaces
+    intf_tuple_list = []
+    chassis_id = "00:00:00:00:00:00"
+    for intf in interfaces:
+        # some cleaning is required here, string read from yaml is unicode
+        # when converting to raw bytes, it throws error if everything is not
+        # in ascii. all but intf_name is an issue
+        intf_name = intf.encode('ascii', 'ignore')
+        ofport_num = get_intf_ofport_number(intf_name=intf_name)
+        mac_addr = get_intf_mac_addr(intf_name=intf_name)
+        intf_tuple_list.append((intf_name, ofport_num, mac_addr))
+
+    if len(intf_tuple_list) != 0:
+        chassis_id = intf_tuple_list[0][2]
+
+    return (bridge_name, chassis_id, intf_tuple_list)
+
+
+def send_pktout_via_ovs(bridge_name, intf_ofport_num, hex_pkt):
+    cmd = ("ovs-ofctl packet-out %(bridge_name)s LOCAL %(intf_ofport_num)s "
+           "%(hex_pkt)s" % {'bridge_name': bridge_name,
+                            'intf_ofport_num': intf_ofport_num,
+                            'hex_pkt': hex_pkt})
+    return execute_cmd(cmd)
+
+
+def send_lldp_dpdk_compute(args):
+    interval = INTERVAL
+    if args.interval:
+        interval = args.interval
+    while True:
+        bridge_name, chassis_id, intf_tuple_list = \
+            detect_rhosp_dpdk_compute_uplinks_and_chassisid()
+        system_name = args.system_name
+        system_desc = SYSTEM_DESC
+        if args.system_desc:
+            system_desc = args.system_desc
+        # generate ovs-ofctl packet-out command for each interface
+        for (intf_name, ofport_num, mac_addr) in intf_tuple_list:
+            raw_frame = lldp_frame_of(
+                chassis_id=chassis_id, network_interface=intf_name, ttl=120,
+                system_name=system_name, system_desc=system_desc,
+                port_mac_str=mac_addr)
+            hex_pkt = raw_frame.encode('hex')
+            send_pktout_via_ovs(bridge_name=bridge_name,
+                                intf_ofport_num=ofport_num,
+                                hex_pkt=hex_pkt)
+        time.sleep(interval)
+
+
+def _generate_senders_frames(intfs, chassisid, args):
+    senders = []
+    frames = []
+    systemname = socket.getfqdn()
+    if args.system_name:
+        systemname = args.system_name
+    LOG.syslog("LLDP system-name is %s" % systemname)
+    systemdesc = SYSTEM_DESC
+    if args.system_desc:
+        systemdesc = args.system_desc
+    LOG.syslog("LLDP system-desc is %s" % systemdesc)
+    for intf in intfs:
+        interface = intf.strip()
+        frame = lldp_frame_of(chassis_id=chassisid,
+                              network_interface=interface,
+                              ttl=TTL,
+                              system_name=systemname,
+                              system_desc=systemdesc)
+        frames.append(frame)
+        s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
+        s.bind((interface, 0))
+        senders.append(s)
+    return senders, frames
+
+
 def send_lldp():
     args = parse_args()
     if args.daemonize:
         daemonize()
 
-    def _generate_senders_frames(intfs, chassisid, args):
-        senders = []
-        frames = []
-        systemname = socket.getfqdn()
-        if args.system_name:
-            systemname = args.system_name
-        LOG.syslog("LLDP system-name is %s" % systemname)
-        systemdesc = SYSTEM_DESC
-        if args.system_desc:
-            systemdesc = args.system_desc
-        LOG.syslog("LLDP system-desc is %s" % systemdesc)
-        for intf in intfs:
-            interface = intf.strip()
-            frame = lldp_frame_of(chassis_id=chassisid,
-                                  network_interface=interface,
-                                  ttl=TTL,
-                                  system_name=systemname,
-                                  system_desc=systemdesc)
-            frames.append(frame)
-            s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
-            s.bind((interface, 0))
-            senders.append(s)
-        return senders, frames
+    if args.dpdk_cmpt_bridge:
+        # ASSUMPTION - this flag means OS is REDHAT!
+        # sending lldp on dpdk ovs_user_bridge is very different from anything
+        # else use a different method
+        send_lldp_dpdk_compute(args)
 
     intfs = []
     platform_os = platform.linux_distribution()[0]
+    os_is_redhat = "red hat" in platform_os.strip().lower()
     chassisid = "00:00:00:00:00:00"
+    is_dpdk_linux_bond = False
     if args.network_interface:
         intfs = args.network_interface.split(',')
-    elif "red hat" in platform_os.strip().lower() and not args.sriov:
-        try:
-            intfs, chassisid = get_uplinks_and_chassisid()
-        except Exception:
-            intfs = []
+    elif os_is_redhat:
+        intfs, chassisid, is_dpdk_linux_bond = (
+            detect_rhosp_uplinks_and_chassisid(args.dpdk_ctrl_bridge))
+
     LOG.syslog("LLDP interfaces are %s" % ','.join(intfs))
     LOG.syslog("LLDP chassisid is %s" % chassisid)
 
     # save lldp status of x710 interfaces and update it to stop
-    for intf in intfs:
-        save_and_stop_x710_intf_lldp(intf)
+    if os_is_redhat and (not is_dpdk_linux_bond):
+        for intf in intfs:
+            save_and_stop_x710_intf_lldp(intf)
 
     senders, frames = _generate_senders_frames(intfs, chassisid, args)
     interval = INTERVAL
@@ -484,16 +632,19 @@ def send_lldp():
         interval = args.interval
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
-        if "red hat" in platform_os.strip().lower() and not args.sriov:
+        if os_is_redhat and not args.sriov:
             # refresh interface list, since a new link may have come up
-            new_intfs, new_chassisid = get_uplinks_and_chassisid()
+            new_intfs, new_chassisid, is_dpdk_linux_bond = (
+                detect_rhosp_uplinks_and_chassisid(args.dpdk_ctrl_bridge))
+
             if (intfs, chassisid) != (new_intfs, new_chassisid):
 
                 # restore lldp for x710 devices that are no longer uplinks
                 non_uplink_intfs = list_a_minus_list_b(list_a=intfs,
                                                        list_b=new_intfs)
-                for intf in non_uplink_intfs:
-                    save_and_restore_x710_intf_lldp(intf)
+                if not is_dpdk_linux_bond:
+                    for intf in non_uplink_intfs:
+                        save_and_restore_x710_intf_lldp(intf)
 
                 # stop lldp for x710 interfaces that are uplinks
                 new_uplink_intfs = list_a_minus_list_b(list_a=new_intfs,
