@@ -718,6 +718,26 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         bsn_host_id = port.get(portbindings.HOST_ID) + '-' + physnet
         return bsn_host_id
 
+    def _get_ovs_dpdk_port_hostid(self, port, network):
+        """Return HostID with bridge_name appended for OVS and DPDK ports
+
+        VIF type for OVS and DPDK ports is OVS and VHOSTUSER respectively.
+
+        :param port:
+        :param network:
+        :return: new_host_id
+        """
+        host_id = port.get(portbindings.HOST_ID)
+        physnet = network.get(pl_config.PROVIDER_PHYSNET)
+        if physnet not in self.bridge_mappings:
+            LOG.warning(_LW("Physical network to bridge mapping not "
+                            "found for port %s."), port)
+            return host_id
+
+        bridge_name = self.bridge_mappings.get(physnet)
+        host_id_bridge_name = host_id + '_' + bridge_name
+        return host_id_bridge_name
+
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type.
 
@@ -744,6 +764,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             if not hostid:
                 return False
             prepped_port[portbindings.HOST_ID] = hostid
+
+        # update HOST_ID to '<host-id>_<bridge-name>' for ports with
+        # VIF_TYPE OVS and VHOSTUSER i.e. DHCP and DPDK ports
+        # if bridge_name not available, sets it to just 'host-id'
+        vif_type = prepped_port.get(portbindings.VIF_TYPE)
+        if (vif_type and
+                (vif_type == portbindings.VIF_TYPE_OVS
+                 or vif_type == portbindings.VIF_TYPE_VHOST_USER)):
+            prepped_port[portbindings.HOST_ID] = (
+                self._get_ovs_dpdk_port_hostid(prepped_port, network))
 
         return prepped_port
 
