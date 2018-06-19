@@ -39,6 +39,7 @@ from socket import inet_ntop
 import syslog as LOG
 import time
 try:
+    from rhlib import get_dpdk_linux_bond_uplinks_and_chassis_id
     from rhlib import get_uplinks_and_chassisid
 except ImportError:
     pass
@@ -432,6 +433,39 @@ def save_and_restore_x710_intf_lldp(intf):
         update_x710_lldp_status(pci_id, lldp_status[intf.strip()])
 
 
+def detect_rhosp_uplinks_and_chassisid():
+    """Detect interfaces and chassisid in case of RHOSP environments.
+
+    :return: (intfs, chassisid, is_dpdk_linux_bond)
+            intfs - list of interfaces or empty list []
+            chassisid - string mac address
+            is_dpdk_linux_bond - boolean specifying if interfaces detected
+                                 were dpdk based linux_bond  or regular
+                                 ovs-bridge br-ex
+    """
+    is_dpdk_linux_bond = False
+    chassisid = "00:00:00:00:00:00"
+    while True:
+        try:
+            intfs, chassisid = get_uplinks_and_chassisid()
+        except Exception:
+            intfs = []
+        if len(intfs) > 0:
+            break
+        # if DPDK based deployment, ovs-bridge br-ex not present
+        # send LLDP on linux_bond's interfaces
+        try:
+            intfs, chassisid = get_dpdk_linux_bond_uplinks_and_chassis_id()
+        except Exception:
+            intfs = []
+        if len(intfs) > 0:
+            is_dpdk_linux_bond = True
+            break
+        LOG.syslog("LLDP active uplink not detected. Retrying...")
+        time.sleep(1)
+    return intfs, chassisid, is_dpdk_linux_bond
+
+
 def send_lldp():
     args = parse_args()
     if args.daemonize:
@@ -463,20 +497,22 @@ def send_lldp():
 
     intfs = []
     platform_os = platform.linux_distribution()[0]
+    os_is_redhat = "red hat" in platform_os.strip().lower()
     chassisid = "00:00:00:00:00:00"
+    is_dpdk_linux_bond = False
     if args.network_interface:
         intfs = args.network_interface.split(',')
-    elif "red hat" in platform_os.strip().lower() and not args.sriov:
-        try:
-            intfs, chassisid = get_uplinks_and_chassisid()
-        except Exception:
-            intfs = []
+    elif os_is_redhat:
+        intfs, chassisid, is_dpdk_linux_bond = (
+            detect_rhosp_uplinks_and_chassisid())
+
     LOG.syslog("LLDP interfaces are %s" % ','.join(intfs))
     LOG.syslog("LLDP chassisid is %s" % chassisid)
 
     # save lldp status of x710 interfaces and update it to stop
-    for intf in intfs:
-        save_and_stop_x710_intf_lldp(intf)
+    if os_is_redhat and (not is_dpdk_linux_bond):
+        for intf in intfs:
+            save_and_stop_x710_intf_lldp(intf)
 
     senders, frames = _generate_senders_frames(intfs, chassisid, args)
     interval = INTERVAL
@@ -484,16 +520,19 @@ def send_lldp():
         interval = args.interval
     LOG.syslog("LLDP interval is %d" % interval)
     while True:
-        if "red hat" in platform_os.strip().lower() and not args.sriov:
+        if os_is_redhat and not args.sriov:
             # refresh interface list, since a new link may have come up
-            new_intfs, new_chassisid = get_uplinks_and_chassisid()
+            new_intfs, new_chassisid, is_dpdk_linux_bond = (
+                detect_rhosp_uplinks_and_chassisid())
+
             if (intfs, chassisid) != (new_intfs, new_chassisid):
 
                 # restore lldp for x710 devices that are no longer uplinks
                 non_uplink_intfs = list_a_minus_list_b(list_a=intfs,
                                                        list_b=new_intfs)
-                for intf in non_uplink_intfs:
-                    save_and_restore_x710_intf_lldp(intf)
+                if not is_dpdk_linux_bond:
+                    for intf in non_uplink_intfs:
+                        save_and_restore_x710_intf_lldp(intf)
 
                 # stop lldp for x710 interfaces that are uplinks
                 new_uplink_intfs = list_a_minus_list_b(list_a=new_intfs,
