@@ -133,26 +133,159 @@ def get_uplinks_and_chassisid():
 
     intfs = []
     chassis_id = "00:00:00:00:00:00"
-    at_least_one_nic_ready = False
-    while True:
-        # get active interfaces from os_net_config
-        active_intfs = utils.ordered_active_nics()
-        intf_len = len(active_intfs)
-        if intf_len != 0:
-            chassis_id = get_mac_str(active_intfs[0])
-        intfs = []
-        for index in intf_indexes:
-            try:
-                idx = int(index)
-                if idx < intf_len:
-                    intfs.append(active_intfs[idx])
-                    at_least_one_nic_ready = True
-            except ValueError:
-                intfs.append(index)
-                at_least_one_nic_ready = True
-        if at_least_one_nic_ready:
-            break
-        # if no nics found active, retry in a sec
-        LOG.syslog("LLDP has no active uplinks %s" % intfs)
-        time.sleep(1)
+    # get active interfaces from os_net_config
+    active_intfs = utils.ordered_active_nics()
+    intf_len = len(active_intfs)
+    if intf_len != 0:
+        chassis_id = get_mac_str(active_intfs[0])
+    for index in intf_indexes:
+        try:
+            idx = int(index)
+            if idx < intf_len:
+                intfs.append(active_intfs[idx])
+        except ValueError:
+            intfs.append(index)
+    # if no nics found active, retry during next interval
+    LOG.syslog("OVS Bridge br-ex active uplinks %s" % intfs)
     return intfs, chassis_id
+
+
+def get_dpdk_linux_bond_uplinks_and_chassisid():
+    intf_indexes = []
+    while True:
+        if not os.path.isfile(NET_CONF_PATH):
+            time.sleep(1)
+            continue
+        try:
+            json_data = open(NET_CONF_PATH).read()
+            data = jsonutils.loads(json_data)
+        except ValueError:
+            time.sleep(1)
+            continue
+        network_config = data.get('network_config')
+        for config in network_config:
+            if config.get('type') != 'linux_bond':
+                continue
+            members = config.get('members')
+            for nic in members:
+                if nic.get('type') != 'interface':
+                    continue
+                nic_name = nic.get('name')
+                indexes = map(int, re.findall(r'\d+', nic_name))
+                if len(indexes) == 1 and nic_name.startswith("nic"):
+                    intf_indexes.append(str(indexes[0] - 1))
+                else:
+                    intf_indexes.append(str(nic_name))
+            break
+        break
+
+    intfs = []
+    chassis_id = "00:00:00:00:00:00"
+    # get active interfaces from os_net_config
+    active_intfs = utils.ordered_active_nics()
+    intf_len = len(active_intfs)
+    if intf_len != 0:
+        chassis_id = get_mac_str(active_intfs[0])
+    for index in intf_indexes:
+        try:
+            idx = int(index)
+            if idx < intf_len:
+                intfs.append(active_intfs[idx])
+        except ValueError:
+            intfs.append(index)
+    # if no nics found active, retry in next interval
+    LOG.syslog("DPDK linux_bond active uplinks %s" % intfs)
+    return intfs, chassis_id
+
+
+def get_dpdk_ovs_bridge_uplinks_and_chassisid():
+    intf_indexes = []
+    while True:
+        if not os.path.isfile(NET_CONF_PATH):
+            time.sleep(1)
+            continue
+        try:
+            json_data = open(NET_CONF_PATH).read()
+            data = jsonutils.loads(json_data)
+        except ValueError:
+            time.sleep(1)
+            continue
+        network_config = data.get('network_config')
+        for config in network_config:
+            if config.get('type') != 'ovs_bridge':
+                continue
+            if config.get('name') == 'br-ex':
+                continue
+            members = config.get('members')
+            for nic in members:
+                if nic.get('type') != 'interface':
+                    continue
+                nic_name = nic.get('name')
+                indexes = map(int, re.findall(r'\d+', nic_name))
+                if len(indexes) == 1 and nic_name.startswith("nic"):
+                    intf_indexes.append(str(indexes[0] - 1))
+                else:
+                    intf_indexes.append(str(nic_name))
+            break
+        break
+
+    intfs = []
+    chassis_id = "00:00:00:00:00:00"
+    # get active interfaces from os_net_config
+    active_intfs = utils.ordered_active_nics()
+    intf_len = len(active_intfs)
+    if intf_len != 0:
+        chassis_id = get_mac_str(active_intfs[0])
+    for index in intf_indexes:
+        try:
+            idx = int(index)
+            if idx < intf_len:
+                intfs.append(active_intfs[idx])
+        except ValueError:
+            intfs.append(index)
+    # if no nics found active, retry in next interval
+    LOG.syslog("DPDK ovs_bridge active uplinks %s" % intfs)
+    return intfs, chassis_id
+
+
+def get_dpdk_ovs_user_bridge_uplinks():
+    bridge_name = None
+    uplinks = []
+
+    while True:
+        if not os.path.isfile(NET_CONF_PATH):
+            time.sleep(1)
+            continue
+        try:
+            json_data = open(NET_CONF_PATH).read()
+            data = jsonutils.loads(json_data)
+        except ValueError:
+            time.sleep(1)
+            continue
+        network_config = data.get('network_config')
+        for config in network_config:
+            if config.get('type') != 'ovs_user_bridge':
+                continue
+            bridge_name = config.get('name')
+            members = config.get('members')
+            for nic in members:
+                nic_type = nic.get('type')
+                if nic_type == 'ovs_dpdk_port':
+                    intf_name = nic.get('name')
+                    uplinks.append(intf_name)
+                elif nic_type == 'ovs_dpdk_bond':
+                    bond_interfaces = nic.get('members')
+                    for bond_intf in bond_interfaces:
+                        if bond_intf.get('type') != 'ovs_dpdk_port':
+                            LOG.syslog(
+                                "DPDK ovs_dpdk_bond has NON ovs_dpdk_port %s"
+                                % bond_intf.get('name'))
+                            continue
+                        uplinks.append(bond_intf.get('name'))
+                else:
+                    continue
+            break
+        break
+    # if no nics found, retry in next interval
+    LOG.syslog("DPDK ovs_user_bridge uplinks %s" % uplinks)
+    return bridge_name, uplinks
