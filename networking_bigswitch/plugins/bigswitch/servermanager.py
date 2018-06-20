@@ -1003,12 +1003,18 @@ class ServerPool(object):
                        'start_ts': cdb.convert_ts_to_datetime(time.time())})
             data = self.get_topo_function(
                 **self.get_topo_function_args)
-            if data:
-                LOG.debug("TOPO_SYNC: data received from OSP, sending "
-                          "request to BCF.")
-                errstr = _("Unable to perform forced topology_sync: %s")
-                self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
-                return TOPO_RESPONSE_OK
+            if not data:
+                raise Exception("TOPO_SYNC: failed to retrieve data.")
+            LOG.debug("TOPO_SYNC: data received from OSP, sending "
+                      "request to BCF.")
+            errstr = _("Unable to perform forced topology_sync: %s")
+            return self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
+        except Exception as e:
+            # if encountered an exception, set to previous timestamp
+            LOG.warning(_LW("TOPO_SYNC: Exception during topology sync. "
+                            "Consistency DB timestamp will not be updated."))
+            hash_handler.unlock(set_prev_ts=True)
+            raise e
         finally:
             hash_handler.unlock()
             diff = time.time() - float(hash_handler.lock_ts)
