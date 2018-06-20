@@ -124,6 +124,10 @@ class HashHandler(object):
         self.lock_ts = str(timestamp_ms) if timestamp_ms else str(time.time())
         self.lock_marker = 'TOPO_SYNC[%s]' % self.lock_ts
         self.lock_retry_count = 0
+        # before grabbing the lock, store the previous timestamp
+        # in case there is an exception while collecting data or updating BCF,
+        # revert to previous timestamp
+        self.prev_lock_ts = '0'
 
     def _increment_lock_retry(self):
         """
@@ -290,6 +294,7 @@ class HashHandler(object):
                              self.lock_ts),
                          'prev_ts': prev_ts,
                          'prev_dt_string': convert_ts_to_datetime(prev_ts)})
+                    self.prev_lock_ts = str(prev_ts)
                     return True
                 else:
                     if prev_ts == self.lock_ts:
@@ -342,6 +347,7 @@ class HashHandler(object):
                     self.put_hash(res.hash)
                     return False
                 # lock grabbed and not returned. return True
+                self.prev_lock_ts = str(res.hash)
                 return True
 
     def put_hash(self, new_hash):
@@ -362,9 +368,12 @@ class HashHandler(object):
                   {'hash_ts': new_hash, 'this': self.lock_ts})
         return
 
-    def unlock(self):
+    def unlock(self, set_prev_ts=False):
+        unlock_ts = self.lock_ts
+        if set_prev_ts:
+            unlock_ts = self.prev_lock_ts
         LOG.debug("TOPO_SYNC: Unlocking and setting LockTS  to %s",
-                  self.lock_ts)
+                  unlock_ts)
         with self.session.begin(subtransactions=True):
             res = (self.session.query(ConsistencyHash).
                    filter_by(hash_id=self.hash_id).first())
@@ -373,9 +382,9 @@ class HashHandler(object):
                 return
             else:
                 self.session.refresh(res)  # get the latest res from db
-            if not res.hash.startswith(self.lock_marker):
+            if res.hash != self.lock_marker:
                 # if these are frequent the server is too slow
                 LOG.warning(_LW("Another server already removed the lock. %s"),
                             res.hash)
                 return
-            res.hash = res.hash.replace(self.lock_marker, self.lock_ts)
+            res.hash = res.hash.replace(self.lock_marker, unlock_ts)
