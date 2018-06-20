@@ -382,7 +382,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                         return_value=(httplib.INTERNAL_SERVER_ERROR,
                                       0, 0, 0)), \
                 mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
-                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                           return_value=(False,
+                                         servermanager.TOPO_RESPONSE_OK)) \
                 as topo_mock:
             # a failed DELETE call should trigger a forced topo_sync
             # with check_ts True
@@ -395,7 +396,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                         return_value=(httplib.INTERNAL_SERVER_ERROR,
                                       0, 0, 0)), \
                 mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
-                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                           return_value=(False,
+                                         servermanager.TOPO_RESPONSE_OK)) \
                 as topo_mock:
             # a failed POST call should trigger a forced topo_sync
             # with check_ts True
@@ -449,9 +451,13 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_no_send_all_data_without_keystone(self):
         pl = manager.NeutronManager.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
-                return_value=(False)):
+                        return_value=(False)), \
+            mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
+                       return_value=(False, servermanager.TOPO_RESPONSE_OK)) \
+                as tmock:
             # making a call should trigger a conflict sync
-            self.assertEqual(None, pl._send_all_data())
+            self.assertRaises(Exception, pl._send_all_data())  # noqa
+            tmock.assert_called_once()
 
     def test_floating_calls(self):
         pl = manager.NeutronManager.get_plugin()
@@ -558,6 +564,8 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         # db should have a lock marker
         self.assertEqual(handler.lock_marker,
                          self._get_hash_from_handler_db(handler))
+        # prev_lock_ts must be 0 for initial case
+        self.assertEqual(handler.prev_lock_ts, '0')
         # unlock() should clear the lock
         handler.unlock()
         self.assertEqual(handler.lock_ts,
@@ -585,6 +593,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         handler2 = consistency_db.HashHandler(timestamp_ms=timestamp_2)
         h2 = handler2.lock()
         self.assertFalse(h2)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
 
     def test_lock_check_ts_false_prev_lock_exists(self):
         handler1 = consistency_db.HashHandler()
@@ -592,6 +601,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         self.assertTrue(h1)
         self.assertEqual(handler1.lock_marker,
                          self._get_hash_from_handler_db(handler1))
+        self.assertEqual('0', handler1.prev_lock_ts)
 
         hh2_ts_hh1_ts_plus_1780 = float(handler1.lock_ts) + 1780
         handler2 = consistency_db.HashHandler(
@@ -603,6 +613,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             except Exception:
                 pass
         self.assertEqual(1, emock.call_count)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
 
     def test_lock_check_ts_true_prev_lock_not_expired(self):
         handler1 = consistency_db.HashHandler()
@@ -623,6 +634,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
                                               timestamp_ms=hh2_ts_under_limit)
         h2 = handler2.lock()
         self.assertFalse(h2)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
 
     def test_lock_check_ts_true_prev_lock_expired(self):
         handler1 = consistency_db.HashHandler()
@@ -644,6 +656,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         consistency_db.TOPO_SYNC_EXPIRED_SECS = 1
         h2 = handler2.lock()
         self.assertTrue(h2)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
 
     def test_lock_check_ts_false_prev_lock_not_expired(self):
         handler1 = consistency_db.HashHandler()
@@ -664,6 +677,7 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
                                               timestamp_ms=hh2_ts_under_limit)
         h2 = handler2.lock(check_ts=False)
         self.assertTrue(h2)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
 
     def test_lock_check_ts_false_lock_clash(self):
         # 2 threads try to lock the DB at the same time when check_ts is False
@@ -712,3 +726,25 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # get engine should not have been called because no update
             # should have been made
             self.assertFalse(ge.called)
+            self.assertTrue(handler.lock_ts, handler.prev_lock_ts)
+
+    def test_unlock_set_prev_ts(self):
+        handler1 = consistency_db.HashHandler()
+        handler1.lock()
+        self.assertEqual(handler1.lock_marker,
+                         self._get_hash_from_handler_db(handler1))
+        handler1.unlock()
+
+        # first lock-unlock is done. now comes a second call with
+        # check_ts = False
+        handler2 = consistency_db.HashHandler()
+        h2 = handler2.lock(check_ts=False)
+        self.assertTrue(h2)
+        self.assertEqual(handler1.lock_ts, handler2.prev_lock_ts)
+
+        # now assuming exception occured during topo_sync, call
+        # handler2.unlock(set_prev_ts=True)
+        handler2.unlock(set_prev_ts=True)
+        # hash in consistency_db will be previous hash_handler's lock_ts
+        self.assertEqual(handler1.lock_ts,
+                         self._get_hash_from_handler_db(handler2))
