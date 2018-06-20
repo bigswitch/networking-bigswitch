@@ -1007,8 +1007,12 @@ class ServerPool(object):
                 LOG.debug("TOPO_SYNC: data received from OSP, sending "
                           "request to BCF.")
                 errstr = _("Unable to perform forced topology_sync: %s")
-                self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
-                return TOPO_RESPONSE_OK
+                return self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
+        except Exception as e:
+            # if encountered an exception, set to previous timestamp
+            LOG.warning(_LW("TOPO_SYNC: Failed to update BCF."))
+            hash_handler.unlock(set_prev_ts=True)
+            raise e
         finally:
             hash_handler.unlock()
             diff = time.time() - float(hash_handler.lock_ts)
