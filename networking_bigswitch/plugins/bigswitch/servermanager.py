@@ -747,7 +747,11 @@ class ServerPool(object):
                               "controller, triggering full synchronization. "
                               "%(action)s %(resource)s."),
                           {'action': action, 'resource': resource})
-                return self.force_topo_sync(check_ts=True)
+                sync_executed, topo_resp = self.force_topo_sync(check_ts=True)
+                if sync_executed:
+                    return topo_resp
+                else:
+                    return resp
             else:
                 LOG.error(errstr, resp[2])
                 raise RemoteRestError(reason=resp[2], status=resp[0])
@@ -979,7 +983,15 @@ class ServerPool(object):
 
         :param check_ts: boolean flag to check previous
                          timestamp < TOPO_SYNC_EXPIRED_SECS
-        :return: boolean - True if sync is skipped, else result from rest query
+               prev_resp: a REST response tuple from the previous failed REST
+                          call if available. If we skip topo_sync, return the
+                          failure as previously observed.
+        :return: (sync_executed, response)
+                 sync_executed - Boolean - returns True if we were able to
+                                acquire a lock to perform topo_sync,
+                                False otherwise
+                 response - tuple of the typical HTTP response from REST call
+                        (response.status, response.reason, respstr, respdata)
         """
         LOG.info(_LI('TOPO_SYNC requested with check_ts %s'), check_ts)
 
@@ -993,7 +1005,7 @@ class ServerPool(object):
 
         if not hash_handler.lock(check_ts):
             LOG.info(_LI("TOPO_SYNC: lock() returned False. Skipping."))
-            return TOPO_RESPONSE_OK
+            return False, TOPO_RESPONSE_OK
 
         # else, perform topo_sync
         try:
@@ -1003,12 +1015,20 @@ class ServerPool(object):
                        'start_ts': cdb.convert_ts_to_datetime(time.time())})
             data = self.get_topo_function(
                 **self.get_topo_function_args)
-            if data:
-                LOG.debug("TOPO_SYNC: data received from OSP, sending "
-                          "request to BCF.")
-                errstr = _("Unable to perform forced topology_sync: %s")
-                self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
-                return TOPO_RESPONSE_OK
+            if not data:
+                # when keystone sync fails, it fails silently with data = None
+                # that is wrong, we need to raise an exception
+                raise Exception("TOPO_SYNC: failed to retrieve data.")
+            LOG.debug("TOPO_SYNC: data received from OSP, sending "
+                      "request to BCF.")
+            errstr = _("Unable to perform forced topology_sync: %s")
+            return True, self.rest_action('POST', TOPOLOGY_PATH, data, errstr)
+        except Exception as e:
+            # if encountered an exception, set to previous timestamp
+            LOG.warning(_LW("TOPO_SYNC: Exception during topology sync. "
+                            "Consistency DB timestamp will not be updated."))
+            hash_handler.unlock(set_prev_ts=True)
+            raise e
         finally:
             hash_handler.unlock()
             diff = time.time() - float(hash_handler.lock_ts)

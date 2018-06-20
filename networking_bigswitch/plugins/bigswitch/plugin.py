@@ -370,7 +370,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         All args are ignored. The `_get_all_data` method dynamically pulls the
         relevant information i.e. if its L2 only or L2+L3.
         """
-        return self.servers.force_topo_sync()
+        sync_executed, topo_resp = self.servers.force_topo_sync()
+        return topo_resp
 
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
