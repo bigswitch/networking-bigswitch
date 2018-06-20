@@ -397,7 +397,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # IVS hosts will have a vswitch with the same name as the hostname
         if self.does_vswitch_exist(context.host):
             for segment in context.segments_to_bind:
-                if segment[api.NETWORK_TYPE] == const.TYPE_VLAN:
+                if segment[api.NETWORK_TYPE] == pconst.TYPE_VLAN:
                     self._bind_port_ivswitch(context, segment)
 
     def does_vswitch_exist(self, host):
