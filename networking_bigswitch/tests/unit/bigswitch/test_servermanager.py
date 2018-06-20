@@ -382,7 +382,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                         return_value=(httplib.INTERNAL_SERVER_ERROR,
                                       0, 0, 0)), \
                 mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
-                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                           return_value=(False,
+                                         servermanager.TOPO_RESPONSE_OK)) \
                 as topo_mock:
             # a failed DELETE call should trigger a forced topo_sync
             # with check_ts True
@@ -395,7 +396,8 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                         return_value=(httplib.INTERNAL_SERVER_ERROR,
                                       0, 0, 0)), \
                 mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
-                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                           return_value=(False,
+                                         servermanager.TOPO_RESPONSE_OK)) \
                 as topo_mock:
             # a failed POST call should trigger a forced topo_sync
             # with check_ts True
@@ -449,9 +451,13 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
     def test_no_send_all_data_without_keystone(self):
         pl = manager.NeutronManager.get_plugin()
         with mock.patch(SERVERMANAGER + '.ServerPool._update_tenant_cache',
-                return_value=(False)):
+                        return_value=(False)), \
+            mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
+                       return_value=(False, servermanager.TOPO_RESPONSE_OK)) \
+                as tmock:
             # making a call should trigger a conflict sync
-            self.assertEqual(None, pl._send_all_data())
+            self.assertRaises(Exception, pl._send_all_data())  # noqa
+            tmock.assert_called_once()
 
     def test_floating_calls(self):
         pl = manager.NeutronManager.get_plugin()
@@ -558,6 +564,8 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
         # db should have a lock marker
         self.assertEqual(handler.lock_marker,
                          self._get_hash_from_handler_db(handler))
+        # prev_lock_ts must be 0 for initial case
+        self.assertEqual(handler.prev_lock_ts, '0')
         # unlock() should clear the lock
         handler.unlock()
         self.assertEqual(handler.lock_ts,
@@ -712,3 +720,4 @@ class HashLockingTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # get engine should not have been called because no update
             # should have been made
             self.assertFalse(ge.called)
+            self.assertTrue(handler.lock_ts, handler.prev_lock_ts)
