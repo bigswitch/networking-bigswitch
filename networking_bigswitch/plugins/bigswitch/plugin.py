@@ -486,6 +486,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
 
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
+            if not hasattr(context, 'session'):
+                context = qcontext.get_admin_context()
             # overwrite sg if both sg and sg_id are given
             sg = self.get_security_group(context, sg_id)
 
