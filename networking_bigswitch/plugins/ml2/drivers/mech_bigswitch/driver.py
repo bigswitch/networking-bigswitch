@@ -93,7 +93,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         self._delete_sg_f = self.bsn_delete_sg_callback
         self._update_sg_f = self.bsn_update_sg_callback
         self._create_sg_rule_f = self.bsn_create_sg_rule_callback
-        self._delete_sg_rule_f = self.bsn_delete_sg_rule_callback
         registry.subscribe(self._create_sg_f,
                            resources.SECURITY_GROUP, events.AFTER_CREATE)
         registry.subscribe(self._delete_sg_f,
@@ -102,8 +101,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                            resources.SECURITY_GROUP, events.AFTER_UPDATE)
         registry.subscribe(self._create_sg_rule_f,
                            resources.SECURITY_GROUP_RULE, events.AFTER_CREATE)
-        registry.subscribe(self._delete_sg_rule_f,
-                           resources.SECURITY_GROUP_RULE, events.AFTER_DELETE)
 
         # the above does not cover the cases where security groups are
         # initially created or when they are deleted since those actions
@@ -153,28 +150,24 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             LOG.debug("Callback create rule in sg_id: %s" % sg_id)
             self.bsn_create_security_group(sg_id=sg_id, context=context)
 
-    def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
-        context = kwargs.get('context')
-        if context:
-            LOG.debug("Callback delete sg_rule belongs to tenant: %s"
-                      % context.tenant_id)
-            sgs = self.get_security_groups(context, filters={}) or []
-            for sg in sgs:
-                if sg.get('tenant_id') != context.tenant_id:
-                    continue
-                sg_id = sg.get('id')
-                LOG.debug("Callback delete rule in sg_id: %s" % sg_id)
-                # we over write the sg on bcf controller instead of deleting
-                try:
-                    self.bsn_create_security_group(sg_id=sg_id,
-                                                   context=context)
-                except ext_sg.SecurityGroupNotFound:
-                    # DB query will throw exception when security group is
-                    # being deleted. delete_security_group_rule callback would
-                    # try to update BCF with new set of rules.
-                    LOG.warning(
-                        _LW("Security group with ID %(sg_id)s not found "
-                            "when trying to update."), {'sg_id': sg_id})
+    def bsn_delete_sg_rule(self, sg_rule, context):
+        LOG.debug("Deleting security group rule from BCF: %s", sg_rule)
+        if not context:
+            LOG.error(_LE(
+                "Context missing when trying to delete security group rule. "
+                "Please force-bcf-sync to ensure consistency with BCF."))
+        sg_id = sg_rule['security_group_id']
+        # we over write the sg on bcf controller instead of deleting
+        try:
+            self.bsn_create_security_group(sg_id,
+                                           context=context)
+        except ext_sg.SecurityGroupNotFound:
+            # DB query will throw exception when security group is
+            # being deleted. delete_security_group_rule callback would
+            # try to update BCF with new set of rules.
+            LOG.warning(
+                _LW("Security group with ID %(sg_id)s not found "
+                    "when trying to update."), {'sg_id': sg_id})
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """
@@ -184,6 +177,9 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         elif event_type == 'security_group.delete.end':
             LOG.debug("Security group deleted: %s" % payload)
             self.bsn_delete_security_group(payload['security_group_id'])
+        elif event_type == 'security_group_rule.delete.end':
+            LOG.debug("Security group rule deleted: %s", payload)
+            self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
         elif event_type == 'identity.project.deleted':
             LOG.debug("Project deleted: %s" % payload)
             self.bsn_delete_tenant(payload['resource_info'])
