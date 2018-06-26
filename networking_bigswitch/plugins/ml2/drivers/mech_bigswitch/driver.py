@@ -99,19 +99,22 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # In addition, RPC notifications also used for: tenant add,
         # tenant delete, log all other events as FYI.
 
-        # following way to register call back functions start in kilo
-        self._create_sg_f = self.bsn_create_sg_callback
-        self._delete_sg_f = self.bsn_delete_sg_callback
-        self._update_sg_f = self.bsn_update_sg_callback
-        self._create_sg_rule_f = self.bsn_create_sg_rule_callback
-        registry.subscribe(self._create_sg_f,
-                           resources.SECURITY_GROUP, events.AFTER_CREATE)
-        registry.subscribe(self._delete_sg_f,
-                           resources.SECURITY_GROUP, events.AFTER_DELETE)
-        registry.subscribe(self._update_sg_f,
-                           resources.SECURITY_GROUP, events.AFTER_UPDATE)
-        registry.subscribe(self._create_sg_rule_f,
-                           resources.SECURITY_GROUP_RULE, events.AFTER_CREATE)
+        # Register callbacks ONLY IF sync_security_groups is True
+        if cfg.CONF.RESTPROXY.sync_security_groups:
+            # following way to register call back functions start in kilo
+            self._create_sg_f = self.bsn_create_sg_callback
+            self._delete_sg_f = self.bsn_delete_sg_callback
+            self._update_sg_f = self.bsn_update_sg_callback
+            self._create_sg_rule_f = self.bsn_create_sg_rule_callback
+            registry.subscribe(self._create_sg_f,
+                               resources.SECURITY_GROUP, events.AFTER_CREATE)
+            registry.subscribe(self._delete_sg_f,
+                               resources.SECURITY_GROUP, events.AFTER_DELETE)
+            registry.subscribe(self._update_sg_f,
+                               resources.SECURITY_GROUP, events.AFTER_UPDATE)
+            registry.subscribe(self._create_sg_rule_f,
+                               resources.SECURITY_GROUP_RULE,
+                               events.AFTER_CREATE)
 
         # the above does not cover the cases where security groups are
         # initially created or when they are deleted since those actions
@@ -182,13 +185,19 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):
         """This is called on each notification to the neutron topic """
-        if event_type == 'security_group.create.end':
+        # we retain this section for security groups, because it handles
+        # other events as well. Ignore security group events if disabled in
+        # config
+        if (event_type == 'security_group.create.end'
+            and cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group created: %s" % payload)
             self.bsn_create_security_group(sg=payload['security_group'])
-        elif event_type == 'security_group.delete.end':
+        elif (event_type == 'security_group.delete.end'
+              and cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group deleted: %s" % payload)
             self.bsn_delete_security_group(payload['security_group_id'])
-        elif event_type == 'security_group_rule.delete.end':
+        elif (event_type == 'security_group_rule.delete.end'
+              and cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group rule deleted: %s", payload)
             self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
         elif event_type == 'identity.project.deleted':
