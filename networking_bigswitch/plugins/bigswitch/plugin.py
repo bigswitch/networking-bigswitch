@@ -362,7 +362,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # L3 plugin also includes tenant policies
             # data.update({'policies': tenant_policies})
 
-        if get_sgs and self.l3_plugin:
+        if (get_sgs and self.l3_plugin
+                and cfg.CONF.RESTPROXY.sync_security_groups):
             sgs = plugin.get_security_groups(admin_context) or []
             new_sgs = []
             for sg in sgs:
@@ -560,11 +561,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if context is None:
             context = qcontext.get_admin_context()
         filters = {'name': ['default'], 'tenant_id': [tenant_id]}
-        default_group = self.get_security_groups(
-            context, filters, default_sg=True)
-        if default_group:
-            # VRRP tenant doesn't have tenant_id
-            self.bsn_create_security_group(sg=default_group[0])
+        if cfg.CONF.RESTPROXY.sync_security_groups:
+            default_group = self.get_security_groups(
+                context, filters, default_sg=True)
+            if default_group:
+                # VRRP tenant doesn't have tenant_id
+                self.bsn_create_security_group(sg=default_group[0])
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
 
