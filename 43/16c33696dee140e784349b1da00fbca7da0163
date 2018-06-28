@@ -1,0 +1,9 @@
+Code-Review+2: Sarath Kumar Sankaran Kutty <sarath.kutty@bigswitch.com>
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 28 Jun 2018 14:17:25 +0000
+Reviewed-on: https://review.openstack.org/577225
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/newton
