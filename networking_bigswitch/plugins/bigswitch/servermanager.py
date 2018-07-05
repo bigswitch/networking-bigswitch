@@ -729,11 +729,9 @@ class ServerPool(object):
                 sync_executed, topo_resp = self.force_topo_sync(check_ts=True)
                 if sync_executed:
                     return topo_resp
-                else:
-                    return resp
-            else:
-                LOG.error(errstr, resp[2])
-                raise RemoteRestError(reason=resp[2], status=resp[0])
+            # either topo_sync not executed or topo_sync itself failed
+            LOG.error(errstr, resp[2])
+            raise RemoteRestError(reason=resp[2], status=resp[0])
         if resp[0] in ignore_codes:
             LOG.info(_LI("NeutronRestProxyV2: Received and ignored error "
                          "code %(code)s on %(action)s action to resource "
