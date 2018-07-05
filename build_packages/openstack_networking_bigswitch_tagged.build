@@ -1,0 +1,128 @@
+#!/bin/bash
+set -eux
+
+git clean -fxd
+GIT_REPO=`pwd`
+
+# fetch tags before going to the container.
+# since ssh keys are not usable inside the container
+git fetch --tags
+
+case "$GIT_BRANCH" in
+    *"master"*) echo "RELEASE JOB NOT REQUIRED FOR MASTER BRANCH. SKIPPING."; exit 0
+esac
+
+# set a few constants based on git branch to be used by the build job
+# GIT_TAG_REGEX = regular expression used to get tag number
+# PAGE_ID = wiki page ID to be updated with tarball
+# OSP_REL_NAME = openstack release name to be used in tarball name
+case "$GIT_BRANCH" in
+  *"queen"*)
+    GIT_TAG_REGEX="12.*.*"
+    PAGE_ID="861044932"
+    OSP_REL_NAME="QUEENS"
+    ;;
+  *"pike"*)
+    GIT_TAG_REGEX="11.*.*"
+    PAGE_ID="861044928"
+    OSP_REL_NAME="PIKE"
+    ;;
+  *"ocata"*)
+    GIT_TAG_REGEX="10.*.*"
+    PAGE_ID="846594211"
+    OSP_REL_NAME="OCATA"
+    ;;
+  *"newton"*)
+    GIT_TAG_REGEX="9.*.*"
+    PAGE_ID="845905936"
+    OSP_REL_NAME="NEWTON"
+    ;;
+  *)
+    echo "UNKNOWN BRANCH ENCOUNTERED. SKIPPING."
+    exit 1
+    ;;
+esac
+
+
+# get current latest version based on branch specific tag regex and ordering
+# based on commit date
+CURR_VERSION=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="%(refname:short)" --count=1`
+
+# fetch the tagged .tar.gz from pypi to pwd/dist directory
+echo "Download tagged plugin package from PYPI"
+mkdir dist
+pip download networking-bigswitch==$CURR_VERSION --no-binary :all: --dest dist
+
+echo "Building RPM packages"
+DOCKER_IMAGE_RPM=$DOCKER_REGISTRY'/horizon-bsn-builder:latest'
+BUILD_OS=centos7-x86_64
+
+docker pull $DOCKER_IMAGE_RPM
+
+BUILDDIR=$(mktemp -d)
+mkdir -p $BUILDDIR/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+# get changelog for tags
+CHANGE_LOG=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
+# replace newline chars with \n
+CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
+# remove timestamp from changelog string
+CHANGE_LOG=`echo "$CHANGE_LOG" | sed -E "s/[0-9]{2}:[0-9]{2}:[0-9]{2}\ //g"`
+# replace variables in spec file
+sed -i -e "s/\${version_number}/$CURR_VERSION/" -e "s/\${change_log}/$CHANGE_LOG/" rhel/python-networking-bigswitch.spec
+
+cp dist/* $BUILDDIR/SOURCES/
+cp rhel/*.service $BUILDDIR/SOURCES/
+cp rhel/*.spec $BUILDDIR/SPECS/
+cp build_packages/build-rhel-packages-inner.sh $BUILDDIR/build-rhel-packages-inner.sh
+
+docker run -v $BUILDDIR:/rpmbuild $DOCKER_IMAGE_RPM /rpmbuild/build-rhel-packages-inner.sh
+
+# Copy built RPMs to pkg/
+BIGTOP_PARTIAL_PATH="$BUILD_OS/$GIT_BRANCH/tagged/$CURR_VERSION"
+OUTDIR=$(readlink -m "pkg/$BIGTOP_PARTIAL_PATH")
+rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
+cp $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
+
+# build a single tar with all plugin RPM files and yamls
+
+# 1. get yamls and customize scripts from BOSI
+mkdir bosi
+mkdir tarball
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/4.0.0/latest/* ./bosi
+mv ./bosi/rhosp_resources/$GIT_BRANCH/yamls ./tarball
+mv ./bosi/rhosp_resources/$GIT_BRANCH/ivs/* ./tarball
+
+# 2. get horizon rpm from bigtop
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/* ./tarball
+
+# 3. get all neutron plugin *.noarch.rpms
+cp $BUILDDIR/RPMS/noarch/*.rpm ./tarball
+
+# 4. build a tarball and put it at $OUTDIR
+ALL_RPM_YAML_TARNAME="$OSP_REL_NAME-BSN-PLUGIN-$CURR_VERSION.tar.gz"
+tar -zcvf $OUTDIR/$ALL_RPM_YAML_TARNAME -C ./tarball/ .
+cp dist/*.tar.gz "$OUTDIR"
+git log > "$OUTDIR/gitlog.txt"
+touch "$OUTDIR/build-$CURR_VERSION"
+ln -snf $(basename $OUTDIR) $OUTDIR/../latest
+
+rm -rf "$BUILDDIR"
+
+# check if directory for current version exists on bigtop
+REMOTE_CMD="[ -d /home/bsn/public_html/networking-bigswitch/$BIGTOP_PARTIAL_PATH ]"
+if ( ssh -o "StrictHostKeyChecking no" bigtop $REMOTE_CMD )
+then
+    # folder doesn't exist, rsync
+    echo "THIS VERSION ALREADY EXISTS ON BIGTOP. EXITING."
+    exit 0
+fi
+
+# if this version directory doesn't exist on BIGTOP, rsync it and update internal confluence wiki page
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva pkg/. bigtop:public_html/networking-bigswitch
+
+# put a backslash before double quotes, hence triple backslash before double
+# quotes \\\"
+HTML_HREF="<a href=\\\"http://bigtop.eng.bigswitch.com/~bsn/networking-bigswitch/$BIGTOP_PARTIAL_PATH/$ALL_RPM_YAML_TARNAME\\\" class=\\\"external-link\\\" rel=\\\"nofollow\\\">$ALL_RPM_YAML_TARNAME</a>"
+
+python ./build_packages/update_wiki.py "${CONFLUENCE_USER}" "${CONFLUENCE_TOKEN}" "${PAGE_ID}" "${HTML_HREF}"
