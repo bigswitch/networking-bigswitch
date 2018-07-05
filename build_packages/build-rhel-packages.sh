@@ -1,5 +1,12 @@
 #!/bin/bash -eux
 
+# follow instructions on wiki
+# Openstack Library Development and Release Handbook [2018]
+#
+# set GIT_BRANCH and DOCKER_REGISTRY as needed by build-rhel-packages.sh script
+# export GIT_BRANCH='stable/newton'
+# export DOCKER_REGISTRY='docker-registry.eng.bigswitch.com:5000'
+
 DOCKER_IMAGE=$DOCKER_REGISTRY'/horizon-bsn-builder:latest'
 BUILD_OS=centos7-x86_64
 
