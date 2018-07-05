@@ -12,9 +12,9 @@ git config --global user.email "support@bigswitch.com"
 
 # get version info from tags (done as part of build job, skipped here)
 # git fetch --tags
-# NOTE update refs/tags/10.*.* according to version string for each branch
-CURR_VERSION=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
-CURR_SUBJECT=`git for-each-ref refs/tags/10.*.* --sort="-*committerdate" --format="%(subject)" --count=1`
+# NOTE update refs/tags/9.*.* according to version string for each branch
+CURR_VERSION=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="%(refname:short)" --count=1`
+CURR_SUBJECT=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="%(subject)" --count=1`
 
 echo 'CURR_VERSION=' $CURR_VERSION
 echo 'CURR_SUBJECT=' $CURR_SUBJECT
