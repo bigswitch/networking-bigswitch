@@ -380,7 +380,12 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 as topo_mock:
             # a failed DELETE call should trigger a forced topo_sync
             # with check_ts True
-            pl.servers.rest_action('DELETE', '/', '', None, [])
+            self.assertRaises(servermanager.RemoteRestError,
+                              pl.servers.rest_action,
+                              **{'action': 'DELETE', 'resource': '/',
+                                 'data': '',
+                                 'errstr': "Unable to DELETE query to BCF: %s",
+                                 'ignore_codes': []})
             topo_mock.assert_called_once_with(**{'check_ts': True})
 
     def test_post_failure_forces_topo_sync(self):
@@ -394,7 +399,11 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 as topo_mock:
             # a failed POST call should trigger a forced topo_sync
             # with check_ts True
-            pl.servers.rest_action('POST', '/', '', None, [])
+            self.assertRaises(servermanager.RemoteRestError,
+                              pl.servers.rest_action,
+                              **{'action': 'POST', 'resource': '/', 'data': '',
+                                 'errstr': "Unable to POST query to BCF: %s",
+                                 'ignore_codes': []})
             topo_mock.assert_called_once_with(**{'check_ts': True})
 
     def test_topo_sync_failure_does_not_force_topo_sync(self):
@@ -403,14 +412,17 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                         return_value=(httplib.INTERNAL_SERVER_ERROR,
                                       0, 0, 0)), \
                 mock.patch(SERVERMANAGER + '.ServerPool.force_topo_sync',
-                           return_value=servermanager.TOPO_RESPONSE_OK) \
+                           return_value=(False,
+                                         servermanager.TOPO_RESPONSE_OK)) \
                 as topo_mock:
             # a failed POST call for topology path should raise an exception
             # and not call force_topo_sync like other failed rest_action
-            try:
-                pl.servers.rest_action('POST', '/topology', '', None, [])
-            except Exception as e:
-                isinstance(e, servermanager.RemoteRestError)
+            self.assertRaises(servermanager.RemoteRestError,
+                              pl.servers.rest_action,
+                              **{'action': 'POST', 'resource': '/topology',
+                                 'data': '',
+                                 'errstr': "Unable to perform topo_sync: %s",
+                                 'ignore_codes': []})
             topo_mock.assert_not_called()
 
     def test_not_found_sync_raises_error_without_topology(self):
