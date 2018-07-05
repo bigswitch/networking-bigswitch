@@ -1,0 +1,83 @@
+#!/bin/bash -eux
+
+git clean -fxd
+GIT_REPO=`pwd`
+
+# fetch tags before going to the container.
+# since ssh keys are not usable inside the container
+git fetch --tags
+
+# set the regex for git tag to be used based on branch
+case "$GIT_BRANCH" in
+  *"master"*) GIT_TAG_REGEX="12.*.*" ;;
+  *"queen"*) GIT_TAG_REGEX="12.*.*" ;;
+  *"pike"*) GIT_TAG_REGEX="11.*.*" ;;
+  *"ocata"*) GIT_TAG_REGEX="10.*.*" ;;
+  *"newton"*) GIT_TAG_REGEX="9.*.*" ;;
+  *"mitaka"*) GIT_TAG_REGEX="8.*.*" ;;
+esac
+
+# get gpg creds in place
+GNUPG_DIR=$(mktemp -d)
+tar -zxvf $GNUPG_TAR -C $GNUPG_DIR
+
+DOCKER_IMAGE_BOSI=$DOCKER_REGISTRY'/bosi-builder:latest'
+
+# this part is replaced by fetching the .tar.gz from pypi to pwd/dist directory
+echo "Tagging and uploading to PYPI"
+docker pull $DOCKER_IMAGE_BOSI
+docker run -e GIT_BRANCH=$GIT_BRANCH \
+           -e GIT_TAG_REGEX=$GIT_TAG_REGEX \
+           -v $GIT_REPO:/networking-bigswitch \
+           -v $PYPIRC_FILE:/root/.pypirc \
+           -v $GNUPG_DIR/.gnupg:/root/.gnupg \
+           $DOCKER_IMAGE_BOSI \
+           /networking-bigswitch/build_packages/upload_to_pypi.sh
+
+# remove pypi and gpg creds
+sudo rm -rf $GNUPG_DIR
+
+echo "Building RPM packages"
+DOCKER_IMAGE_RPM=$DOCKER_REGISTRY'/horizon-bsn-builder:latest'
+BUILD_OS=centos7-x86_64
+
+docker pull $DOCKER_IMAGE_RPM
+
+BUILDDIR=$(mktemp -d)
+mkdir -p $BUILDDIR/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+# update spec file with correct version number and changelog
+# NOTE update refs/tags/10.*.* according to version string for each branch
+# latest version
+CURR_VERSION=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="%(refname:short)" --count=1`
+# get changelog for tags
+CHANGE_LOG=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
+# replace newline chars with \n
+CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
+# remove timestamp from changelog string
+CHANGE_LOG=`echo "$CHANGE_LOG" | sed -E "s/[0-9]{2}:[0-9]{2}:[0-9]{2}\ //g"`
+# replace variables in spec file
+sed -i -e "s/\${version_number}/$CURR_VERSION/" -e "s/\${change_log}/$CHANGE_LOG/" rhel/python-networking-bigswitch.spec
+
+cp dist/* $BUILDDIR/SOURCES/
+cp rhel/*.service $BUILDDIR/SOURCES/
+cp rhel/*.spec $BUILDDIR/SPECS/
+cp build_packages/build-rhel-packages-inner.sh $BUILDDIR/build-rhel-packages-inner.sh
+
+docker run -v $BUILDDIR:/rpmbuild $DOCKER_IMAGE_RPM /rpmbuild/build-rhel-packages-inner.sh
+
+# create a unique string as: version_date_time
+# e.g. 9.42.14_2018-06-28_14:55:51
+VERSION_DATETIME=`echo $CURR_VERSION`'_'`date +%F_%T`
+# Copy built RPMs to pkg/
+OUTDIR=$(readlink -m "pkg/$BUILD_OS/$GIT_BRANCH/beta/$VERSION_DATETIME")
+rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
+cp $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
+# build a single tar with all plugin RPM files and put to $OUTDIR
+tar -zcvf $OUTDIR/$CURR_VERSION-all_plugin_rpms.tar.gz -C $BUILDDIR/RPMS/noarch/ .
+cp dist/*.tar.gz "$OUTDIR"
+git log > "$OUTDIR/gitlog.txt"
+touch "$OUTDIR/build-$CURR_VERSION"
+ln -snf $(basename $OUTDIR) $OUTDIR/../latest
+
+rm -rf "$BUILDDIR"
