@@ -1,0 +1,108 @@
+#!/bin/bash -eux
+
+git clean -fxd
+GIT_REPO=`pwd`
+
+# fetch tags before going to the container.
+# since ssh keys are not usable inside the container
+git fetch --tags
+
+# set the regex for git tag to be used based on branch
+case "$GIT_BRANCH" in
+  *"master"*) GIT_TAG_REGEX="12.*.*" ;;
+  *"queen"*) GIT_TAG_REGEX="12.*.*" ;;
+  *"pike"*) GIT_TAG_REGEX="11.*.*" ;;
+  *"ocata"*) GIT_TAG_REGEX="10.*.*" ;;
+  *"newton"*) GIT_TAG_REGEX="9.*.*" ;;
+  *"mitaka"*) GIT_TAG_REGEX="8.*.*" ;;
+esac
+
+# set page_id based on git branch
+case "$GIT_BRANCH" in
+  *"ocata"*) PAGE_ID="846594211" ;;
+  *"newton"*) PAGE_ID="845905936" ;;
+esac
+
+# set bosi path for yaml based on GIT_BRANCH
+# if branch is origin/master, path is master
+# for all other cases, it is origin/stable/<version>
+case "$GIT_BRANCH" in
+  *"master"*) BOSI_OSP_BRANCH="origin/master" ;;
+  *) BOSI_OSP_BRANCH=$GIT_BRANCH ;;
+esac
+
+# get current latest version based on branch specific tag regex and ordering
+# based on commit date
+CURR_VERSION=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="%(refname:short)" --count=1`
+
+# this part is replaced by fetching the .tar.gz from pypi to pwd/dist directory
+echo "Download tagged plugin package from PYPI"
+mkdir dist
+pip download networking-bigswitch==$CURR_VERSION --no-binary :all: --dest dist
+
+echo "Building RPM packages"
+DOCKER_IMAGE_RPM=$DOCKER_REGISTRY'/horizon-bsn-builder:latest'
+BUILD_OS=centos7-x86_64
+
+docker pull $DOCKER_IMAGE_RPM
+
+BUILDDIR=$(mktemp -d)
+mkdir -p $BUILDDIR/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+
+# get changelog for tags
+CHANGE_LOG=`git for-each-ref refs/tags/$GIT_TAG_REGEX --sort="-*committerdate" --format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
+# replace newline chars with \n
+CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
+# remove timestamp from changelog string
+CHANGE_LOG=`echo "$CHANGE_LOG" | sed -E "s/[0-9]{2}:[0-9]{2}:[0-9]{2}\ //g"`
+# replace variables in spec file
+sed -i -e "s/\${version_number}/$CURR_VERSION/" -e "s/\${change_log}/$CHANGE_LOG/" rhel/python-networking-bigswitch.spec
+
+cp dist/* $BUILDDIR/SOURCES/
+cp rhel/*.service $BUILDDIR/SOURCES/
+cp rhel/*.spec $BUILDDIR/SPECS/
+cp build_packages/build-rhel-packages-inner.sh $BUILDDIR/build-rhel-packages-inner.sh
+
+docker run -v $BUILDDIR:/rpmbuild $DOCKER_IMAGE_RPM /rpmbuild/build-rhel-packages-inner.sh
+
+# Copy built RPMs to pkg/
+BIGTOP_PARTIAL_PATH="$BUILD_OS/$GIT_BRANCH/tagged/$CURR_VERSION"
+OUTDIR=$(readlink -m "pkg/$BIGTOP_PARTIAL_PATH")
+rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
+cp $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
+# build a single tar with all plugin RPM files and yamls
+# 1. get yamls from BOSI
+mkdir bosi
+mkdir tarball
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/4.0.0/latest/* ./bosi
+mv ./bosi/rhosp_resources/$BOSI_OSP_BRANCH/yamls ./tarball
+# 2. get *.noarch.rpms
+cp $BUILDDIR/RPMS/noarch/*.rpm ./tarball
+# 3. build a tarball and put it at $OUTDIR
+ALL_RPM_YAML_TARNAME="$CURR_VERSION-all_plugin_rpms_yamls.tar.gz"
+tar -zcvf $OUTDIR/$ALL_RPM_YAML_TARNAME -C ./tarball/ .
+cp dist/*.tar.gz "$OUTDIR"
+git log > "$OUTDIR/gitlog.txt"
+touch "$OUTDIR/build-$CURR_VERSION"
+ln -snf $(basename $OUTDIR) $OUTDIR/../latest
+
+rm -rf "$BUILDDIR"
+
+# check if directory for current version exists on bigtop
+REMOTE_CMD="[ -d /home/bsn/public_html/networking-bigswitch/$BIGTOP_PARTIAL_PATH ]"
+if ( ssh -o "StrictHostKeyChecking no" bigtop $REMOTE_CMD )
+then
+    # folder doesn't exist, rsync
+    echo "THIS VERSION ALREADY EXISTS ON BIGTOP. EXITING."
+    exit 0
+fi
+
+# if this version directory doesn't exist on BIGTOP, rsync it and update internal confluence wiki page
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva pkg/. bigtop:public_html/networking-bigswitch
+
+# put a backslash before double quotes, hence triple backslash before double
+# quotes \\\"
+HTML_HREF="<a href=\\\"http://bigtop.eng.bigswitch.com/~bsn/networking-bigswitch/$BIGTOP_PARTIAL_PATH/$ALL_RPM_YAML_TARNAME\\\" class=\\\"external-link\\\" rel=\\\"nofollow\\\">$ALL_RPM_YAML_TARNAME</a>"
+
+
+python ./build_packages/update_wiki.py "${PAGE_ID}" "${HTML_HREF}"
