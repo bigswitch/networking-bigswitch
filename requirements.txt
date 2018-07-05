@@ -7,3 +7,5 @@
 # https://review.openstack.org/#/c/163207/
 
 os-vif>=1.1.0 # Apache-2.0
+pywin32;sys_platform=='win32'
+wmi;sys_platform=='win32'
