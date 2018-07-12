@@ -28,7 +28,7 @@ from neutron.tests.unit.extensions import test_l3
 from neutron.tests.unit.extensions import test_securitygroup as test_sg
 from neutron.tests.unit.plugins.ml2 import test_plugin
 from neutron_lib.api.definitions import portbindings
-from neutron_lib import constants as lib_constants
+from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib import context as neutron_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import directory
@@ -130,7 +130,7 @@ class TestBigSwitchML2Router(test_l3.L3NatTestCaseBase,
 
     def test_router_add_interface_by_port_fails_nested(self):
         # Force _validate_router_port_info failure
-        plugin = directory.get_plugin(lib_constants.L3)
+        plugin = directory.get_plugin(plugin_constants.L3)
         if not isinstance(plugin, l3_db.L3_NAT_dbonly_mixin):
             self.skipTest("Plugin is not L3_NAT_dbonly_mixin")
         orig_update_port = self.plugin.update_port

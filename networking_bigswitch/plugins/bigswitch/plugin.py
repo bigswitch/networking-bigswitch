@@ -80,6 +80,7 @@ from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
+from neutron_lib.db import api as lib_db_api
 from neutron_lib import exceptions as lib_exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
@@ -881,7 +882,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @runtime.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
-        session = db.get_writer_session()
+        session = lib_db_api.get_writer_session()
         try:
             port = session.query(models_v2.Port).filter_by(id=port_id).one()
             port['status'] = status
