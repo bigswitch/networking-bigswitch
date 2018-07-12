@@ -1,0 +1,41 @@
+# this job definition is based on the original project defined at
+# https://github.com/openstack-infra/project-config/blob/bcf533f3cb26da3cf6881c5fd0428b2c310b6e43/zuul.d/projects.yaml#L8187-L8192
+# and job template at
+# https://github.com/openstack-infra/openstack-zuul-jobs/blob/5f6d861f4316a09965ad3b96acf386b67ee1efee/zuul.d/project-templates.yaml#L340-L366
+# moving to an in-repo project template definition for faster iteration
+# also keeps project maintainers in know-how about the build stuff
+# reference about zuul-v3 available at
+# https://docs.openstack.org/infra/manual/zuulv3.html
+- project:
+    name: openstack/networking-bigswitch
+    templates:
+      - system-required
+      - openstack-python-jobs-neutron
+      - openstack-python-jobs-trusty
+      - publish-to-pypi
+    check:
+      jobs:
+        - openstack-tox-pep8:
+            required-projects:
+              - name: openstack/neutron
+              - name: openstack/tap-as-a-service
+        - openstack-tox-py27:
+            required-projects:
+              - name: openstack/neutron
+              - name: openstack/tap-as-a-service
+    gate:
+      jobs:
+        - openstack-tox-pep8:
+            required-projects:
+              - name: openstack/neutron
+              - name: openstack/tap-as-a-service
+        - openstack-tox-py27:
+            required-projects:
+              - name: openstack/neutron
+              - name: openstack/tap-as-a-service
+    post:
+      jobs:
+        - publish-openstack-python-branch-tarball:
+            required-projects:
+              - name: openstack/neutron
+              - name: openstack/tap-as-a-service
