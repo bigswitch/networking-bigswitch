@@ -373,8 +373,7 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
     def test_req_context_header_present(self):
         with\
             mock.patch(SERVER_MANAGER + '.ServerProxy.rest_call') as mock_rest,\
-            self.port(**{'device_id': 'devid',
-                         'binding:host_id': 'host'}):
+                self.port():
 
             headers = mock_rest.mock_calls[0][1][3]
             self.assertIn('X-REQ-CONTEXT', headers)
