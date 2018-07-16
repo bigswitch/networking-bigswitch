@@ -252,6 +252,7 @@ class ServerProxy(object):
         self.name = name
         self.success_codes = SUCCESS_CODES
         self.auth = None
+        self.auth_token = None
         self.neutron_id = neutron_id
         self.failed = False
         self.capabilities = []
@@ -259,8 +260,13 @@ class ServerProxy(object):
         self.mypool = mypool
         # cache connection here to avoid a SSL handshake for every connection
         self.currentconn = None
+
         if auth:
-            self.auth = 'Basic ' + base64.encodestring(auth).strip()
+            if ':' in auth:
+                self.auth = 'Basic ' + base64.encodestring(auth).strip()
+            else:
+                self.auth_token = 'session_cookie="' + auth + '"'
+
         self.combined_cert = combined_cert
 
     def get_capabilities(self):
@@ -307,7 +313,10 @@ class ServerProxy(object):
             headers['Connection'] = 'keep-alive'
         else:
             reconnect = True
-        if self.auth:
+
+        if self.auth_token:
+            headers['Cookie'] = self.auth_token
+        elif self.auth:
             headers['Authorization'] = self.auth
 
         LOG.debug("ServerProxy: server=%(server)s, port=%(port)d, "
