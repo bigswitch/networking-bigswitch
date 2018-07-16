@@ -54,6 +54,7 @@ PCI_IDS_DIR = "/run/pci_ids"
 LLDP_START_STR = "lldp start"
 LLDP_STOP_STR = "lldp stop"
 X710_INTEL_DRIVER_STR = "i40e"
+X710_DEVICE_LIST = [0x1572, 0x1583]
 
 # read and save lldp status for different interfaces
 lldp_status = {}
@@ -374,7 +375,7 @@ def save_x710_intf_lldp_status(intf):
                (pci_id, vendor, device))
 
     # check if X710 NIC, if yes, read lldp status
-    if (vendor == 0x8086 and device == 0x1572):
+    if (vendor == 0x8086 and device in X710_DEVICE_LIST):
         # default assume status as lldp is stopped
         lldp_status[uplink] = LLDP_STOP_STR
         if os.path.exists("/sys/bus/pci/devices/%s/driver" % pci_id):
