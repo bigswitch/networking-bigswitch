@@ -139,6 +139,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
                 mock.call.write('certdata')
             ])
 
+    # basic authentication
     def test_auth_header(self):
         cfg.CONF.set_override('server_auth', 'username:pass', 'RESTPROXY')
         sp = servermanager.ServerPool()
@@ -148,8 +149,22 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             sp.rest_create_network('tenant', 'network')
         callheaders = rv.request.mock_calls[0][1][3]
         self.assertIn('Authorization', callheaders)
+        self.assertNotIn('Cookie', callheaders)
         self.assertEqual(callheaders['Authorization'],
                          'Basic dXNlcm5hbWU6cGFzcw==')
+
+    # token based authentication
+    def test_auth_token_header(self):
+        cfg.CONF.set_override('server_auth', 'fake_token', 'RESTPROXY')
+        sp = servermanager.ServerPool()
+        with mock.patch(HTTPCON) as conmock:
+            rv = conmock.return_value
+            rv.getresponse.return_value.getheader.return_value = 'HASHHEADER'
+            sp.rest_create_network('tenant', 'network')
+        callheaders = rv.request.mock_calls[0][1][3]
+        self.assertIn('Cookie', callheaders)
+        self.assertNotIn('Authorization', callheaders)
+        self.assertEqual(callheaders['Cookie'], 'session_cookie="fake_token"')
 
     def test_header_add(self):
         sp = servermanager.ServerPool()
