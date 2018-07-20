@@ -1,0 +1,8 @@
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Fri, 20 Jul 2018 14:24:33 +0000
+Reviewed-on: https://review.openstack.org/583313
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/pike
