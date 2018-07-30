@@ -255,8 +255,6 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         if self._is_port_sriov(context.current):
             LOG.debug("SR-IOV port, nothing to do")
             return
-        if self._is_port_dpdk(context.current):
-            LOG.debug("DPDK port, nothing to do")
 
         # If bsn_l3 plugin and it is a gateway port, bind to ivs.
         if (self.l3_bsn_plugin and
@@ -274,6 +272,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         if port:
+            # For vhostuser type ports, membership rule and endpoint was
+            # created during bind_port, so skip this
+            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
+                return
+
             self.async_port_create(port["network"]["tenant_id"],
                                    port["network"]["id"], port)
 
@@ -307,12 +310,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         if port:
+            # For vhostuser type ports, membership rule and endpoint was
+            # created during bind_port, so skip this
+            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
+                return
+
             try:
-                update_status = True
-                # For SR-IOV ports and DPDK ports, we shouldn't update the
-                # port status
-                if self._is_port_sriov(port) or self._is_port_dpdk(port):
-                    update_status = False
+                # For SR-IOV ports, we shouldn't update the port status
+                update_status = not self._is_port_sriov(port)
                 self.async_port_create(port["network"]["tenant_id"],
                                        port["network"]["id"], port,
                                        update_status)

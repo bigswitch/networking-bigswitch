@@ -607,20 +607,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             return True
         return False
 
-    def _is_port_dpdk(self, port):
-        """Check if port is a DPDK port
-
-        :param port:
-        :return: True, if port is a DPDK port
-                 False, otherwise
-        """
-        vnic_type = port.get(portbindings.VNIC_TYPE)
-        vif_type = port.get(portbindings.VIF_TYPE)
-        if (vnic_type and vnic_type == portbindings.VNIC_NORMAL and
-                vif_type and vif_type == portbindings.VIF_TYPE_VHOST_USER):
-            return True
-        return False
-
     def _sriov_port_validation_active_active(self, port, network):
         """
         For SR-IOV port, we configure 'memeber interface-group $HOSTID' on BCF.
@@ -687,21 +673,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         bsn_host_id = port.get(portbindings.HOST_ID) + '-' + physnet
         return bsn_host_id
 
-    def _get_dpdk_port_hostid(self, port, network):
-        """Return the HostID for the given DPDK port
-
-        For DPDK port, we configure 'member interface-group $HostID' on BCF.
-        HostID = HOST + PHYSNET, which ocrresponds to interface-groups on BCF.
-
-        :param port:
-        :param network: the network to which this port belongs
-        :return: HostID
-        """
-        host = port.get(portbindings.HOST_ID)
-        physnet = network.get(pl_config.PROVIDER_PHYSNET)
-        bsn_host_id = host + '-' + physnet
-        return bsn_host_id
-
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type
         Perform basic sanity checks and update the HOST_ID of the port
@@ -726,9 +697,6 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             hostid = self._get_sriov_port_hostid(prepped_port, network)
             if not hostid:
                 return False
-            prepped_port[portbindings.HOST_ID] = hostid
-        elif self._is_port_dpdk(prepped_port):
-            hostid = self._get_dpdk_port_hostid(prepped_port, network)
             prepped_port[portbindings.HOST_ID] = hostid
 
         return prepped_port
