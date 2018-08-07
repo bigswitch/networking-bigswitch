@@ -21,6 +21,7 @@ import eventlet
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
+from oslo_serialization import jsonutils
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
@@ -100,6 +101,58 @@ def _read_ovs_bridge_mappings():
     return mapping
 
 
+def _read_dpdk_br_intf_mappings():
+    """Read config for ovs_user_bridge from os-net-config.
+
+    This helps in identifying which interfaces belong to the DPDK
+    ovs_user_bridge.
+
+    :return: dpdk_br_intf_mapping dictionary
+                {'bridge_name': ['intf_1', 'intf_2'], ...}
+                {} empty dict when not found
+    """
+    mapping = {}
+    try:
+        json_data = open(RH_NET_CONF_PATH).read()
+        data = jsonutils.loads(json_data)
+    except ValueError:
+        LOG.warning(_LW("Unable to load json data from os-net-config. OVS "
+                        "DPDK bridge to interface mapping may be missing."))
+        return mapping
+    network_config = data.get('network_config')
+    for config in network_config:
+        config_type = config.get('type')
+        if config_type != 'ovs_user_bridge':
+            continue
+        bridge_name = config.get('name').encode('ascii', 'ignore')
+        mapping[bridge_name] = []
+        members = config.get('members')
+        for nic in members:
+            nic_type = nic.get('type')
+            if nic_type == 'ovs_dpdk_port':
+                intf_name = nic.get('name').encode('ascii', 'ignore')
+                mapping[bridge_name].append(intf_name)
+                break
+            elif nic_type == 'ovs_dpdk_bond':
+                bond_interfaces = nic.get('members')
+                for bond_intf in bond_interfaces:
+                    if bond_intf.get('type') != 'ovs_dpdk_port':
+                        LOG.debug("DPDK ovs_dpdk_bond has NON ovs_dpdk_port %s"
+                                  % bond_intf.get('name'))
+                        continue
+                    intf_name = (bond_intf.get('name')
+                                 .encode('ascii', 'ignore'))
+                    mapping[bridge_name].append(intf_name)
+            else:
+                LOG.debug("DPDK ovs_user_bridge has member which is neither "
+                          "ovs_dpdk_port or ovs_dpdk_bond.")
+                continue
+        break
+    LOG.info(_LI("OVS DPDK br_intf_mappings are: %(br_map)s"),
+             {'br_map': mapping})
+    return mapping
+
+
 class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                                api.MechanismDriver):
 
@@ -131,10 +184,14 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # if os-net-config is present, attempt to read physnet bridge_mappings
-        # from openvswitch_agent.ini
+        # from openvswitch_agent.ini and dpdk interface names from
+        # os-net-config
         self.bridge_mappings = {}
+        self.dpdk_br_intf_mappings = {}
         if os.path.isfile(RH_NET_CONF_PATH):
             self.bridge_mappings = _read_ovs_bridge_mappings()
+            self.dpdk_br_intf_mappings = _read_dpdk_br_intf_mappings()
+
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
         self.setup_rpc_callbacks()

@@ -678,10 +678,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         bsn_host_id = port.get(portbindings.HOST_ID) + '-' + physnet
         return bsn_host_id
 
-    def _get_ovs_dpdk_port_hostid(self, port, network):
-        """Return HostID with bridge_name appended for OVS and DPDK ports
+    def _get_ovs_port_hostid(self, port, network):
+        """Return HostID with bridge_name appended for OVS ports
 
-        VIF type for OVS and DPDK ports is OVS and VHOSTUSER respectively.
+        VIF type for OVS ports is OVS
 
         :param port:
         :param network:
@@ -697,6 +697,37 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         bridge_name = self.bridge_mappings.get(physnet)
         host_id_bridge_name = host_id + '_' + bridge_name
         return host_id_bridge_name
+
+    def _get_dpdk_port_hostid(self, port, network):
+        """Return comma separated HostID with bridge and intf name appended
+
+        VIF type for DPDK ports is VHOSTUSER. membership rule is programmed for
+        each interface in the bridge as a separate host.
+        Hence, host_id = host_id + '_' + bridge_name + '_' + intf_1_name
+        and simlarly for 2nd interface
+
+        :param port:
+        :param network:
+        :return: new_host_id
+        """
+        host_id = port.get(portbindings.HOST_ID)
+        physnet = network.get(pl_config.PROVIDER_PHYSNET)
+        if physnet not in self.bridge_mappings:
+            LOG.warning(_LW("Physical network to bridge mapping not "
+                            "found for port %s."), port)
+            return host_id
+
+        bridge_name = self.bridge_mappings.get(physnet)
+        if bridge_name not in self.dpdk_br_intf_mappings:
+            LOG.warning(_LW("Bridge name to interface mapping not found for "
+                            "bridge %s."), bridge_name)
+            return host_id
+
+        interfaces = self.dpdk_br_intf_mappings.get(bridge_name)
+        hostnames = ','.join(
+            [(host_id + '_' + bridge_name + '_' + intf)
+             for intf in interfaces])
+        return hostnames
 
     def _map_port_hostid(self, port, network):
         """Update the HOST_ID of a given port based on it's type
@@ -728,11 +759,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         # VIF_TYPE OVS and VHOSTUSER i.e. DHCP and DPDK ports
         # if bridge_name not available, sets it to just 'host-id'
         vif_type = prepped_port.get(portbindings.VIF_TYPE)
-        if (vif_type and
-                (vif_type == portbindings.VIF_TYPE_OVS
-                 or vif_type == portbindings.VIF_TYPE_VHOST_USER)):
-            prepped_port[portbindings.HOST_ID] = (
-                self._get_ovs_dpdk_port_hostid(prepped_port, network))
+        if vif_type:
+            if vif_type == portbindings.VIF_TYPE_OVS:
+                # append bridge_name
+                prepped_port[portbindings.HOST_ID] = (
+                    self._get_ovs_port_hostid(prepped_port, network))
+            elif vif_type == portbindings.VIF_TYPE_VHOST_USER:
+                # append bridge and interface name, comma separated list if
+                # more than one interface in the bridge
+                prepped_port[portbindings.HOST_ID] = (
+                    self._get_dpdk_port_hostid(prepped_port, network))
 
         return prepped_port
 

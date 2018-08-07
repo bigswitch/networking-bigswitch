@@ -640,21 +640,20 @@ def send_lldp_on_all_interfaces(args, network_map):
                                "Skip sending LLDP on interface %s" % intf_name)
                     continue
                 intf_tuple_list.append((intf_name, ofport_num, mac_addr))
-            if len(intf_tuple_list) != 0:
-                chassis_id = intf_tuple_list[0][2]
-            LOG.syslog("LLDP chassis-id is %s" % chassis_id)
+            # send unique system-name on each DPDK interface
             hostname_fqdn = get_fqdn_cli()
-            systemname = hostname_fqdn + '_' + bridge_name
-            LOG.syslog("LLDP system-name is %s" % systemname)
             # default system-desc for compute node's DPDK interface is STATIC
             systemdesc = SYSTEM_DESC_STATIC
-            if args.system_desc:
-                systemdesc = args.system_desc
             LOG.syslog("LLDP system-desc is %s" % systemdesc)
             # generate ovs-ofctl packet-out command for each interface
             for (intf_name, ofport_num, mac_addr) in intf_tuple_list:
+                LOG.syslog("LLDP chassis-id is %s" % mac_addr)
+                systemname = (hostname_fqdn + '_' +
+                              bridge_name + '_' +
+                              intf_name)
+                LOG.syslog("LLDP system-name is %s" % systemname)
                 raw_frame = lldp_frame_of(
-                    chassis_id=chassis_id, network_interface=intf_name,
+                    chassis_id=mac_addr, network_interface=intf_name,
                     ttl=120, system_name=systemname, system_desc=systemdesc,
                     port_mac_str=mac_addr)
                 hex_pkt = raw_frame.encode('hex')
