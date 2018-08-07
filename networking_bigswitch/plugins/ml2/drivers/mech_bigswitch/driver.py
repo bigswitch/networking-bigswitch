@@ -131,10 +131,12 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
 
         self.segmentation_types = ', '.join(cfg.CONF.ml2.type_drivers)
         # if os-net-config is present, attempt to read physnet bridge_mappings
-        # from openvswitch_agent.ini
+        # from openvswitch_agent.ini and dpdk interface names from
+        # os-net-config
         self.bridge_mappings = {}
         if os.path.isfile(RH_NET_CONF_PATH):
             self.bridge_mappings = _read_ovs_bridge_mappings()
+
         # Track hosts running IVS to avoid excessive calls to the backend
         self.ivs_host_cache = {}
         self.setup_rpc_callbacks()
@@ -341,8 +343,8 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         if port:
-            # For vhostuser type ports, membership rule and endpoint was
-            # created during bind_port, so skip this
+            # For VHOSTUSER type i.e. DPDK ports, membership rule is created by
+            # LLDP agent on compute node and endpoint is learned by packet-in
             if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
                 return
 
@@ -379,6 +381,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             return
 
         if port:
+            # For VHOSTUSER type i.e. DPDK ports, membership rule is created by
+            # LLDP agent on compute node and endpoint is learned by packet-in
+            if port[portbindings.VIF_TYPE] == portbindings.VIF_TYPE_VHOST_USER:
+                return
+
             try:
                 # For SR-IOV ports, we shouldn't update the port status
                 update_status = not self._is_port_sriov(port)
