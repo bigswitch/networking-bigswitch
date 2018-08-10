@@ -141,8 +141,6 @@ def get_network_interface_map():
              {
                 'bridge_or_bond_name': {
                     'type': 'bond or bridge type',
-                    'bonded_nics': boolean, False if interface is not part of
-                                    a bond, absent otherwise,
                     'members': [ list of interfaces ]
                 }
              }
@@ -155,7 +153,6 @@ def get_network_interface_map():
                      'members': ['p1p1']
                  }, u 'br-link': {
                      'type': 'ovs_bridge',
-                     'bonded_nics': False,
                      'members': ['p1p2']
                  }, u 'br-ex': {
                      'type': 'ovs_bridge',
@@ -190,7 +187,6 @@ def get_network_interface_map():
                         add_intf_to_map(
                             intf_map=intf_map, bridge_or_bond=bridge_name,
                             config_type='ovs_bridge', intf_index=intf_index)
-                        intf_map[bridge_name]['bonded_nics'] = False
                         break
                     elif member_type in SUPPORTED_BOND:
                         nics = member.get('members')

@@ -562,10 +562,10 @@ def _send_frames_kernel_socket(network_map, br_bond_name, args):
         hostname_fqdn = socket.getfqdn()
     systemname = hostname_fqdn + '_' + br_bond_name
     LOG.syslog("LLDP system-name is %s" % systemname)
-    if ('bonded_nics' in network_map[br_bond_name] and
-            not network_map[br_bond_name]['bonded_nics']):
-        systemdesc = SYSTEM_DESC_STATIC
-    else:
+    # default system-desc for compute node's DPDK interface is STATIC
+    systemdesc = SYSTEM_DESC_STATIC
+    if len(network_map[br_bond_name]['members']) > 1:
+        # if bonded nics, send LACP system-desc
         systemdesc = SYSTEM_DESC_LACP
     LOG.syslog("LLDP system-desc is %s" % systemdesc)
     chassis_id = None
@@ -648,8 +648,9 @@ def send_lldp_on_all_interfaces(args, network_map):
             LOG.syslog("LLDP system-name is %s" % systemname)
             # default system-desc for compute node's DPDK interface is STATIC
             systemdesc = SYSTEM_DESC_STATIC
-            if args.system_desc:
-                systemdesc = args.system_desc
+            if len(intf_tuple_list) > 1:
+                # if bonded nics, send LACP system-desc
+                systemdesc = SYSTEM_DESC_LACP
             LOG.syslog("LLDP system-desc is %s" % systemdesc)
             # generate ovs-ofctl packet-out command for each interface
             for (intf_name, ofport_num, mac_addr) in intf_tuple_list:
