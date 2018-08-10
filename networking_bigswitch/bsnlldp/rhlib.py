@@ -91,7 +91,8 @@ def get_mac_str(network_interface):
         return f.read().strip()
 
 
-def add_intf_to_map(intf_map, bridge_or_bond, config_type, intf_index):
+def add_intf_to_map(intf_map, bridge_or_bond, config_type, intf_index,
+                    lacp=False):
     """Adds an interface to the interface map, after performing validation
 
     interface_map has a specific structure. this method checks and inserts
@@ -103,6 +104,8 @@ def add_intf_to_map(intf_map, bridge_or_bond, config_type, intf_index):
     :param intf_index: name or index number of the interface
                        if interface is in nicX format, this will be a
                        numerical index, else name. both would be string.
+    :param lacp: boolean flag, specifying whether intf is part of some form of
+                 link aggregation or no.
     :return: intf_map after being updated
     """
     if bridge_or_bond not in intf_map:
@@ -111,6 +114,12 @@ def add_intf_to_map(intf_map, bridge_or_bond, config_type, intf_index):
         intf_map[bridge_or_bond]['config_type'] = config_type
     if 'members' not in intf_map[bridge_or_bond]:
         intf_map[bridge_or_bond]['members'] = []
+    if config_type == 'linux_bond' or lacp:
+        # for linux_bond config type, always True. Otherwise, depends on
+        # whether its a bond or individual interface in a bridge.
+        intf_map[bridge_or_bond]['lacp'] = True
+    else:
+        intf_map[bridge_or_bond]['lacp'] = False
     intf_map[bridge_or_bond]['members'].append(intf_index)
     return intf_map
 
@@ -141,8 +150,7 @@ def get_network_interface_map():
              {
                 'bridge_or_bond_name': {
                     'type': 'bond or bridge type',
-                    'bonded_nics': boolean, False if interface is not part of
-                                    a bond, absent otherwise,
+                    'lacp': False (boolean, defaults to False),
                     'members': [ list of interfaces ]
                 }
              }
@@ -151,14 +159,16 @@ def get_network_interface_map():
 
              {
                  u 'bond_api': {
-                     'type': 'linux_bond',
+                     'type': 'linux_bond',,
+                     'lacp': True,
                      'members': ['p1p1']
                  }, u 'br-link': {
                      'type': 'ovs_bridge',
-                     'bonded_nics': False,
+                     'lacp': False,
                      'members': ['p1p2']
                  }, u 'br-ex': {
                      'type': 'ovs_bridge',
+                     'lacp': True,
                      'members': ['p1p1', 'p1p2']
                  }
              }
@@ -190,7 +200,6 @@ def get_network_interface_map():
                         add_intf_to_map(
                             intf_map=intf_map, bridge_or_bond=bridge_name,
                             config_type='ovs_bridge', intf_index=intf_index)
-                        intf_map[bridge_name]['bonded_nics'] = False
                         break
                     elif member_type in SUPPORTED_BOND:
                         nics = member.get('members')
@@ -202,7 +211,7 @@ def get_network_interface_map():
                             add_intf_to_map(
                                 intf_map=intf_map, bridge_or_bond=bridge_name,
                                 config_type='ovs_bridge',
-                                intf_index=intf_index)
+                                intf_index=intf_index, lacp=True)
                         break
                     else:
                         # either a vlan type interface or unsupported type
@@ -243,7 +252,7 @@ def get_network_interface_map():
                             add_intf_to_map(
                                 intf_map=intf_map, bridge_or_bond=bridge_name,
                                 config_type='ovs_user_bridge',
-                                intf_index=intf_name)
+                                intf_index=intf_name, lacp=True)
                     else:
                         continue
         break
