@@ -7,7 +7,6 @@
 # reference about zuul-v3 available at
 # https://docs.openstack.org/infra/manual/zuulv3.html
 - project:
-    name: openstack/networking-bigswitch
     templates:
       - system-required
       - openstack-python-jobs-neutron
