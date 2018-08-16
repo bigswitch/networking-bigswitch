@@ -8,10 +8,8 @@
 # https://docs.openstack.org/infra/manual/zuulv3.html
 - project:
     templates:
-      - system-required
       - openstack-python-jobs-neutron
       - openstack-python-jobs-trusty
-      - publish-to-pypi
     check:
       jobs:
         - openstack-tox-pep8:
