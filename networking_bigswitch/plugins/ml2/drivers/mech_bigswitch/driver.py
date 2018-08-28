@@ -24,7 +24,6 @@ import oslo_messaging
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
-from neutron.common import rpc as n_rpc
 from neutron.extensions import securitygroup as ext_sg
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
@@ -34,6 +33,7 @@ from neutron_lib import constants as const
 from neutron_lib import context as ctx
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
+from neutron_lib import rpc as lib_rpc
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.i18n import _
@@ -181,7 +181,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         keystone_target = oslo_messaging.Target(
             topic='#', exchange='keystone', server=cfg.CONF.host)
         self.listener = oslo_messaging.get_notification_listener(
-            n_rpc.TRANSPORT, [target, keystone_target], [self],
+            lib_rpc.TRANSPORT, [target, keystone_target], [self],
             executor='eventlet', allow_requeue=False)
         self.listener.start()
 
