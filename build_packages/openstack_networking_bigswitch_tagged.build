@@ -39,6 +39,12 @@ esac
 # PAGE_ID = wiki page ID to be updated with tarball
 # OSP_REL_NAME = openstack release name to be used in tarball name
 case "$GIT_BRANCH" in
+  *"rocky"*)
+    GIT_TAG_REGEX="13.*.*"
+    PAGE_ID="866942996"
+    OSP_REL_NAME="ROCKY"
+    RHOSP_REL_NAME="RHOSP-14"
+    ;;
   *"queen"*)
     GIT_TAG_REGEX="12.*.*"
     PAGE_ID="861044932"
@@ -123,7 +129,7 @@ mv ./bosi/rhosp_resources/$GIT_BRANCH/yamls ./$ALL_RPM_YAML_TAR_DIR
 mv ./bosi/rhosp_resources/$GIT_BRANCH/ivs/* ./$ALL_RPM_YAML_TAR_DIR
 
 # 2. get horizon rpm from bigtop
-rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/* ./$ALL_RPM_YAML_TAR_DIR
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./tarball
 
 # 3. get all neutron plugin *.noarch.rpms
 cp $BUILDDIR/RPMS/noarch/*.rpm ./$ALL_RPM_YAML_TAR_DIR
