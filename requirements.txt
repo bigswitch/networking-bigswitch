@@ -5,5 +5,3 @@
 
 # NOTE: remove once neutron log import merges
 # https://review.openstack.org/#/c/163207/
-
-os-vif>=1.1.0 # Apache-2.0
