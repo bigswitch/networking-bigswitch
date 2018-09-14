@@ -29,7 +29,9 @@ from oslo_utils import uuidutils
 
 from neutron.api import extensions as neutron_extensions
 from neutron.db import api as db
+from neutron.db import dns_db
 from neutron.db import l3_db
+
 
 from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.callbacks import events
@@ -108,6 +110,7 @@ class TransactionCache(object):
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                   l3_db.L3_NAT_db_mixin,
+                  dns_db.DNSDbMixin,
                   tenant_policy_db.TenantPolicyDbMixin):
 
     supported_extension_aliases = ["router"]
