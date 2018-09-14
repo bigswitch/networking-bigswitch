@@ -32,6 +32,7 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.db import api as db
+from neutron.db import dns_db
 from neutron.db import l3_db
 from neutron.extensions import l3
 
@@ -108,6 +109,7 @@ class TransactionCache(object):
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                   l3_db.L3_NAT_db_mixin,
+                  dns_db.DNSDbMixin, 
                   tenant_policy_db.TenantPolicyDbMixin):
 
     supported_extension_aliases = ["router"]
