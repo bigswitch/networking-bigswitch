@@ -28,6 +28,7 @@ from oslo_log import log as logging
 from oslo_utils import excutils
 
 from neutron.api import extensions as neutron_extensions
+from neutron.db import dns_db
 from neutron.db import l3_db
 from neutron.extensions import l3
 from neutron import manager
@@ -49,7 +50,8 @@ BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = ("BCF does "
 
 
 class L3RestProxy(cplugin.NeutronRestProxyV2Base,
-                  routerrule_db.RouterRule_db_mixin):
+                  routerrule_db.RouterRule_db_mixin,
+                  dns_db.DNSDbMixin):
 
     supported_extension_aliases = ["router", "router_rules"]
     # This is a flag to tell that L3 plugin is BSN.
