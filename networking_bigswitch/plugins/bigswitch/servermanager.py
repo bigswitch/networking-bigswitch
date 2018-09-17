@@ -238,7 +238,7 @@ def get_keystoneauth_cfg(conf, name):
 
         value_list = conf._namespace._get_file_value([(KS_AUTH_GROUP_NAME,
                                                        name)])
-        return value_list[0]
+        return value_list[0][0]
     except KeyError as e:
         LOG.warning("Config does not have property %(name)s "
                     "in group keystone_authtoken", {'name': name})
