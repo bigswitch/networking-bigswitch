@@ -235,9 +235,15 @@ def get_keystoneauth_cfg(conf, name):
     :param name: property name to be retrieved
     """
     try:
+        # expected response is a tuple consisting of
+        # (value_list, source_of_value). since keystone attributes are fields
+        # like username, password and domain name - they're not actually lists.
+        # so we pick the first item from the list
+        value_list, source_of_value = conf._namespace._get_file_value(
+            [(KS_AUTH_GROUP_NAME, name)])
 
-        value_list = conf._namespace._get_file_value([(KS_AUTH_GROUP_NAME,
-                                                       name)])
+        LOG.debug('KEYSTONE_AUTHTOKEN value for %(name)s is %(value)s',
+                  {'name': name, 'value': value_list[0]})
         return value_list[0]
     except KeyError as e:
         LOG.warning("Config does not have property %(name)s "
