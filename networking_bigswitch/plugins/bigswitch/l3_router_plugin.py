@@ -51,7 +51,7 @@ from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.plugins.bigswitch.utils import Util
 
 LOG = logging.getLogger(__name__)
-put_context_in_serverpool = cplugin.put_context_in_serverpool
+add_debug_log = cplugin.add_debug_log
 BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH = (
     "BCF does not have floatingip capability, should not "
     "deploy BSN l3 router plugin")
@@ -215,7 +215,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 self.servers.rest_create_tenantpolicy(
                     tenantpolicy_dict['tenant_id'], tenantpolicy_dict)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def create_router(self, context, router):
         self._warn_on_state_status(router['router'])
@@ -242,7 +242,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         finally:
             self.txn_cache.remove_transaction(bsn_transaction_id)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def update_router(self, context, router_id, router):
         self._warn_on_state_status(router['router'])
@@ -287,7 +287,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 super(L3RestProxy, self).remove_default_policy(context,
                                                                tenant_id)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def delete_router(self, context, router_id):
         with db.context_manager.reader.using(context):
@@ -346,7 +346,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         directory.get_plugin().update_port(context, port['id'],
                                            {'port': {'status': 'ACTIVE'}})
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def add_router_interface(self, context, router_id, interface_info):
         bsn_transaction_id = uuidutils.generate_uuid()
@@ -371,7 +371,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         finally:
             self.txn_cache.remove_transaction(bsn_transaction_id)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def remove_router_interface(self, context, router_id, interface_info):
         # Validate args
@@ -415,7 +415,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         res['floating_port_id'] = floatingip['floating_port_id']
         return self._fields(res, fields)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def create_floatingip(self, context, floatingip):
         with db.context_manager.writer.using(context):
@@ -445,7 +445,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             # return created floating IP
             return new_fl_ip
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def update_floatingip(self, context, id, floatingip):
         with db.context_manager.writer.using(context):
@@ -469,7 +469,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 self._send_floatingip_update(context)
             return new_fl_ip
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def delete_floatingip(self, context, id):
         with db.context_manager.writer.using(context):
@@ -486,7 +486,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
                 LOG.error(BCF_CAPABILITY_L3_PLUGIN_MISS_MATCH)
                 self._send_floatingip_update(context)
 
-    @put_context_in_serverpool
+    @add_debug_log
     @log_helper.log_method_call
     def disassociate_floatingips(self, context, port_id, do_notify=True):
         router_ids = super(L3RestProxy, self).disassociate_floatingips(

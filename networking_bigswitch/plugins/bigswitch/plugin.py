@@ -920,13 +920,12 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             raise lib_exceptions.PortNotFound(port_id=port_id)
 
 
-def put_context_in_serverpool(f):
+def add_debug_log(f):
     @functools.wraps(f)
     def wrapper(self, context, *args, **kwargs):
         # core plugin: context is top level object
-        # ml2: keeps context in _plugin_context
+        # Do not need context in header anymore
         LOG.debug("Function: %(fname)s called", {'fname': f.__name__})
-        self.servers.set_context(getattr(context, '_plugin_context', context))
         return f(self, context, *args, **kwargs)
     return wrapper
 
@@ -982,7 +981,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         LOG.debug("NeutronRestProxyV2: initialization done")
 
     @db.context_manager.writer
-    @put_context_in_serverpool
+    @add_debug_log
     def create_network(self, context, network):
         """Create a network.
 
@@ -1024,7 +1023,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         return new_net
 
     @db.context_manager.writer
-    @put_context_in_serverpool
+    @add_debug_log
     def update_network(self, context, net_id, network):
         """Updates the properties of a particular Virtual Network.
 
@@ -1059,7 +1058,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         return new_net
 
     @db.context_manager.writer
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_network(self, context, net_id):
         """Delete a network.
 
@@ -1081,7 +1080,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self._send_delete_network(orig_net, context)
         return ret_val
 
-    @put_context_in_serverpool
+    @add_debug_log
     def create_port(self, context, port):
         """Create a port.
 
@@ -1173,7 +1172,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 self._extend_port_dict_binding(context, port)
         return [self._fields(port, fields) for port in ports]
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_port(self, context, port_id, port):
         """Update values of a port.
 
@@ -1252,7 +1251,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @runtime.synchronized('bsn-port-barrier')
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_port(self, context, port_id, l3_port_check=True):
         """Delete a port.
 
@@ -1283,7 +1282,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             # now that we've left db transaction, we are safe to notify
             self.l3_plugin.notify_routers_updated(context, router_ids)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def create_subnet(self, context, subnet):
         self._warn_on_state_status(subnet['subnet'])
 
@@ -1298,7 +1297,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             self._send_update_network(orig_net, context)
         return new_subnet
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_subnet(self, context, id, subnet):
         self._warn_on_state_status(subnet['subnet'])
 
@@ -1313,7 +1312,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             self._send_update_network(orig_net, context)
             return new_subnet
 
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_subnet(self, context, id):
         orig_subnet = super(NeutronRestProxyV2, self).get_subnet(context, id)
         net_id = orig_subnet['network_id']
