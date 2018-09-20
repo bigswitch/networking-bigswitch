@@ -32,7 +32,6 @@ import re
 import socket
 import ssl
 import time
-import weakref
 
 from neutron_lib import exceptions
 
@@ -88,7 +87,6 @@ FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
 BASE_URI = '/networkService/v2.0'
 ORCHESTRATION_SERVICE_ID = 'Neutron v2.0'
 HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
-REQ_CONTEXT_HEADER = 'X-REQ-CONTEXT'
 SERVICE_TENANT = 'VRRP_Service'
 KS_AUTH_GROUP_NAME = 'keystone_authtoken'
 KS_AUTH_DOMAIN_DEFAULT = 'default'
@@ -491,23 +489,6 @@ class ServerPool(object):
             self._keystone_sync,
             cfg.CONF.RESTPROXY.keystone_sync_interval)
 
-    def set_context(self, context):
-        # this context needs to be local to the greenthread
-        # so concurrent requests don't use the wrong context.
-        # Use a weakref so the context is garbage collected
-        # after the plugin is done with it.
-        ref = weakref.ref(context)
-        self.contexts[eventlet.corolocal.get_ident()] = ref
-
-    def get_context_ref(self):
-        # Try to get the context cached for this thread. If one
-        # doesn't exist or if it's been garbage collected, this will
-        # just return None.
-        try:
-            return self.contexts[eventlet.corolocal.get_ident()]()
-        except KeyError:
-            return None
-
     def get_capabilities(self):
         # lookup on first try
         try:
@@ -651,17 +632,6 @@ class ServerPool(object):
 
     def rest_call(self, action, resource, data, headers, ignore_codes,
                   timeout=False):
-        context = self.get_context_ref()
-        if context:
-            # include the requesting context information if available
-            cdict = context.to_dict()
-            # remove the auth token so it's not present in debug logs on the
-            # backend controller
-            cdict.pop('auth_token', None)
-            if ('tenant_name' in cdict and cdict['tenant_name']):
-                cdict['tenant_name'] = Util.format_resource_name(
-                    cdict['tenant_name'])
-            headers[REQ_CONTEXT_HEADER] = jsonutils.dumps(cdict)
         good_first = sorted(self.servers, key=lambda x: x.failed)
         first_response = None
         for active_server in good_first:
