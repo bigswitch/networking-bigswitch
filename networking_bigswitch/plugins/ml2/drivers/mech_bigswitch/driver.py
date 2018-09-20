@@ -48,7 +48,7 @@ ROUTER_GATEWAY_PORT_OWNER = 'network:router_gateway'
 OVS_AGENT_INI_FILEPATH = '/etc/neutron/plugins/ml2/openvswitch_agent.ini'
 RH_NET_CONF_PATH = "/etc/os-net-config/config.json"
 LOG = log.getLogger(__name__)
-put_context_in_serverpool = plugin.put_context_in_serverpool
+add_debug_log = plugin.add_debug_log
 
 # time in seconds to maintain existence of vswitch response
 CACHE_VSWITCH_TIME = 60
@@ -261,7 +261,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         else:
             LOG.debug("Else events: %s payload: %s", (event_type, payload))
 
-    @put_context_in_serverpool
+    @add_debug_log
     def security_groups_rule_updated(self, context, **kwargs):
         # this will get called whenever a security group rule updated message
         # goes onto the RPC bus
@@ -270,37 +270,37 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             for sg_id in kwargs.get('security_groups'):
                 self.bsn_create_security_group(sg_id, context=context)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def security_groups_member_updated(self, context, **kwargs):
         pass
 
-    @put_context_in_serverpool
+    @add_debug_log
     def security_groups_provider_updated(self, context, **kwargs):
         pass
 
-    @put_context_in_serverpool
+    @add_debug_log
     def create_network_postcommit(self, context):
         # create network on the network controller
         self._send_create_network(context.current)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_network_precommit(self, context):
         self._verify_network_precommit(context)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_network_postcommit(self, context):
         # update network on the network controller
         self._send_update_network(context.current)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_subnet_postcommit(self, context):
         self._trigger_network_update_from_subnet_transaction(context)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def create_subnet_postcommit(self, context):
         self._trigger_network_update_from_subnet_transaction(context)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_subnet_postcommit(self, context):
         self._trigger_network_update_from_subnet_transaction(context)
 
@@ -309,12 +309,12 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             ctx.get_admin_context(), context.current['network_id'])
         self._send_update_network(net)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_network_postcommit(self, context):
         # delete network on the network controller
         self._send_delete_network(context.current)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def create_port_postcommit(self, context):
         if not self._is_port_supported(context.current):
             LOG.debug("Ignoring unsupported vnic type")
@@ -348,7 +348,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             self.async_port_create(port["network"]["tenant_id"],
                                    port["network"]["id"], port)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def update_port_postcommit(self, context):
         if not self._is_port_supported(context.current):
             LOG.debug("Ignoring unsupported vnic type")
@@ -396,7 +396,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                             triggered_by_tenant=port["network"]["tenant_id"]
                         )
 
-    @put_context_in_serverpool
+    @add_debug_log
     def delete_port_postcommit(self, context):
         if not self._is_port_supported(context.current):
             LOG.debug("Ignoring unsupported vnic type")
@@ -434,7 +434,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                        portbindings.OVS_HYBRID_PLUG: True}
         context.set_binding(segment[api.ID], vif_type, vif_details)
 
-    @put_context_in_serverpool
+    @add_debug_log
     def bind_port(self, context):
         """Marks ports as bound.
 
