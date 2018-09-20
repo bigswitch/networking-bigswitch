@@ -19,14 +19,12 @@ import time
 import mock
 from oslo_config import cfg
 from oslo_db import exception as db_exc
-from oslo_serialization import jsonutils
 from oslo_utils import importutils
 
 from networking_bigswitch.plugins.bigswitch.db import consistency_db
 from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.tests.unit.bigswitch \
     import test_restproxy_plugin as test_rp
-from neutron_lib import context
 from neutron_lib.plugins import directory
 
 SERVERMANAGER = 'networking_bigswitch.plugins.bigswitch.servermanager'
@@ -180,23 +178,6 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         # verify new header made it in
         self.assertIn('EXTRA-HEADER', callheaders)
         self.assertEqual(callheaders['EXTRA-HEADER'], 'HI')
-
-    def test_req_context_header(self):
-        sp = directory.get_plugin().servers
-        ncontext = context.Context('uid', 'tid')
-        sp.set_context(ncontext)
-        with mock.patch(HTTPCON) as conmock:
-            rv = conmock.return_value
-            rv.getresponse.return_value.getheader.return_value = 'HASHHEADER'
-            sp.rest_action('GET', '/')
-        callheaders = rv.request.mock_calls[0][1][3]
-        self.assertIn(servermanager.REQ_CONTEXT_HEADER, callheaders)
-        ctxdct = ncontext.to_dict()
-        # auth token is not included
-        ctxdct.pop('auth_token')
-        self.assertEqual(
-            ctxdct, jsonutils.loads(
-                callheaders[servermanager.REQ_CONTEXT_HEADER]))
 
     def test_capabilities_retrieval(self):
         sp = servermanager.ServerPool()
