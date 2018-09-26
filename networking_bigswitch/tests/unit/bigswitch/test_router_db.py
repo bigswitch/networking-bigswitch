@@ -113,8 +113,8 @@ class RouterDBTestCase(RouterDBTestBase,
             router_req = self.new_create_request('routers', data, self.fmt)
             res = router_req.get_response(self.ext_api)
             router = self.deserialize(self.fmt, res)
-            self.assertEqual(
-                False,
+            # external tenant_id should be patched
+            self.assertTrue(
                 'tenant_id' in router['router']['external_gateway_info'])
 
     def test_router_add_interface_port(self):
