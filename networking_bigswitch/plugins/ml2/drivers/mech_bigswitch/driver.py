@@ -240,23 +240,27 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # we retain this section for security groups, because it handles
         # other events as well. Ignore security group events if disabled in
         # config
-        if (event_type == 'security_group.create.end'
-                and cfg.CONF.RESTPROXY.sync_security_groups):
+        if event_type == 'security_group.create.end':
             LOG.debug("Security group created: %s", payload)
-            self.bsn_create_security_group(sg=payload['security_group'])
-        elif (event_type == 'security_group.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
+            if cfg.CONF.RESTPROXY.sync_security_groups:
+                self.bsn_create_security_group(sg=payload['security_group'])
+        elif event_type == 'security_group.delete.end':
             LOG.debug("Security group deleted: %s", payload)
-            self.bsn_delete_security_group(payload['security_group_id'])
-        elif (event_type == 'security_group_rule.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
+            if cfg.CONF.RESTPROXY.sync_security_groups:
+                self.bsn_delete_security_group(payload['security_group_id'])
+        elif event_type == 'security_group_rule.delete.end':
             LOG.debug("Security group rule deleted: %s", payload)
-            self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
+            if cfg.CONF.RESTPROXY.sync_security_groups:
+                self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
         elif event_type == 'identity.project.deleted':
             LOG.debug("Project deleted: %s", payload)
             self.bsn_delete_tenant(payload['resource_info'])
         elif event_type == 'identity.project.created':
             LOG.debug("Project created: %s", payload)
+            self.bsn_create_tenant(payload['resource_info'])
+        elif event_type == 'identity.project.updated':
+            LOG.debug("Project updated: %s", payload)
+            # update is the same as create, nsapi will handle it
             self.bsn_create_tenant(payload['resource_info'])
         else:
             LOG.debug("Else events: %s payload: %s", (event_type, payload))
@@ -419,7 +423,11 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         net = context.network.current
         port['network'] = net
         port['bound_segment'] = context.top_bound_segment
-        prepped_port = self._map_tenant_name(port)
+        prepped_port = self._map_display_name_or_tenant(port)
+        if prepped_port.get('description'):
+            del (prepped_port['description'])
+        if self.servers.is_unicode_enabled():
+            prepped_port['name'] = None
         prepped_port = self._map_state_and_status(prepped_port)
         prepped_port = self._map_port_hostid(prepped_port, net)
         return prepped_port
