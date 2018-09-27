@@ -203,6 +203,10 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             True, if obj name, obj's tenant name and name have supported chars
             False, otherwise
         """
+
+        if self.servers.is_unicode_enabled():
+            return True
+
         if name and not servermanager.is_valid_bcf_name(name):
             LOG.warning('Unsupported characters in Name: %(name)s. ',
                         {'name': name})
@@ -281,7 +285,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                             [const.DEVICE_OWNER_ROUTER_GW,
                              const.DEVICE_OWNER_ROUTER_HA_INTF]):
                             continue
-                        mapped_port = self._map_tenant_name(port)
+                        mapped_port = self._map_display_name_or_tenant(port)
+                        if self.servers.is_unicode_enabled():
+                            # remove port name so that it won't be stored in
+                            #  description
+                            mapped_port['name'] = None
                         mapped_port = self._map_state_and_status(mapped_port)
                         mapped_port = self._map_port_hostid(mapped_port, net)
                         if not mapped_port:
@@ -327,7 +335,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                                 ext_tenant_id)
 
                     interfaces = []
-                    mapped_router = self._map_tenant_name(router)
+                    mapped_router = self._map_display_name_or_tenant(router)
                     mapped_router = self._map_state_and_status(mapped_router)
                     if not self._validate_names(mapped_router):
                         continue
@@ -368,13 +376,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             new_sgs = []
             for sg in sgs:
                 try:
-                    mapped_sg = self._map_tenant_name(sg)
+                    mapped_sg = self._map_display_name_or_tenant(sg)
                     if not self._validate_names(mapped_sg):
                         continue
                     if 'description' in mapped_sg:
                         mapped_sg['description'] = ''
-                    mapped_sg['name'] = Util.format_resource_name(
-                        mapped_sg['name'])
+                    if self.servers.is_unicode_enabled():
+                        mapped_sg['name'] = None
+                    else:
+                        mapped_sg['name'] = Util.format_resource_name(
+                            mapped_sg['name'])
                     new_sgs.append(mapped_sg)
                 except servermanager.TenantIDNotFound:
                     # if tenant name is not known to keystone, skip the sg
@@ -383,13 +394,27 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             data.update({'security-groups': new_sgs})
 
         all_tenants_map = self.servers.keystone_tenants
-        tenants = {}
-        for tenant in all_tenants_map:
-            if not self._validate_names(None, name=all_tenants_map[tenant]):
-                continue
-            tenants[tenant] = all_tenants_map[tenant]
 
-        data.update({'tenants': tenants})
+        if self.servers.is_unicode_enabled():
+            # display-name is only supported as list for topology in NSAPI
+            tenants = []
+            for tenant_id, tenant_name in all_tenants_map.items():
+                tenants.append({
+                    'name': tenant_id,
+                    'id': tenant_id,
+                    'display-name': tenant_name
+                })
+        else:
+            # dict for tenant works in topology sync only if display-name is
+            # not enabled
+            tenants = {}
+            for tenant in all_tenants_map:
+                if not self._validate_names(None,
+                                            name=all_tenants_map[tenant]):
+                    continue
+                tenants[tenant] = all_tenants_map[tenant]
+
+        data['tenants'] = tenants
         return data
 
     def _send_all_data_auto(self, timeout=None, triggered_by_tenant=None):
@@ -416,9 +441,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     def _assign_resource_to_service_tenant(self, resource):
         resource['tenant_id'] = (resource['tenant_id'] or
                                  servermanager.SERVICE_TENANT)
-        if resource.get('name'):
-            # resource name may contain space. Replace space with -
-            resource['name'] = Util.format_resource_name(resource['name'])
+
+        if not self.servers.is_unicode_enabled():
+            if resource.get('name'):
+                # resource name may contain space. Replace space with -
+                resource['name'] = Util.format_resource_name(resource['name'])
 
     def _get_network_with_floatingips(self, network, context=None):
         if context is None:
@@ -433,9 +460,11 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             for flip in fl_ips:
                 try:
                     # BVS-7525: the 'tenant_id' in a floating-ip represents the
-                    # tenant to which it is allocated. Validate that the
-                    # tenant exists
-                    mapped_flip = self._map_tenant_name(flip)
+                    # tenant to which it is allocated.
+                    # Validate that the tenant exists
+                    # name/display-name of floating ip is not actually
+                    # used on bcf
+                    mapped_flip = self._map_display_name_or_tenant(flip)
                     if mapped_flip.get('floating_port_id'):
                         fport = self.get_port(context,
                                               mapped_flip['floating_port_id'])
@@ -461,7 +490,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if subnets:
             for subnet in subnets:
                 subnet_dict = self._make_subnet_dict(subnet, context=context)
-                mapped_subnet = self._map_tenant_name(subnet_dict)
+                mapped_subnet = self._map_display_name_or_tenant(subnet_dict)
                 mapped_subnet = self._map_state_and_status(mapped_subnet)
                 subnets_details.append(mapped_subnet)
 
@@ -473,11 +502,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         This network is not associated with any tenant
         """
         sg['tenant_id'] = sg['tenant_id'] or servermanager.SERVICE_TENANT
-        sg['tenant_name'] = self.servers.keystone_tenants.get(sg['tenant_id'])
-        if not sg['tenant_name']:
+        tenant_name = self.servers.keystone_tenants.get(sg['tenant_id'])
+
+        if not tenant_name:
             self.servers._update_tenant_cache(reconcile=True)
             tenant_name = self.servers.keystone_tenants.get(sg['tenant_id'])
+
+        if not self.servers.is_unicode_enabled():
             sg['tenant_name'] = tenant_name
+        return tenant_name
 
     def bsn_create_security_group(self, sg_id=None, sg=None, context=None):
         if sg_id:
@@ -487,14 +520,19 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             sg = self.get_security_group(context, sg_id)
 
         if sg:
-            sg['name'] = Util.format_resource_name(sg['name'])
+            if self.servers.is_unicode_enabled():
+                sg['display-name'] = sg['name']
+                sg['name'] = None
+            else:
+                sg['name'] = Util.format_resource_name(sg['name'])
             # remove description as its not used
-            if 'description' in sg:
-                sg['description'] = ''
-            self._tenant_check_for_security_group(sg)
+            if sg.get('description'):
+                del(sg['description'])
+            # check and map tenant_name for sg
+            tenant_name = self._tenant_check_for_security_group(sg)
             # skip the security group if its tenant is unknown
-            if sg['tenant_name']:
-                if sg['tenant_name'] == servermanager.SERVICE_TENANT:
+            if tenant_name:
+                if tenant_name == servermanager.SERVICE_TENANT:
                     self.bsn_create_tenant(servermanager.SERVICE_TENANT,
                                            context=context)
                 self.servers.rest_create_securitygroup(sg)
@@ -511,14 +549,15 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         self.servers.rest_delete_tenant(tenant_id)
 
     def _verify_network_precommit(self, context):
-        if context.current['name'] != context.original['name']:
-            raise servermanager.NetworkNameChangeError()
+        if not self.servers.is_unicode_enabled():
+            if context.current['name'] != context.original['name']:
+                raise servermanager.NetworkNameChangeError()
 
     def _get_mapped_network_with_subnets(self, network, context=None):
         # if context is not provided, admin context is used
         if context is None:
             context = qcontext.get_admin_context()
-        network = self._map_tenant_name(network)
+        network = self._map_display_name_or_tenant(network)
         network = self._map_state_and_status(network)
         subnets = self._get_all_subnets_json_for_network(network['id'],
                                                          context)
@@ -537,6 +576,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         # OSP-45: remove name to avoid NSAPI error in convertToAscii
         for subnet in (subnets or []):
             subnet.pop('name', None)
+
         return network
 
     def _skip_bcf_network_event(self, network):
@@ -568,14 +608,16 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             if default_group:
                 # VRRP tenant doesn't have tenant_id
                 self.bsn_create_security_group(sg=default_group[0])
+        # display-name is also mapped here
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
 
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             mapped_network['tenant_id'] = servermanager.SERVICE_TENANT
-            mapped_network['name'] = Util.format_resource_name(
-                mapped_network['name'])
+            if not self.servers.is_unicode_enabled():
+                mapped_network['name'] = Util.format_resource_name(
+                    mapped_network['name'])
             self.bsn_create_tenant(servermanager.SERVICE_TENANT,
                                    context=context)
         self.servers.rest_create_network(tenant_id, mapped_network)
@@ -588,6 +630,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
                      {'name': network.get('name')})
             return
 
+        # display-name is also mapped here
         mapped_network = self._get_mapped_network_with_subnets(network,
                                                                context)
         net_fl_ips = self._get_network_with_floatingips(mapped_network,
@@ -595,8 +638,9 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if not tenant_id:
             tenant_id = servermanager.SERVICE_TENANT
             net_fl_ips['tenant_id'] = servermanager.SERVICE_TENANT
-            net_fl_ips['name'] = Util.format_resource_name(
-                net_fl_ips['name'])
+            if not self.servers.is_unicode_enabled():
+                net_fl_ips['name'] = Util.format_resource_name(
+                    net_fl_ips['name'])
         self.servers.rest_update_network(tenant_id, net_id, net_fl_ips)
 
     def _send_delete_network(self, network, context=None):
@@ -604,21 +648,34 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         tenant_id = network['tenant_id'] or servermanager.SERVICE_TENANT
         self.servers.rest_delete_network(tenant_id, net_id)
 
-    def _map_tenant_name(self, resource):
-        resource = copy.copy(resource)
+    def _map_display_name_or_tenant(self, resource):
+        """This maps tenant_name or display-name for an object
+
+        None-unicode mode uses tenant_name
+        Unicode mode uses tenant_id and display-name
+
+        :param resource: object to be mapped
+        :return: mapped object copy
+        """
+        resource = copy.deepcopy(resource)
         self._assign_resource_to_service_tenant(resource)
+
         tenant_name = self.servers.keystone_tenants.get(resource['tenant_id'])
-        if tenant_name:
-            resource['tenant_name'] = tenant_name
-        else:
+        if not tenant_name:
             self.servers._update_tenant_cache()
             tenant_name = self.servers.keystone_tenants.get(
                 resource['tenant_id'])
-            if tenant_name:
-                resource['tenant_name'] = tenant_name
-            else:
+            if not tenant_name:
                 raise servermanager.TenantIDNotFound(
                     tenant=resource['tenant_id'])
+
+        if self.servers.is_unicode_enabled():
+            if resource.get('name'):
+                resource['display-name'] = resource['name']
+            # cases like network needs the name on bcf side
+            resource['name'] = resource['id']
+        else:
+            resource['tenant_name'] = tenant_name
 
         return resource
 
@@ -795,7 +852,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         net_id = subnet['network_id']
         network = self.get_network(context, net_id)
         mapped_network = self._get_mapped_network_with_subnets(network)
-        mapped_subnet = self._map_tenant_name(subnet)
+        mapped_subnet = self._map_display_name_or_tenant(subnet)
         mapped_subnet = self._map_state_and_status(mapped_subnet)
 
         data = {
@@ -1142,7 +1199,10 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 self._add_host_route(context, destination, new_port)
 
         # create on network ctrl
-        mapped_port = self._map_tenant_name(new_port)
+        mapped_port = self._map_display_name_or_tenant(new_port)
+        if self.servers.is_unicode_enabled():
+            # remove port name so that it won't be stored in description
+            mapped_port['name'] = None
         mapped_port = self._map_state_and_status(mapped_port)
         # ports have to be created synchronously when creating a router
         # port since adding router interfaces is a multi-call process
@@ -1232,7 +1292,11 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                 # tenant_id must come from network in case network is shared
                 net_tenant_id = self._get_port_net_tenantid(context, new_port)
                 new_port = self._extend_port_dict_binding(context, new_port)
-                mapped_port = self._map_tenant_name(new_port)
+                mapped_port = self._map_display_name_or_tenant(new_port)
+                if self.servers.is_unicode_enabled():
+                    # remove port name so that it won't be stored in
+                    # description
+                    mapped_port['name'] = None
                 mapped_port = self._map_state_and_status(mapped_port)
                 self.servers.rest_update_port(net_tenant_id,
                                               new_port["network_id"],
