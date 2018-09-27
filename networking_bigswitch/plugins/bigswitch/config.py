@@ -80,7 +80,10 @@ restproxy_opts = [
                       "Openstack tenants. (0 to disable)")),
     cfg.BoolOpt('sync_security_groups', default=False,
                 help=_("Sync security group info to Big Cloud Fabric for "
-                       "enhanced Testpath visibility."))
+                       "enhanced Testpath visibility.")),
+    cfg.BoolOpt('naming_scheme_unicode', default=True,
+                help=_("Configure whether or not to configure BCF "
+                       "with unicode display-name "))
 ]
 router_opts = [
     cfg.MultiStrOpt('tenant_default_router_rule', default=['*:any:any:permit'],

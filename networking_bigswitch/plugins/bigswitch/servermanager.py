@@ -158,7 +158,7 @@ class NetworkNameChangeError(exceptions.NeutronException):
 
 
 class RemoteRestError(exceptions.NeutronException):
-    message = _("Error in REST call to remote network "
+    message = _("Error in REST call to BCF "
                 "controller: %(reason)s")
     status = None
 
@@ -279,8 +279,8 @@ class ServerProxy(object):
             if body:
                 self.capabilities = jsonutils.loads(body)
         except Exception:
-            LOG.exception("Couldn't retrieve capabilities. "
-                          "Newer API calls won't be supported.")
+            LOG.exception("Couldn't retrieve capabilities on server "
+                          "%(server)s. ", {'sever': self.server})
         LOG.info("The following capabilities were received "
                  "for %(server)s: %(cap)s",
                  {'server': self.server, 'cap': self.capabilities})
@@ -411,6 +411,12 @@ class ServerPool(object):
         self.auth = cfg.CONF.RESTPROXY.server_auth
         self.ssl = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
+        # unicode config
+        self.unicode_enabled = cfg.CONF.RESTPROXY.naming_scheme_unicode
+        # flag to tell if unicode enabled/disabled is already logged
+        self.logged_unicode_enabled = False
+        self.logged_unicode_disabled = False
+
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
             self.auth_password = get_keystoneauth_cfg(cfg.CONF, 'password')
@@ -447,6 +453,7 @@ class ServerPool(object):
         self._update_tenant_cache(reconcile=False)
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
+        self.capabilities = []
         default_port = 8000
         if timeout is not False:
             self.timeout = timeout
@@ -474,12 +481,20 @@ class ServerPool(object):
                 server = server[1:-1]
             self.servers.append(self.server_proxy_for(server, int(port)))
         self.start_background_tasks()
+
         ServerPool._instance = self
+
         LOG.debug("ServerPool: initialization done")
 
     def start_background_tasks(self):
+        # update capabilities, starts immediately
+        # updates every 5 minutes, mostly for bcf upgrade/downgrade cases
+        eventlet.spawn(self._capability_watchdog, 300)
+
+        # consistency check, starts after 1* consistency_interval
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
+
         # Start keystone sync thread after 5 consistency sync
         # to give enough time for topology to sync over when
         # neutron-server starts.
@@ -489,19 +504,30 @@ class ServerPool(object):
             cfg.CONF.RESTPROXY.keystone_sync_interval)
 
     def get_capabilities(self):
+        """Get capabilities
+
+        If cache has the value, use it
+        If Not, do REST calls to BCF controllers to check it
+
+        :return: supported capability list
+        """
         # lookup on first try
-        try:
+        # if capabilities is empty, the check is either not done, or failed
+        if self.capabilities:
             return self.capabilities
-        except AttributeError:
-            # this exception is hit when the capabilities haven't been
-            # looked up yet
-            pass
-        # each server should return a list of capabilities it supports
-        # e.g. ['floatingip']
+        else:
+            return self.get_capabilities_force_update()
+
+    def get_capabilities_force_update(self):
+        """Do REST calls to update capabilities
+
+        :return: combined capability list from all servers
+        """
         capabilities = [set(server.get_capabilities())
                         for server in self.servers]
-        # Pool only supports what all of the servers support
-        self.capabilities = set.intersection(*capabilities)
+        # Servers should be the same version
+        # If one server is down, use online server's capabilities
+        self.capabilities = set.union(*capabilities)
         # With multiple workers enabled, the fork may occur after the
         # connections to the DB have been established. We need to clear the
         # connections after the first attempt to call the backend to ensure
@@ -516,7 +542,48 @@ class ServerPool(object):
         # ec716b9e68b8b66a88218913ae4c9aa3a26b025a/neutron/wsgi.py#L104
         if cdb.HashHandler._FACADE:
             cdb.HashHandler._FACADE.get_engine().pool.dispose()
+
+        if not capabilities:
+            LOG.error('Failed to get capabilities on any controller. ')
         return self.capabilities
+
+    def get_unicode_status(self):
+        """Get unicode running status and log changes
+
+        True: enabled
+        False: disabled
+
+        Logs a message when:
+        1. the first time that plugin gets capabilities from BCF
+        2. plugin notices the unicode mode is changed
+        """
+        if not self.get_capabilities():
+            msg = 'Capabilities unknown! Please check BCF controller status.'
+            raise RemoteRestError(reason=msg)
+
+        if self.unicode_enabled:
+            if 'display-name' in self.get_capabilities():
+                if not self.logged_unicode_enabled:
+                    LOG.info('naming_scheme_unicode is set to True,'
+                             ' Unicode names Enabled')
+                    self.logged_unicode_enabled = True
+                    self.logged_unicode_disabled = False
+                return True
+            else:
+                if not self.logged_unicode_disabled:
+                    LOG.warning('naming_scheme_unicode is set to True,'
+                                ' but BCF does not support it.'
+                                ' Unicode names Disabled')
+                    self.logged_unicode_disabled = True
+                    self.logged_unicode_enabled = False
+        else:
+            if not self.logged_unicode_disabled:
+                LOG.info('naming_scheme_unicode is set to False,'
+                         ' Unicode names Disabled')
+                self.logged_unicode_disabled = True
+                self.logged_unicode_enabled = False
+
+        return False
 
     def server_proxy_for(self, server, port):
         combined_cert = self._get_combined_cert_for_server(server, port)
@@ -754,13 +821,16 @@ class ServerPool(object):
         if not tenant_name:
             raise TenantIDNotFound(tenant=tenant_id)
 
-        if not is_valid_bcf_name(tenant_name):
-            raise UnsupportedNameException(obj_type=ObjTypeEnum.tenant,
-                                           obj_id=tenant_id,
-                                           obj_name=tenant_name)
-
+        if self.get_unicode_status():
+            data = {"tenant_id": tenant_id, 'tenant_name': tenant_id,
+                    'display-name': tenant_name}
+        else:
+            if not is_valid_bcf_name(tenant_name):
+                raise UnsupportedNameException(obj_type=ObjTypeEnum.tenant,
+                                               obj_id=tenant_id,
+                                               obj_name=tenant_name)
+            data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
         resource = TENANT_RESOURCE_PATH
-        data = {"tenant_id": tenant_id, 'tenant_name': tenant_name}
         errstr = _("Unable to create tenant: %s")
         self.rest_action('POST', resource, data, errstr)
 
@@ -933,7 +1003,7 @@ class ServerPool(object):
     def _consistency_watchdog(self, polling_interval=60):
         if 'consistency' not in self.get_capabilities():
             LOG.warning("Backend server(s) do not support automated "
-                        "consitency checks.")
+                        "consistency checks.")
             return
         if not polling_interval:
             LOG.warning("Consistency watchdog disabled by polling "
@@ -950,6 +1020,20 @@ class ServerPool(object):
             except Exception:
                 LOG.exception("Encountered an error checking controller "
                               "health.")
+
+    def _capability_watchdog(self, polling_interval=300):
+        """Check capabilities based on polling_interval
+
+        :param polling_interval: interval in seconds
+        """
+        while True:
+            try:
+                if self.get_capabilities_force_update():
+                    self.get_unicode_status()
+            except Exception:
+                LOG.exception("Encountered an error checking capabilities.")
+            finally:
+                eventlet.sleep(polling_interval)
 
     def force_topo_sync(self, check_ts=True):
         """Execute a topology_sync between OSP and BCF.
@@ -1044,8 +1128,13 @@ class ServerPool(object):
             sess = session.Session(auth=auth)
             keystone_client = ksclient.Client(session=sess)
             tenants = keystone_client.projects.list()
-            new_cached_tenants = {tn.id: Util.format_resource_name(tn.name)
-                                  for tn in tenants}
+
+            if self.get_unicode_status():
+                new_cached_tenants = {tn.id: tn.name
+                                      for tn in tenants}
+            else:
+                new_cached_tenants = {tn.id: Util.format_resource_name(tn.name)
+                                      for tn in tenants}
             # Add SERVICE_TENANT to handle hidden network for VRRP
             new_cached_tenants[SERVICE_TENANT] = SERVICE_TENANT
 
