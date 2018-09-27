@@ -29,6 +29,8 @@ from neutron_lib.plugins import directory
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch import constants as bsn_constants
+from networking_bigswitch.plugins.bigswitch.servermanager import\
+    TenantIDNotFound
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 from networking_bigswitch.tests.unit.bigswitch \
     import test_base as bsn_test_base
@@ -36,6 +38,8 @@ from networking_bigswitch.tests.unit.bigswitch \
 patch = mock.patch
 HTTPCON = ('networking_bigswitch.plugins.bigswitch.servermanager.httplib'
            '.HTTPConnection')
+IS_UNICODE_ENABLED = ('networking_bigswitch.plugins.bigswitch.servermanager.'
+                      'ServerPool.is_unicode_enabled')
 
 
 class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
@@ -338,6 +342,109 @@ class TestBigSwitchProxySync(BigSwitchProxyPluginV2TestCase):
         plugin_obj = directory.get_plugin()
         result = plugin_obj._send_all_data()
         self.assertEqual(result[0], 200)
+
+
+class TestDisplayName(BigSwitchProxyPluginV2TestCase):
+    def get_true(self):
+        """Used for side_effect replacement
+
+        :return:
+        """
+        return True
+
+    def test_map_display_name_or_tenant_unicode_disabled(self):
+        """Test _map_display_name_or_tenant behaviors when unicode is disabled
+
+        :return:
+        """
+        self.map_display_name_or_tenant_p.stop()
+        plugin_obj = directory.get_plugin()
+
+        self.assertFalse(plugin_obj.servers.is_unicode_enabled())
+
+        # object with non-existing tenant_id
+        no_tenant_obj = {'id': 'test_id',
+                         'name': 'test_name',
+                         'tenant_id': 'non_exist_tenant_id'}
+
+        self.assertRaises(TenantIDNotFound,
+                          plugin_obj._map_display_name_or_tenant,
+                          no_tenant_obj)
+
+        # add a tenant to cache
+        plugin_obj.servers.keystone_tenants = {'tenant_id': 'tenant_name'}
+
+        # object with name, '_' in name will be replaced with '__'
+        test_obj = {'id': 'test_id',
+                    'name': 'test_name',
+                    'tenant_id': 'tenant_id'}
+
+        expected_obj = {'id': 'test_id',
+                        'name': 'test__name',
+                        'tenant_id': 'tenant_id',
+                        'tenant_name': 'tenant_name'}
+
+        self.assertEqual(expected_obj,
+                         plugin_obj._map_display_name_or_tenant(test_obj))
+
+        # object without name
+        test_obj = {'id': 'test_id',
+                    'tenant_id': 'tenant_id'}
+
+        expected_obj = {'id': 'test_id',
+                        'tenant_id': 'tenant_id',
+                        'tenant_name': 'tenant_name'}
+
+        self.assertEqual(expected_obj,
+                         plugin_obj._map_display_name_or_tenant(test_obj))
+
+    def test_map_display_name_or_tenant_unicode_enabled(self):
+        """Test _map_display_name_or_tenant behaviors when unicode is enabled
+
+        :return:
+        """
+        self.map_display_name_or_tenant_p.stop()
+        self.is_unicode_enabled_p.stop()
+        mock.patch(IS_UNICODE_ENABLED, side_effect=self.get_true).start()
+        plugin_obj = directory.get_plugin()
+
+        self.assertTrue(plugin_obj.servers.is_unicode_enabled())
+
+        # object with non-existing tenant_id, unicode disabled
+        no_tenant_obj = {'id': 'test_id',
+                         'name': 'test_name',
+                         'tenant_id': 'non_exist_tenant_id'}
+
+        self.assertRaises(TenantIDNotFound,
+                          plugin_obj._map_display_name_or_tenant,
+                          no_tenant_obj)
+
+        # add a tenant to cache
+        plugin_obj.servers.keystone_tenants = {'tenant_id': 'tenant_name'}
+
+        # object with name, unicode enabled
+        test_obj = {'id': 'test_id',
+                    'name': 'test_name',
+                    'tenant_id': 'tenant_id'}
+
+        expected_obj = {'id': 'test_id',
+                        'name': 'test_id',
+                        'display-name': 'test_name',
+                        'tenant_id': 'tenant_id'}
+
+        self.assertEqual(expected_obj,
+                         plugin_obj._map_display_name_or_tenant(test_obj))
+
+        # object without name, unicode enabled
+        test_obj = {'id': 'test_id',
+                    'tenant_id': 'tenant_id'}
+
+        expected_obj = {'id': 'test_id',
+                        'name': 'test_id',
+                        'tenant_id': 'tenant_id'}
+
+        self.assertEqual(expected_obj,
+                         plugin_obj._map_display_name_or_tenant(test_obj))
 
 
 class TestBigSwitchAddressPairs(test_addr_pair.TestAllowedAddressPairs,
