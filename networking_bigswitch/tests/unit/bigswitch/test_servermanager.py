@@ -31,6 +31,7 @@ SERVERMANAGER = 'networking_bigswitch.plugins.bigswitch.servermanager'
 CONSISTENCYDB = 'networking_bigswitch.plugins.bigswitch.db.consistency_db'
 HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
 HTTPSCON = SERVERMANAGER + '.HTTPSConnectionWithValidation'
+SERVER_GET_CAPABILITIES = SERVERMANAGER + '.ServerPool.get_capabilities'
 
 
 class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
@@ -87,8 +88,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
     def test_consistency_watchdog(self):
         pl = directory.get_plugin()
-        pl.servers.capabilities = []
+        pl.servers.capabilities = ['dummy']
         self.watch_p.stop()
+
         with mock.patch('eventlet.sleep') as smock,\
                 mock.patch(
                     SERVERMANAGER + '.ServerPool.rest_call',
@@ -102,6 +104,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             # should return immediately without consistency capability
             pl.servers._consistency_watchdog()
             self.assertFalse(smock.called)
+
             pl.servers.capabilities = ['consistency']
             self.assertRaises(KeyError,
                               pl.servers._consistency_watchdog)
@@ -187,14 +190,18 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
 
             # each server will get different capabilities
             rv.read.side_effect = ['["a","b","c"]', '["b","c","d"]']
-            # pool capabilities is intersection between both
-            self.assertEqual(set(['b', 'c']), sp.get_capabilities())
+            # pool capabilities is union of both
+            # normally capabilities should be the same across all servers
+            # this only happens in two situations:
+            # 1. a server is down
+            # 2. during upgrade/downgrade
+            self.assertEqual(set(['a', 'b', 'c', 'd']), sp.get_capabilities())
             self.assertEqual(2, rv.read.call_count)
 
-            # the pool should cache after the first call so no more
-            # HTTP calls should be made
+            # the pool should cache after the first call during a short period
+            # so no more HTTP calls should be made
             rv.read.side_effect = ['["w","x","y"]', '["x","y","z"]']
-            self.assertEqual(set(['b', 'c']), sp.get_capabilities())
+            self.assertEqual(set(['a', 'b', 'c', 'd']), sp.get_capabilities())
             self.assertEqual(2, rv.read.call_count)
 
     def test_capabilities_retrieval_failure(self):
@@ -206,9 +213,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             rv.read.return_value = 'XXXXX'
             self.assertEqual([], sp.servers[0].get_capabilities())
 
-            # One broken server should affect all capabilities
+            # as capabilities is empty, it should try to update capabilities
             rv.read.side_effect = ['{"a": "b"}', '["b","c","d"]']
-            self.assertEqual(set(), sp.get_capabilities())
+            self.assertEqual(set(['a', 'b', 'c', 'd']), sp.get_capabilities())
 
     def test_reconnect_on_timeout_change(self):
         sp = servermanager.ServerPool()
@@ -532,6 +539,59 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         self.assertEqual(con._tunnel_host, 'myproxy.local')
         self.assertEqual(con._tunnel_port, 3128)
         self.assertEqual(con.sock, self.wrap_mock())
+
+    def test_is_unicode_enabled(self):
+        """Verify that unicode is enabled only when both conditions are True:
+
+         1. naming_scheme_unicode is True or empty
+         2. BCF capabilities include display-name
+
+        :return:
+        """
+        self.is_unicode_enabled_p.stop()
+
+        def capability_unicode_supported():
+            return ['dummy', 'display-name']
+
+        def capability_unicode_unsupported():
+            return ['dummy']
+
+        patch_supported = mock.patch(
+            SERVER_GET_CAPABILITIES,
+            side_effect=capability_unicode_supported)
+
+        patch_unsupported = mock.patch(
+            SERVER_GET_CAPABILITIES,
+            side_effect=capability_unicode_unsupported)
+
+        # Create a server pool with default naming_scheme_unicode
+        # verify default value is true
+        sp = servermanager.ServerPool()
+        self.assertTrue(cfg.CONF.RESTPROXY.naming_scheme_unicode)
+
+        # config enabled, and unicode is supported on bcf
+        patch_supported.start()
+        self.assertTrue(sp.is_unicode_enabled())
+        patch_supported.stop()
+
+        # config enabled, but unicode is not supported on bcf
+        patch_unsupported.start()
+        self.assertFalse(sp.is_unicode_enabled())
+        patch_unsupported.stop()
+
+        # Recreate the server pool, as the config is read during initialization
+        cfg.CONF.set_override('naming_scheme_unicode', False, 'RESTPROXY')
+        sp = servermanager.ServerPool()
+
+        # config disabled, though unicode is supported on bcf
+        patch_supported.start()
+        self.assertFalse(sp.is_unicode_enabled())
+        patch_supported.stop()
+
+        # config disabled, and unicode is not supported on bcf
+        patch_unsupported.start()
+        self.assertFalse(sp.is_unicode_enabled())
+        patch_unsupported.stop()
 
 
 class TestSockets(test_rp.BigSwitchProxyPluginV2TestCase):
