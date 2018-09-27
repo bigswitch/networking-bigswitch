@@ -166,7 +166,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         self.txn_cache.add_transaction(router[BSN_TRANSACTION_ID],
                                        router['id'])
         with db.context_manager.reader.using(context):
-            mapped_router = self._map_tenant_name(router)
+            mapped_router = self._map_display_name_or_tenant(router)
             mapped_router = self._map_state_and_status(mapped_router)
 
             # Does not handle external gateway and some other information
@@ -190,7 +190,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         default_policy_dict = self._get_tenant_default_router_policy(tenant_id)
 
         with db.context_manager.writer.using(context):
-            mapped_router = self._map_tenant_name(router)
+            mapped_router = self._map_display_name_or_tenant(router)
             mapped_router = self._map_state_and_status(mapped_router)
             # populate external tenant_id if it is absent for external network,
             # This is a new work flow in kilo that user can specify external
@@ -503,7 +503,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             if ext_tenant_id:
                 updated_router[l3_apidef.EXTERNAL_GW_INFO]['tenant_id'] = (
                     ext_tenant_id)
-        router = self._map_tenant_name(updated_router)
+        router = self._map_display_name_or_tenant(updated_router)
         router = self._map_state_and_status(router)
         # look up the network on this side to save an expensive query on
         # the backend controller.
