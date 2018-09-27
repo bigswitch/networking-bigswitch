@@ -48,8 +48,11 @@ SPAWN = ('networking_bigswitch.plugins.bigswitch.plugin.eventlet.GreenPool'
          '.spawn_n')
 KSCLIENT = 'keystoneclient.v3.client.Client'
 BACKGROUND = SERVER_MANAGER + '.ServerPool.start_background_tasks'
-MAP_TENANT_NAME = ('networking_bigswitch.plugins.bigswitch.plugin.'
-                   'NeutronRestProxyV2Base._map_tenant_name')
+MAP_DISPLAY_NAME_OR_TENANT = ('networking_bigswitch.plugins.bigswitch.plugin.'
+                              'NeutronRestProxyV2Base.'
+                              '_map_display_name_or_tenant')
+GET_UNICODE_STATUS = ('networking_bigswitch.plugins.bigswitch.servermanager.'
+                      'ServerPool.get_unicode_status')
 
 
 class BigSwitchTestBase(object):
@@ -78,8 +81,13 @@ class BigSwitchTestBase(object):
         cfg.CONF.set_override('api_extensions_path', False)
 
     def map_tenant_name_side_effect(self, value):
+        # for old tests, always map tenant name
         value['tenant_name'] = 'tenant_name'
         return value
+
+    def get_unicode_status_side_effect(self):
+        # for old tests, always return False
+        return False
 
     def setup_patches(self):
         self.plugin_notifier_p = mock.patch(NOTIFIER)
@@ -92,15 +100,22 @@ class BigSwitchTestBase(object):
         self.log_exc_p = mock.patch(SERVER_MANAGER + ".LOG.exception",
                                     new=lambda *args, **kwargs: None)
         self.ksclient_p = mock.patch(KSCLIENT)
-        self.map_tenant_name_p = mock.patch(
-            MAP_TENANT_NAME, side_effect=self.map_tenant_name_side_effect)
+
+        self.map_display_name_or_tenant_p = mock.patch(
+            MAP_DISPLAY_NAME_OR_TENANT,
+            side_effect=self.map_tenant_name_side_effect)
+        self.get_unicode_status_p = mock.patch(
+            GET_UNICODE_STATUS,
+            side_effect=self.get_unicode_status_side_effect)
+
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
         self.spawn_p.start()
         self.watch_p.start()
         self.dhcp_notifier_p.start()
         self.ksclient_p.start()
-        self.map_tenant_name_p.start()
+        self.map_display_name_or_tenant_p.start()
+        self.get_unicode_status_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
