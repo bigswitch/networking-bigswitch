@@ -24,7 +24,6 @@ import oslo_messaging
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
-from neutron.common import rpc as n_rpc
 from neutron.extensions import securitygroup as ext_sg
 from neutron_lib.api.definitions import portbindings
 from neutron_lib.callbacks import events
@@ -98,6 +97,40 @@ def _read_ovs_bridge_mappings():
     LOG.info(_LI("OVS bridge_mappings are: %(br_map)s"), {'br_map': mapping})
     return mapping
 
+# todo in Rocky!
+# class KeystoneNotification(object):
+#     """Notification Endpoint
+#     """
+#
+#     def __init__(self, rest_proxy):
+#         self.rest_proxy = rest_proxy
+#
+#     def info(self, ctxt, publisher_id, event_type, payload, metadata):
+#         """This is called on each notification to the neutron topic """
+#         # we retain this section for security groups, because it handles
+#         # other events as well. Ignore security group events if disabled in
+#         # config
+#         if (event_type == 'security_group.create.end'
+#                 and cfg.CONF.RESTPROXY.sync_security_groups):
+#             LOG.debug("Security group created: %s", payload)
+#             self.bsn_create_security_group(sg=payload['security_group'])
+#         elif (event_type == 'security_group.delete.end'
+#               and cfg.CONF.RESTPROXY.sync_security_groups):
+#             LOG.debug("Security group deleted: %s", payload)
+#             self.bsn_delete_security_group(payload['security_group_id'])
+#         elif (event_type == 'security_group_rule.delete.end'
+#               and cfg.CONF.RESTPROXY.sync_security_groups):
+#             LOG.debug("Security group rule deleted: %s", payload)
+#             self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
+#         elif event_type == 'identity.project.deleted':
+#             LOG.debug("Project deleted: %s", payload)
+#             self.rest_proxy.bsn_delete_tenant(payload['resource_info'])
+#         elif event_type == 'identity.project.created':
+#             LOG.debug("Project created: %s", payload)
+#             self.rest_proxy.bsn_create_tenant(payload['resource_info'])
+#         else:
+#             LOG.debug("Else events: %s payload: %s", (event_type, payload))
+
 
 class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
                                api.MechanismDriver):
@@ -158,6 +191,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             self._delete_sg_f = self.bsn_delete_sg_callback
             self._update_sg_f = self.bsn_update_sg_callback
             self._create_sg_rule_f = self.bsn_create_sg_rule_callback
+            self._delete_sg_rule_f = self.bsn_delete_sg_rule_callback
             registry.subscribe(self._create_sg_f,
                                resources.SECURITY_GROUP, events.AFTER_CREATE)
             registry.subscribe(self._delete_sg_f,
@@ -167,6 +201,9 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             registry.subscribe(self._create_sg_rule_f,
                                resources.SECURITY_GROUP_RULE,
                                events.AFTER_CREATE)
+            registry.subscribe(self._delete_sg_rule_f,
+                               resources.SECURITY_GROUP_RULE,
+                               events.AFTER_DELETE)
 
         # the above does not cover the cases where security groups are
         # initially created or when they are deleted since those actions
@@ -176,14 +213,21 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # Notifications are published at the 'info' level so they will result
         # in a call to the 'info' function below. From there we can check
         # the event type and determine what to do from there.
-        target = oslo_messaging.Target(topic='#',
-                                       server=cfg.CONF.host)
-        keystone_target = oslo_messaging.Target(
-            topic='#', exchange='keystone', server=cfg.CONF.host)
-        self.listener = oslo_messaging.get_notification_listener(
-            n_rpc.TRANSPORT, [target, keystone_target], [self],
-            executor='eventlet', allow_requeue=False)
-        self.listener.start()
+
+        # todo in Rocky!
+        # target = oslo_messaging.Target(topic='notifications',
+        #                                 server=cfg.CONF.host)
+        #
+        # todo need to get url from neutron.conf and/or keystone.conf!
+        # url = <transport_url in conf>
+        # transport = oslo_messaging.get_transport(cfg.CONF, url=url)
+        #
+        # endpoint = KeystoneNotification(rest_proxy=self)
+        #
+        # self.listener = oslo_messaging.get_notification_listener(
+        #     transport, [target], [endpoint],
+        #     executor='eventlet', allow_requeue=False)
+        # self.listener.start()
 
     def bsn_create_sg_callback(self, resource, event, trigger, **kwargs):
         security_group = kwargs.get('security_group')
@@ -216,50 +260,28 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             LOG.debug("Callback create rule in sg_id: %s", sg_id)
             self.bsn_create_security_group(sg_id=sg_id, context=context)
 
-    def bsn_delete_sg_rule(self, sg_rule, context):
-        LOG.debug("Deleting security group rule from BCF: %s", sg_rule)
+    def bsn_delete_sg_rule_callback(self, resource, event, trigger, **kwargs):
+        sg_rule_id = kwargs.get('security_group_rule_id')
+        sg_id = kwargs.get('security_group_id')
+        context = kwargs.get('context')
+
+        LOG.debug("Deleting security group rule from BCF: %s", sg_rule_id)
         if not context:
             LOG.error(_LE(
                 "Context missing when trying to delete security group rule. "
                 "Please force-bcf-sync to ensure consistency with BCF."))
-        sg_id = sg_rule['security_group_id']
-        # we over write the sg on bcf controller instead of deleting
+
+        # we update the whole sg on bcf controller instead of deleting a rule
         try:
-            self.bsn_create_security_group(sg_id,
-                                           context=context)
+            self.bsn_create_security_group(sg_id, context=context)
         except ext_sg.SecurityGroupNotFound:
             # DB query will throw exception when security group is
             # being deleted. delete_security_group_rule callback would
             # try to update BCF with new set of rules.
             LOG.warning(
                 _LW("Security group with ID %(sg_id)s not found "
-                    "when trying to update."), {'sg_id': sg_id})
-
-    def info(self, ctxt, publisher_id, event_type, payload, metadata):
-        """This is called on each notification to the neutron topic """
-        # we retain this section for security groups, because it handles
-        # other events as well. Ignore security group events if disabled in
-        # config
-        if (event_type == 'security_group.create.end'
-                and cfg.CONF.RESTPROXY.sync_security_groups):
-            LOG.debug("Security group created: %s", payload)
-            self.bsn_create_security_group(sg=payload['security_group'])
-        elif (event_type == 'security_group.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
-            LOG.debug("Security group deleted: %s", payload)
-            self.bsn_delete_security_group(payload['security_group_id'])
-        elif (event_type == 'security_group_rule.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
-            LOG.debug("Security group rule deleted: %s", payload)
-            self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
-        elif event_type == 'identity.project.deleted':
-            LOG.debug("Project deleted: %s", payload)
-            self.bsn_delete_tenant(payload['resource_info'])
-        elif event_type == 'identity.project.created':
-            LOG.debug("Project created: %s", payload)
-            self.bsn_create_tenant(payload['resource_info'])
-        else:
-            LOG.debug("Else events: %s payload: %s", (event_type, payload))
+                    "when trying to delete rule %(sg_rule_id)s."),
+                {'sg_id': sg_id, 'sg_rule_id': sg_rule_id})
 
     @put_context_in_serverpool
     def security_groups_rule_updated(self, context, **kwargs):
