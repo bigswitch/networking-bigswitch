@@ -78,7 +78,7 @@ restproxy_opts = [
     cfg.IntOpt('keystone_sync_interval', default=300,
                help=_("Time between that keystone queries to sync "
                       "Openstack tenants. (0 to disable)")),
-    cfg.BoolOpt('sync_security_groups', default=True,
+    cfg.BoolOpt('sync_security_groups', default=False,
                 help=_("Sync security group info to Big Cloud Fabric for "
                        "enhanced Testpath visibility."))
 ]
