@@ -128,6 +128,10 @@ class TestBigSwitchML2Router(test_l3.L3NatTestCaseBase,
         # TODO(Joe): This test fails. Why?
         pass
 
+    def test_router_add_gateway_notifications(self):
+        # This creates a gateway port without ip, not supported
+        pass
+
     def test_router_add_interface_by_port_fails_nested(self):
         # Force _validate_router_port_info failure
         plugin = directory.get_plugin(plugin_constants.L3)

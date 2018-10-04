@@ -16,10 +16,10 @@
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
 from neutron.db import api as db
-from neutron.db.api import _tag_retriables_as_unretriable
 from neutron.db import common_db_mixin
 from neutron.db.models import l3 as l3_models
 from neutron_lib.api import validators
+from neutron_lib.db.api import _tag_retriables_as_unretriable
 from neutron_lib.db import model_base
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
