@@ -117,24 +117,40 @@ OUTDIR=$(readlink -m "pkg/$BIGTOP_PARTIAL_PATH")
 rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
 cp $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
 
+# helper method to get version number
+get_version () {
+    RPM=$1;
+    B=${RPM##*/};
+    B=${B%-*};
+    V=${B##*-};
+}
+
 # build a single tar with all plugin RPM files and yamls
 DATE=`date +%Y-%m-%d-%H-%M`
 ALL_RPM_YAML_TAR_DIR="$RHOSP_REL_NAME-$OSP_REL_NAME-PLUGINS-$DATE"
 ALL_RPM_YAML_TAR_GZ="$ALL_RPM_YAML_TAR_DIR.tar.gz"
 # 1. get yamls and customize scripts from BOSI
 mkdir bosi
-mkdir tarball
 rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/4.0.0/latest/* ./bosi
 mv ./bosi/rhosp_resources/$GIT_BRANCH/yamls ./$ALL_RPM_YAML_TAR_DIR
 mv ./bosi/rhosp_resources/$GIT_BRANCH/ivs/* ./$ALL_RPM_YAML_TAR_DIR
 
-# 2. get horizon rpm from bigtop
-rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./tarball
+# 2. get neutron-bsn-lldp *.noarch.rpm from bigtop
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva bigtop:public_html/neutron-bsn-lldp/centos7-x86_64/origin/master/latest/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
+LLDP_PKG="`ls ./$ALL_RPM_YAML_TAR_DIR/neutron-bsn-lldp*`"
+get_version $LLDP_PKG
+LLDP_VERSION=$V
+echo "neutron-bsn-lldp version is" $LLDP_VERSION
 
-# 3. get all neutron plugin *.noarch.rpms
-cp $BUILDDIR/RPMS/noarch/*.rpm ./$ALL_RPM_YAML_TAR_DIR
+# 3. update startup.sh and customize.sh with neutron-bsn-lldp pkg version
+sed -i -e "s/\${lldp_version}/$LLDP_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/customize.sh
+sed -i -e "s/\${lldp_version}/$LLDP_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/startup.sh
+sed -i -e "s/\${lldp_version}/$LLDP_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/README
 
-# 4. build a tarball and put it at $OUTDIR
+# 4. get python-bsn-neutronclient*.noarch.rpm from bigtop
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva bigtop:public_html/python-bsn-neutronclient/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
+
+# 5. build a tarball and put it at $OUTDIR
 tar -zcvf $OUTDIR/$ALL_RPM_YAML_TAR_GZ $ALL_RPM_YAML_TAR_DIR
 cp dist/*.tar.gz "$OUTDIR"
 git log > "$OUTDIR/gitlog.txt"
