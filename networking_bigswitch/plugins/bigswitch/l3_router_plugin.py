@@ -168,25 +168,14 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         with db.context_manager.reader.using(context):
             mapped_router = self._map_tenant_name(router)
             mapped_router = self._map_state_and_status(mapped_router)
-            # populate external tenant_id if it is absent for external network,
-            # This is a new work flow in kilo that user can specify external
-            # network when creating a router
-            if (mapped_router and mapped_router.get('external_gateway_info')):
-                ext_gw_info = mapped_router.get('external_gateway_info')
-                ext_net_id = ext_gw_info.get('network_id')
-                ext_tenant_id = ext_gw_info.get("tenant_id")
-                if ext_net_id and (not ext_tenant_id):
-                    ext_net = self.get_network(context, ext_net_id)
-                    if ext_net:
-                        mapped_router['external_gateway_info']['tenant_id'] = (
-                            ext_net.get('tenant_id'))
 
+            # Does not handle external gateway and some other information
             self.servers.rest_create_router(mapped_router['tenant_id'],
                                             mapped_router)
 
     @log_helper.log_method_call
     def router_after_create_callback(self, resource, event, trigger, **kwargs):
-        """Create tenant policies for the given router
+        """Update external gateway and create tenant policies
 
         :param resource:
         :param event:
@@ -201,6 +190,24 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
         default_policy_dict = self._get_tenant_default_router_policy(tenant_id)
 
         with db.context_manager.writer.using(context):
+            mapped_router = self._map_tenant_name(router)
+            mapped_router = self._map_state_and_status(mapped_router)
+            # populate external tenant_id if it is absent for external network,
+            # This is a new work flow in kilo that user can specify external
+            # network when creating a router
+            if mapped_router and mapped_router.get('external_gateway_info'):
+                ext_gw_info = mapped_router.get('external_gateway_info')
+                ext_net_id = ext_gw_info.get('network_id')
+                ext_tenant_id = ext_gw_info.get("tenant_id")
+                if ext_net_id and (not ext_tenant_id):
+                    ext_net = self.get_network(context, ext_net_id)
+                    if ext_net:
+                        mapped_router['external_gateway_info']['tenant_id'] = (
+                            ext_net.get('tenant_id'))
+            # update router that was created in before_create callback
+            self.servers.rest_update_router(
+                mapped_router['tenant_id'], mapped_router, mapped_router['id'])
+
             # post router creation, create default policy if missing
             tenantpolicy_dict = super(L3RestProxy, self).create_default_policy(
                 context, tenant_id, default_policy_dict)
