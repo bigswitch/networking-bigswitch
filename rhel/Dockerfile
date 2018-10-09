@@ -11,7 +11,7 @@ LABEL name="rhosp13/openstack-neutron-server-bigswitch" \
 USER root
 RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "/tmp/get-pip.py"
 RUN python /tmp/get-pip.py
-RUN pip install --upgrade "networking-bigswitch>=12.0.0,<12.1.0"
+RUN pip install --upgrade "networking-bigswitch>=12.0.6,<12.1.0"
 # copy License
 RUN mkdir /licenses
 RUN curl -L -o /licenses/LICENSE https://raw.githubusercontent.com/openstack/networking-bigswitch/master/LICENSE
