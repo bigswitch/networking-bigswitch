@@ -37,6 +37,8 @@ from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch import servermanager
 from networking_bigswitch.plugins.ml2.drivers.mech_bigswitch \
     import driver as bsn_driver
+from networking_bigswitch.tests.unit.bigswitch.fake_server \
+    import HTTPResponseMock
 import networking_bigswitch.tests.unit.bigswitch.test_restproxy_plugin as trp
 from oslo_utils import uuidutils
 
@@ -82,9 +84,9 @@ class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                 ('status', self.net_create_status), ('shared', False)]
 
         with mock.patch(HTTPCON) as conmock:
+            rv = conmock.return_value
+            rv.getresponse.return_value = HTTPResponseMock(None)
             with self.network(name=name) as net:
-                rv = conmock.return_value
-                rv.getresponse.return_value.status = 200
                 network = jsonutils.loads(rv.request.mock_calls[0][1][2])
                 self.assertIn('tenant_name', network['network'])
                 self.assertEqual('tenant_name',
