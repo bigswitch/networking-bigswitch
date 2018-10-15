@@ -117,24 +117,47 @@ OUTDIR=$(readlink -m "pkg/$BIGTOP_PARTIAL_PATH")
 rm -rf "$OUTDIR" && mkdir -p "$OUTDIR"
 cp $BUILDDIR/RPMS/noarch/*.rpm "$OUTDIR"
 
+# helper method to get version number
+get_version () {
+    RPM=$1;
+    B=${RPM##*/};
+    B=${B%-*};
+    V=${B##*-};
+}
+
 # build a single tar with all plugin RPM files and yamls
 DATE=`date +%Y-%m-%d-%H-%M`
 ALL_RPM_YAML_TAR_DIR="$RHOSP_REL_NAME-$OSP_REL_NAME-PLUGINS-$DATE"
 ALL_RPM_YAML_TAR_GZ="$ALL_RPM_YAML_TAR_DIR.tar.gz"
 # 1. get yamls and customize scripts from BOSI
 mkdir bosi
-mkdir tarball
 rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/4.0.0/latest/* ./bosi
 mv ./bosi/rhosp_resources/$GIT_BRANCH/yamls ./$ALL_RPM_YAML_TAR_DIR
 mv ./bosi/rhosp_resources/$GIT_BRANCH/ivs/* ./$ALL_RPM_YAML_TAR_DIR
 
 # 2. get horizon rpm from bigtop
-rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./tarball
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/horizon-bsn/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
 
 # 3. get all neutron plugin *.noarch.rpms
-cp $BUILDDIR/RPMS/noarch/*.rpm ./$ALL_RPM_YAML_TAR_DIR
+cp $BUILDDIR/RPMS/noarch/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
 
-# 4. build a tarball and put it at $OUTDIR
+# 4. set version numbers in customize and startup scripts
+BSNLIB_PKG="`ls ./$ALL_RPM_YAML_TAR_DIR/python-networking-bigswitch*`"
+get_version $BSNLIB_PKG
+NETWORKING_BIGSWITCH_VERSION=$V
+
+HORIZON_PKG="`ls ./$ALL_RPM_YAML_TAR_DIR/python-horizon-bsn*`"
+get_version $HORIZON_PKG
+HORIZON_BSN_VERSION=$V
+
+echo "networking-bigswitch version is" $NETWORKING_BIGSWITCH_VERSION
+echo "horizon-bsn version is" $HORIZON_BSN_VERSION
+
+sed -i -e "s/\${networking_bigswitch_version}/$NETWORKING_BIGSWITCH_VERSION/" -e "s/\${horizon_bsn_version}/$HORIZON_BSN_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/customize.sh
+sed -i -e "s/\${networking_bigswitch_version}/$NETWORKING_BIGSWITCH_VERSION/" -e "s/\${horizon_bsn_version}/$HORIZON_BSN_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/startup.sh
+sed -i -e "s/\${networking_bigswitch_version}/$NETWORKING_BIGSWITCH_VERSION/" -e "s/\${horizon_bsn_version}/$HORIZON_BSN_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/README
+
+# 5. build a tarball and put it at $OUTDIR
 tar -zcvf $OUTDIR/$ALL_RPM_YAML_TAR_GZ $ALL_RPM_YAML_TAR_DIR
 cp dist/*.tar.gz "$OUTDIR"
 git log > "$OUTDIR/gitlog.txt"
