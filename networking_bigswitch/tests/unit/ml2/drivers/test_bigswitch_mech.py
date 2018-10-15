@@ -76,6 +76,12 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 
 class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                                         TestBigSwitchMechDriverBase):
+    def setUp(self, plugin=None, service_plugins=None, ext_mgr=None):
+        TestBigSwitchMechDriverBase.setUp(self,
+                                          plugin=plugin,
+                                          service_plugins=service_plugins,
+                                          ext_mgr=ext_mgr)
+
     def test_create_network(self):
         name = 'net1'
         keys = [('subnets', []), ('name', name), ('admin_state_up', True),
