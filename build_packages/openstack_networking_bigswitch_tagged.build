@@ -44,30 +44,35 @@ case "$GIT_BRANCH" in
     PAGE_ID="866942996"
     OSP_REL_NAME="ROCKY"
     RHOSP_REL_NAME="RHOSP-14"
+    BOSI_BRANCH="4.7.0"
     ;;
   *"queen"*)
     GIT_TAG_REGEX="12.*.*"
     PAGE_ID="861044932"
     OSP_REL_NAME="QUEENS"
     RHOSP_REL_NAME="RHOSP-13"
+    BOSI_BRANCH="4.7.0"
     ;;
   *"pike"*)
     GIT_TAG_REGEX="11.*.*"
     PAGE_ID="861044928"
     OSP_REL_NAME="PIKE"
     RHOSP_REL_NAME="RHOSP-12"
+    BOSI_BRANCH="4.0.0"
     ;;
   *"ocata"*)
     GIT_TAG_REGEX="10.*.*"
     PAGE_ID="846594211"
     OSP_REL_NAME="OCATA"
     RHOSP_REL_NAME="RHOSP-11"
+    BOSI_BRANCH="4.0.0"
     ;;
   *"newton"*)
     GIT_TAG_REGEX="9.*.*"
     PAGE_ID="845905936"
     OSP_REL_NAME="NEWTON"
     RHOSP_REL_NAME="RHOSP-10"
+    BOSI_BRANCH="4.0.0"
     ;;
   *)
     echo "UNKNOWN BRANCH ENCOUNTERED. SKIPPING."
@@ -131,7 +136,7 @@ ALL_RPM_YAML_TAR_DIR="$RHOSP_REL_NAME-$OSP_REL_NAME-PLUGINS-$DATE"
 ALL_RPM_YAML_TAR_GZ="$ALL_RPM_YAML_TAR_DIR.tar.gz"
 # 1. get yamls and customize scripts from BOSI
 mkdir bosi
-rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/4.0.0/latest/* ./bosi
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva  bigtop:public_html/bosi/$BOSI_BRANCH/latest/* ./bosi
 mv ./bosi/rhosp_resources/$GIT_BRANCH/yamls ./$ALL_RPM_YAML_TAR_DIR
 mv ./bosi/rhosp_resources/$GIT_BRANCH/ivs/* ./$ALL_RPM_YAML_TAR_DIR
 
