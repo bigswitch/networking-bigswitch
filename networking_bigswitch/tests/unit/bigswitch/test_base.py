@@ -26,6 +26,8 @@ from networking_bigswitch.plugins.bigswitch.db import consistency_db
 from networking_bigswitch.plugins.bigswitch.db import network_template_db  # noqa
 from networking_bigswitch.plugins.bigswitch.db import reachability_test_db  # noqa
 from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db  # noqa
+from networking_bigswitch.plugins.bigswitch.servermanager\
+    import TOPO_RESPONSE_OK
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 
 
@@ -104,6 +106,12 @@ class BigSwitchTestBase(object):
         self.httpPatch = mock.patch(HTTPCON,
                                     new=fake_server.HTTPConnectionMock)
         self.httpPatch.start()
+
+    def startTopoSyncPatch(self):
+        self.topo_sync_p = \
+            mock.patch(SERVER_MANAGER + '.ServerPool.force_topo_sync',
+                       return_value=(True, TOPO_RESPONSE_OK))
+        self.topo_sync_p.start()
 
     def setup_db(self):
         # setup the db engine and models for the consistency db

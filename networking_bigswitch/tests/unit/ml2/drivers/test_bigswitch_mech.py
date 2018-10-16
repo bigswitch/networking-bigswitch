@@ -77,6 +77,9 @@ class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):
 class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
                                         TestBigSwitchMechDriverBase):
     def setUp(self, plugin=None, service_plugins=None, ext_mgr=None):
+        # topo sync can be triggered outside of watchdog
+        self.startTopoSyncPatch()
+
         TestBigSwitchMechDriverBase.setUp(self,
                                           plugin=plugin,
                                           service_plugins=service_plugins,
