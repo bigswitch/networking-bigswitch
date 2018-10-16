@@ -148,7 +148,7 @@ sed -i -e "s/\${lldp_version}/$LLDP_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/startup.sh
 sed -i -e "s/\${lldp_version}/$LLDP_VERSION/" ./$ALL_RPM_YAML_TAR_DIR/README
 
 # 4. get python-bsn-neutronclient*.noarch.rpm from bigtop
-rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva bigtop:public_html/python-bsn-neutronclient/centos7-x86_64/origin/stable/queens/latest/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
+rsync -e 'ssh -o "StrictHostKeyChecking no"' -uva bigtop:public_html/python-bsn-neutronclient/centos7-x86_64/$GIT_BRANCH/latest/*.noarch.rpm ./$ALL_RPM_YAML_TAR_DIR
 
 # 5. build a tarball and put it at $OUTDIR
 tar -zcvf $OUTDIR/$ALL_RPM_YAML_TAR_GZ $ALL_RPM_YAML_TAR_DIR
