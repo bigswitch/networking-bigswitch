@@ -80,6 +80,7 @@ class BigSwitchTestBase(object):
         return value
 
     def setup_patches(self):
+        print ('setup_paches is called!')
         self.plugin_notifier_p = mock.patch(NOTIFIER)
         self.dhcp_notifier_p = mock.patch(DHCP_NOTIFIER)
         # prevent any greenthreads from spawning

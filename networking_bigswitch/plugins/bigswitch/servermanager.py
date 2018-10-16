@@ -484,6 +484,7 @@ class ServerPool(object):
         LOG.debug("ServerPool: initialization done")
 
     def start_background_tasks(self):
+        print ('starting background task!')
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
         # Start keystone sync thread after 5 consistency sync
