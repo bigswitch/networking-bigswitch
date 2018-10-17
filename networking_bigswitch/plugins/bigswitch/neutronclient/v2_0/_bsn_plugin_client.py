@@ -184,8 +184,14 @@ def _reachabilitytest_updatable_args(parser):
         'name',
         help=_('Name of this reachability test.'))
     parser.add_argument(
+        'src_tenant_id', metavar='src-tenant-id',
+        help=_('Tenant ID of the src-ip.'))
+    parser.add_argument(
         'src_tenant_name', metavar='src-tenant-name',
         help=_('Tenant name of the src-ip.'))
+    parser.add_argument(
+        'src_segment_id', metavar='src-segment-id',
+        help=_('Network id of the src-ip.'))
     parser.add_argument(
         'src_segment_name', metavar='src-segment-name',
         help=_('Network name of the src-ip.'))
@@ -209,8 +215,12 @@ def _reachabilitytest_updatable_args2body(parsed_args, body, client):
     if parsed_args.name:
         body['name'] = parsed_args.name
     if parsed_args.src_tenant_id:
+        body['src_tenant_id'] = parsed_args.src_tenant_id
+    if parsed_args.src_tenant_name:
         body['src_tenant_name'] = parsed_args.src_tenant_name
     if parsed_args.src_segment_id:
+        body['src_segment_id'] = parsed_args.src_segment_id
+    if parsed_args.src_segment_name:
         body['src_segment_name'] = parsed_args.src_segment_name
     if parsed_args.src_ip:
         body['src_ip'] = parsed_args.src_ip
@@ -232,7 +242,8 @@ class ReachabilityTestsList(extension.ClientExtensionList, ReachabilityTest):
     """List Reachability Tests."""
 
     shell_command = 'reachability-tests-list'
-    list_columns = ['id', 'name', 'src_tenant_id', 'src_segment_id',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
 
@@ -241,7 +252,8 @@ class ReachabilityTestsCreate(extension.ClientExtensionCreate,
     """Create a Reachability Test."""
 
     shell_command = 'reachability-tests-create'
-    list_columns = ['id', 'name', 'src_tenant_id', 'src_segment_id',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
     def add_known_arguments(self, parser):
@@ -259,7 +271,8 @@ class ReachabilityTestsUpdate(extension.ClientExtensionUpdate,
     """Update a Reachability Test."""
 
     shell_command = 'reachability-tests-update'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
     def add_known_arguments(self, parser):
@@ -277,7 +290,8 @@ class ReachabilityTestsRun(extension.ClientExtensionUpdate,
     """Run a Reachability Test."""
 
     shell_command = 'reachability-tests-run'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result', 'test_result',
                     'detail', 'logical_path', 'test_time']
 
@@ -314,7 +328,8 @@ class ReachabilityQuickTestsList(extension.ClientExtensionList,
     """List Reachability Quick Tests."""
 
     shell_command = 'reachability-quick-tests-list'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
 
@@ -323,7 +338,8 @@ class ReachabilityQuickTestsCreate(extension.ClientExtensionCreate,
     """Create a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-create'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
     def add_known_arguments(self, parser):
@@ -341,7 +357,8 @@ class ReachabilityQuickTestsUpdate(extension.ClientExtensionUpdate,
     """Update a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-update'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result']
 
     def add_known_arguments(self, parser):
@@ -359,7 +376,8 @@ class ReachabilityQuickTestsRun(extension.ClientExtensionUpdate,
     """Run a Reachability Quick Test."""
 
     shell_command = 'reachability-quick-tests-run'
-    list_columns = ['id', 'name', 'src_tenant_name', 'src_segment_name',
+    list_columns = ['id', 'name', 'src_tenant_id', 'src_tenant_name',
+                    'src_segment_id', 'src_segment_name',
                     'src_ip', 'dst_ip', 'expected_result', 'test_result',
                     'detail', 'logical_path', 'test_time']
 
