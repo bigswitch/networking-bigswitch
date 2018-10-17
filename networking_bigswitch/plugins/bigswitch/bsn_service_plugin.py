@@ -182,7 +182,8 @@ class BSNServicePlugin(service_base.ServicePluginBase,
                 reachabilitytest_data['run_test']:
             # run test on the controller and get results
             # update fields in reachabilitytest_data dict
-            src = reachabilitytest.get_connection_source()
+            src = reachabilitytest.get_connection_source(
+                test_id=id, unicode_mode=self.servers.is_unicode_enabled())
             dst = reachabilitytest.get_connection_destination()
             response = self.servers.rest_get_testpath(src, dst)
             test_result, detail, logical_path = self.parse_result(
@@ -244,7 +245,8 @@ class BSNServicePlugin(service_base.ServicePluginBase,
                 reachabilityquicktest_data['run_test']:
             # run test on the controller and get results
             # update fields in reachabilityquicktest_data dict
-            src = reachabilityquicktest.get_connection_source()
+            src = reachabilityquicktest.get_connection_source(
+                test_id=id, unicode_mode=self.servers.is_unicode_enabled())
             dst = reachabilityquicktest.get_connection_destination()
             response = self.servers.rest_get_testpath(src, dst)
             test_result, detail, logical_path = self.parse_result(
