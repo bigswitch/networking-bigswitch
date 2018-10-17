@@ -55,8 +55,10 @@ class ReachabilityTest(model_base.BASEV2,
     """
     __tablename__ = 'reachabilitytest'
     name = sa.Column(sa.String(64), nullable=False, unique=True)
+    src_tenant_id = sa.Column(sa.String(length=36), nullable=True)
     src_tenant_name = sa.Column(sa.String(255), nullable=False)
-    src_segment_name = sa.Column(sa.String(255), nullable=False)
+    src_segment_id = sa.Column(sa.String(length=36), nullable=True)
+    src_segment_name = sa.Column(sa.String(255), nullable=True)
     src_ip = sa.Column(sa.String(16), nullable=False)
     dst_ip = sa.Column(sa.String(16), nullable=False)
     expected_result = sa.Column(Enum("dropped by route",
@@ -80,10 +82,23 @@ class ReachabilityTest(model_base.BASEV2,
     logical_path = sa.Column(JSONEncodedDict(8192), nullable=True)
     run_test = sa.Column(sa.Boolean, nullable=False, default=False)
 
-    def get_connection_source(self):
+    def get_connection_source(self, unicode_mode=False):
         source = {}
-        source['tenant'] = Util.format_resource_name(self.src_tenant_name)
-        source['segment'] = Util.format_resource_name(self.src_segment_name)
+        if unicode_mode:
+            if not self.src_tenant_id:
+                raise ReachabilityTestUnicodeTenantIdMissing(
+                    test_name=self.name)
+            source['tenant'] = self.src_tenant_id
+            if not self.src_segment_id:
+                raise ReachabilityTestUnicodeSegmentIdMissing(
+                    test_name=self.name)
+            source['segment'] = self.src_segment_id
+        else:
+            source['tenant'] = Util.format_resource_name(self.src_tenant_name)
+            if not self.src_segment_name:
+                raise ReachabilityTestSegmentNameMissing(test_name=self.name)
+            source['segment'] = Util.format_resource_name(
+                self.src_segment_name)
         source['ip'] = self.src_ip
         return source
 
@@ -97,6 +112,21 @@ class ReachabilityTestNotFound(exceptions.NotFound):
     message = _("Reachability Test %(id)s could not be found")
 
 
+class ReachabilityTestUnicodeTenantIdMissing(exceptions.NeutronException):
+    message = _("Source Tenant ID is required when Unicode is ENABLED. "
+                "Please update Test %(test_name)s.")
+
+
+class ReachabilityTestUnicodeSegmentIdMissing(exceptions.NeutronException):
+    message = _("Source Segment ID is required when Unicode is ENABLED. "
+                "Please update Test %(test_name)s.")
+
+
+class ReachabilityTestSegmentNameMissing(exceptions.NeutronException):
+    message = _("Source Segment Name is required when Unicode is DISABLED. "
+                "Please recreate the network and update Test %(test_name)s.")
+
+
 class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_reachabilitytest_dict(self, reachabilitytest, fields=None):
@@ -104,7 +134,9 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
             'id': reachabilitytest.id,
             'tenant_id': reachabilitytest.tenant_id,
             'name': reachabilitytest.name,
+            'src_tenant_id': reachabilitytest.src_tenant_id,
             'src_tenant_name': reachabilitytest.src_tenant_name,
+            'src_segment_id': reachabilitytest.src_segment_id,
             'src_segment_name': reachabilitytest.src_segment_name,
             'src_ip': reachabilitytest.src_ip,
             'dst_ip': reachabilitytest.dst_ip,
@@ -143,7 +175,9 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
             reachabilitytest = ReachabilityTest(
                 tenant_id=reachabilitytest_data['tenant_id'],
                 name=reachabilitytest_data['name'],
+                src_tenant_id=reachabilitytest_data.get('src_tenant_id'),
                 src_tenant_name=reachabilitytest_data['src_tenant_name'],
+                src_segment_id=reachabilitytest_data.get('src_segment_id'),
                 src_segment_name=reachabilitytest_data['src_segment_name'],
                 src_ip=reachabilitytest_data['src_ip'],
                 dst_ip=reachabilitytest_data['dst_ip'],
@@ -157,7 +191,9 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
             reachabilitytest = ReachabilityTest(
                 tenant_id=reachabilitytest_data['tenant_id'],
                 name=reachabilitytest_data['name'],
+                src_tenant_id=reachabilitytest_data.get('src_tenant_id'),
                 src_tenant_name=reachabilitytest_data['src_tenant_name'],
+                src_segment_id=reachabilitytest_data.get('src_segment_id'),
                 src_segment_name=reachabilitytest_data['src_segment_name'],
                 src_ip=reachabilitytest_data['src_ip'],
                 dst_ip=reachabilitytest_data['dst_ip'],
@@ -190,8 +226,10 @@ class ReachabilityQuickTest(model_base.BASEV2,
     """
     __tablename__ = 'reachabilityquicktest'
     name = sa.Column(sa.String(64), nullable=False, unique=True)
+    src_tenant_id = sa.Column(sa.String(length=36), nullable=True)
     src_tenant_name = sa.Column(sa.String(255), nullable=False)
-    src_segment_name = sa.Column(sa.String(255), nullable=False)
+    src_segment_id = sa.Column(sa.String(length=36), nullable=True)
+    src_segment_name = sa.Column(sa.String(255), nullable=True)
     src_ip = sa.Column(sa.String(16), nullable=False)
     dst_ip = sa.Column(sa.String(16), nullable=False)
     expected_result = sa.Column(Enum("dropped by route",
@@ -216,10 +254,24 @@ class ReachabilityQuickTest(model_base.BASEV2,
     run_test = sa.Column(sa.Boolean, nullable=False, default=False)
     save_test = sa.Column(sa.Boolean, nullable=False, default=False)
 
-    def get_connection_source(self):
+    def get_connection_source(self, unicode_mode=False):
         source = {}
-        source['tenant'] = Util.format_resource_name(self.src_tenant_name)
-        source['segment'] = Util.format_resource_name(self.src_segment_name)
+        if unicode_mode:
+            if not self.src_tenant_id:
+                raise ReachabilityTestUnicodeTenantIdMissing(
+                    test_name=self.name)
+            source['tenant'] = self.src_tenant_id
+            if not self.src_segment_id:
+                raise ReachabilityTestUnicodeSegmentIdMissing(
+                    test_name=self.name)
+            source['segment'] = self.src_segment_id
+        else:
+            source['tenant'] = Util.format_resource_name(self.src_tenant_name)
+            if not self.src_segment_name:
+                raise ReachabilityTestSegmentNameMissing(
+                    test_name=self.name)
+            source['segment'] = Util.format_resource_name(
+                self.src_segment_name)
         source['ip'] = self.src_ip
         return source
 
@@ -227,10 +279,6 @@ class ReachabilityQuickTest(model_base.BASEV2,
         destination = {}
         destination['ip'] = self.dst_ip
         return destination
-
-
-class ReachabilityQuickTestNotFound(exceptions.NotFound):
-    message = _("Reachability Quick Test %(id)s could not be found")
 
 
 class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
@@ -241,7 +289,9 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
             'id': reachabilityquicktest.id,
             'tenant_id': reachabilityquicktest.tenant_id,
             'name': reachabilityquicktest.name,
+            'src_tenant_id': reachabilityquicktest.src_tenant_id,
             'src_tenant_name': reachabilityquicktest.src_tenant_name,
+            'src_segment_id': reachabilityquicktest.src_segment_id,
             'src_segment_name': reachabilityquicktest.src_segment_name,
             'src_ip': reachabilityquicktest.src_ip,
             'dst_ip': reachabilityquicktest.dst_ip,
@@ -257,7 +307,7 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
             reachabilityquicktest = self._get_by_id(
                 context, ReachabilityQuickTest, id)
         except exc.NoResultFound:
-            raise ReachabilityQuickTestNotFound(id=id)
+            raise ReachabilityTestNotFound(id=id)
         return reachabilityquicktest
 
     # public CRUD methods for Reachability Quick Test
@@ -283,7 +333,9 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
                 id=quicktest_data['tenant_id'],
                 tenant_id=quicktest_data['tenant_id'],
                 name=quicktest_data['name'],
+                src_tenant_id=quicktest_data.get('src_tenant_id'),
                 src_tenant_name=quicktest_data['src_tenant_name'],
+                src_segment_id=quicktest_data.get('src_segment_id'),
                 src_segment_name=quicktest_data['src_segment_name'],
                 src_ip=quicktest_data['src_ip'],
                 dst_ip=quicktest_data['dst_ip'],
