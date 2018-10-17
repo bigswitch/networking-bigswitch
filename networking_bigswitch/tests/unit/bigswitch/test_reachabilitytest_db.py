@@ -39,7 +39,9 @@ class TestReachabilityTestDbMixin(testlib_api.SqlTestCase):
             'reachabilitytest': {
                 'tenant_id': 'admin_tenant_id',
                 'name': 'test1',
+                'src_tenant_id': 'admin_tenant_id',
                 'src_tenant_name': 'admin',
+                'src_segment_id': 'web_segment_id',
                 'src_segment_name': 'web',
                 'src_ip': '10.1.1.2',
                 'dst_ip': '10.2.1.2',
