@@ -1,0 +1,8 @@
+Code-Review+2: Weifan Fu <weifan.fu@bigswitch.com>
+Workflow+1: Weifan Fu <weifan.fu@bigswitch.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Tue, 23 Oct 2018 23:41:06 +0000
+Reviewed-on: https://review.openstack.org/612802
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/queens
