@@ -3,12 +3,12 @@
 # process, which may cause wedges in the gate later.
 hacking!=0.13.0,<0.14,>=0.12.0 # Apache-2.0
 
--e git+https://git.openstack.org/openstack/neutron.git@master#egg=neutron
 cliff>=1.7.0  # Apache-2.0
 coverage>=3.6 # Apache-2.0
 discover # BSD
 mock>=1.0 # BSD
 fixtures>=1.3.1 # BSD + Apache
+flake8-import-order==0.12 # LGPLv3
 python-subunit>=0.0.18 # BSD + Apache-2.0
 requests-mock>=0.5.1  # Apache-2.0
 sphinx>=1.1.2,!=1.2.0,!=1.3b1,<1.3 # BSD
@@ -23,3 +23,4 @@ oslotest>=1.2.0  # Apache-2.0
 tempest>=17.1.0  # Apache-2.0
 babel!=2.4.0,>=2.3.4 # BSD
 stestr>=1.0.0 # Apache-2.0
+pylint==1.7.6 # GPLv2
