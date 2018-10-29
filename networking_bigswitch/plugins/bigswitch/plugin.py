@@ -363,8 +363,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # L3 plugin also includes tenant policies
             # data.update({'policies': tenant_policies})
 
-        if (get_sgs and self.l3_plugin
-                and cfg.CONF.RESTPROXY.sync_security_groups):
+        if (get_sgs and self.l3_plugin and
+                cfg.CONF.RESTPROXY.sync_security_groups):
             sgs = plugin.get_security_groups(admin_context) or []
             new_sgs = []
             for sg in sgs:
@@ -770,8 +770,8 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         # if bridge_name not available, sets it to just 'host-id'
         vif_type = prepped_port.get(portbindings.VIF_TYPE)
         if (vif_type and
-                (vif_type == portbindings.VIF_TYPE_OVS
-                 or vif_type == portbindings.VIF_TYPE_VHOST_USER)):
+                (vif_type == portbindings.VIF_TYPE_OVS or
+                 vif_type == portbindings.VIF_TYPE_VHOST_USER)):
             prepped_port[portbindings.HOST_ID] = (
                 self._get_ovs_dpdk_port_hostid(prepped_port, network))
 
@@ -1123,8 +1123,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             new_port = super(NeutronRestProxyV2, self).create_port(context,
                                                                    port)
             self._process_port_create_security_group(context, new_port, sgids)
-        if (portbindings.HOST_ID in port['port']
-                and 'id' in new_port):
+        if (portbindings.HOST_ID in port['port'] and 'id' in new_port):
             host_id = port['port'][portbindings.HOST_ID]
             porttracker_db.put_port_hostid(context, new_port['id'],
                                            host_id)
@@ -1217,8 +1216,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                                                  new_port)
             old_host_id = porttracker_db.get_port_hostid(context,
                                                          orig_port['id'])
-            if (portbindings.HOST_ID in port['port']
-                    and 'id' in new_port):
+            if (portbindings.HOST_ID in port['port'] and 'id' in new_port):
                 host_id = port['port'][portbindings.HOST_ID]
                 porttracker_db.put_port_hostid(context, new_port['id'],
                                                host_id)

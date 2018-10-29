@@ -84,8 +84,8 @@ class HTTPConnectionMock(object):
             self.response = HTTPResponseMock(None)
 
         # Port creations/updates must contain binding information
-        if ('port' in uri and 'attachment' not in uri
-                and 'binding' not in body and action in ('POST', 'PUT')):
+        if ('port' in uri and 'attachment' not in uri and
+                'binding' not in body and action in ('POST', 'PUT')):
             errmsg = "Port binding info missing in port request '%s'" % body
             self.response = HTTPResponseMock500(None, errmsg=errmsg)
             return
