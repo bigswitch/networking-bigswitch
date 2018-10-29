@@ -15,11 +15,10 @@
 
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
-from neutron.db import api as db
 from neutron.db import common_db_mixin
 from neutron.db.models import l3 as l3_models
 from neutron_lib.api import validators
-from neutron_lib.db.api import _tag_retriables_as_unretriable
+from neutron_lib.db import api as db_api
 from neutron_lib.db import model_base
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
@@ -211,7 +210,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
     def get_tenantpolicies(self, context, filters=None, fields=None,
                            sorts=None, limit=None, marker=None,
                            page_reverse=False):
-        with db.context_manager.reader.using(context):
+        with db_api.CONTEXT_READER.using(context):
             tenantpolicies = \
                 self._get_collection(context, TenantPolicy,
                                      self._make_tenantpolicy_dict,
@@ -219,16 +218,16 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         return tenantpolicies
 
     def get_tenantpolicy(self, context, id, fields=None):
-        with db.context_manager.reader.using(context):
+        with db_api.CONTEXT_READER.using(context):
             tenantpolicy = self._get_tenantpolicy(context, id)
             return self._make_tenantpolicy_dict(tenantpolicy, fields)
 
-    @_tag_retriables_as_unretriable
+    @db_api._tag_retriables_as_unretriable
     def create_tenantpolicy(self, context, tenantpolicy):
         tenantpolicy_data = tenantpolicy['tenantpolicy']
         tenantpolicy_data = self._validate_and_cleanse_policy(
             context, tenantpolicy_data)
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             router_exists = context.session.query(l3_models.Router).filter_by(
                 project_id=tenantpolicy_data['project_id']).first()
             if not router_exists:
@@ -254,7 +253,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         return self._make_tenantpolicy_dict(tenantpolicy)
 
     def delete_tenantpolicy(self, context, id):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             tenantpolicy = self._get_tenantpolicy(context, id)
             context.session.delete(tenantpolicy)
 
@@ -262,7 +261,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         tenantpolicy_data = tenantpolicy['tenantpolicy']
         tenantpolicy_data = self._validate_and_cleanse_policy(
             context, tenantpolicy_data)
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             tenantpolicy = self._get_tenantpolicy(context, id)
             tenantpolicy.update(tenantpolicy_data)
         return self._make_tenantpolicy_dict(tenantpolicy)
@@ -306,7 +305,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         return tenant_rule if tenant_rule else default_rule
 
     def create_default_policy(self, context, tenant_id, default_policy_dict):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             existing_def_rule = (context.session.query(TenantPolicy)
                                  .filter_by(tenant_id=tenant_id)
                                  .filter_by(priority=DEFAULT_POLICY_PRIORITY)
@@ -328,7 +327,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
         return self._make_tenantpolicy_dict(default_policy)
 
     def remove_default_policy(self, context, tenant_id):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             # tenant doesn't have another router, remove all policies
             LOG.debug("Tenant doesn't have another router after router "
                       "deletion. Removing all policies under the tenant.")

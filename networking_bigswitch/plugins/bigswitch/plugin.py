@@ -62,7 +62,6 @@ from neutron.api.rpc.handlers import securitygroups_rpc
 from neutron.db import agents_db
 from neutron.db import agentschedulers_db
 from neutron.db import allowedaddresspairs_db as addr_pair_db
-from neutron.db import api as db
 from neutron.db import db_base_plugin_v2
 from neutron.db import external_net_db
 from neutron.db import extradhcpopt_db
@@ -79,7 +78,7 @@ from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
-from neutron_lib.db import api as lib_db_api
+from neutron_lib.db import api as db_api
 from neutron_lib import exceptions as lib_exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
@@ -131,7 +130,7 @@ class SecurityGroupServerRpcMixin(sg_db_rpc.SecurityGroupServerRpcMixin):
         LOG.debug("get_port_and_sgs() called for port_id %s", port_id)
         sg_binding_port = sg_db.SecurityGroupPortBinding.port_id
 
-        with db.context_manager.reader.using(context):
+        with db_api.CONTEXT_READER.using(context):
             query = context.session.query(
                 models_v2.Port,
                 sg_db.SecurityGroupPortBinding.security_group_id
@@ -455,7 +454,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
         if context is None:
             context = qcontext.get_admin_context()
         # start a sub-transaction to avoid breaking parent transactions
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             subnets = self._get_subnets_by_network(context,
                                                    net_id)
         subnets_details = []
@@ -911,7 +910,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
     # NOTE(kevinbenton): workaround for eventlet/mysql deadlock
     @runtime.synchronized('bsn-port-barrier')
     def _set_port_status(self, port_id, status):
-        session = lib_db_api.get_writer_session()
+        session = db_api.get_writer_session()
         try:
             port = session.query(models_v2.Port).filter_by(id=port_id).one()
             port['status'] = status
@@ -980,7 +979,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self.add_periodic_dhcp_agent_status_check()
         LOG.debug("NeutronRestProxyV2: initialization done")
 
-    @db.context_manager.writer
+    @db_api.CONTEXT_WRITER
     @add_debug_log
     def create_network(self, context, network):
         """Create a network.
@@ -1022,7 +1021,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # return created network
         return new_net
 
-    @db.context_manager.writer
+    @db_api.CONTEXT_WRITER
     @add_debug_log
     def update_network(self, context, net_id, network):
         """Updates the properties of a particular Virtual Network.
@@ -1057,7 +1056,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         self._send_update_network(new_net, context)
         return new_net
 
-    @db.context_manager.writer
+    @db_api.CONTEXT_WRITER
     @add_debug_log
     def delete_network(self, context, net_id):
         """Delete a network.
@@ -1110,7 +1109,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         :raises: RemoteRestError
         """
         # Update DB in new session so exceptions rollback changes
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             self._ensure_default_security_group_on_port(context, port)
             sgids = self._get_security_groups_on_port(context, port)
             # non-router port status is set to pending. it is then updated
@@ -1158,14 +1157,14 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         return new_port
 
     def get_port(self, context, id, fields=None):
-        with db.context_manager.reader.using(context):
+        with db_api.CONTEXT_READER.using(context):
             port = super(NeutronRestProxyV2, self).get_port(context, id,
                                                             fields)
             self._extend_port_dict_binding(context, port)
         return self._fields(port, fields)
 
     def get_ports(self, context, filters=None, fields=None):
-        with db.context_manager.reader.using(context):
+        with db_api.CONTEXT_READER.using(context):
             ports = super(NeutronRestProxyV2, self).get_ports(context, filters,
                                                               fields)
             for port in ports:
@@ -1204,7 +1203,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
 
         # Validate Args
         orig_port = super(NeutronRestProxyV2, self).get_port(context, port_id)
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             # Update DB
             new_port = super(NeutronRestProxyV2,
                              self).update_port(context, port_id, port)
@@ -1267,7 +1266,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
         # and l3-router.  If so, we should prevent deletion.
         if l3_port_check and self.l3_plugin:
             self.l3_plugin.prevent_l3_port_deletion(context, port_id)
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             if self.l3_plugin:
                 router_ids = self.l3_plugin.disassociate_floatingips(
                     context, port_id, do_notify=False)
@@ -1301,7 +1300,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     def update_subnet(self, context, id, subnet):
         self._warn_on_state_status(subnet['subnet'])
 
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             # update subnet in DB
             new_subnet = super(NeutronRestProxyV2,
                                self).update_subnet(context, id, subnet)
@@ -1316,7 +1315,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
     def delete_subnet(self, context, id):
         orig_subnet = super(NeutronRestProxyV2, self).get_subnet(context, id)
         net_id = orig_subnet['network_id']
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             # delete subnet in DB
             super(NeutronRestProxyV2, self).delete_subnet(context, id)
             orig_net = super(NeutronRestProxyV2, self).get_network(context,

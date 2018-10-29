@@ -16,8 +16,8 @@
 from datetime import datetime
 import eventlet
 
-from neutron.db import api as db
 from neutron.db import common_db_mixin
+from neutron_lib.db import api as db_api
 from neutron_lib.services import base as service_base
 from oslo_log import log
 from oslo_serialization import jsonutils
@@ -278,7 +278,7 @@ class BSNServicePlugin(service_base.ServicePluginBase,
             context=context, id=id, fields=fields)
 
     def create_tenantpolicy(self, context, tenantpolicy):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             tenantpolicy_dict = self.tenantpolicy_db_mixin.create_tenantpolicy(
                 context=context, tenantpolicy=tenantpolicy)
             self.servers.rest_create_tenantpolicy(
@@ -287,7 +287,7 @@ class BSNServicePlugin(service_base.ServicePluginBase,
             return tenantpolicy_dict
 
     def delete_tenantpolicy(self, context, id):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             delete_policy = self.tenantpolicy_db_mixin._get_tenantpolicy(
                 context, id)
             self.tenantpolicy_db_mixin.delete_tenantpolicy(
@@ -296,7 +296,7 @@ class BSNServicePlugin(service_base.ServicePluginBase,
                                                   delete_policy['priority'])
 
     def update_tenantpolicy(self, context, id, tenantpolicy):
-        with db.context_manager.writer.using(context):
+        with db_api.CONTEXT_WRITER.using(context):
             updated_policy = self.tenantpolicy_db_mixin.update_tenantpolicy(
                 context=context, servers=self.servers, id=id,
                 tenantpolicy=tenantpolicy)
