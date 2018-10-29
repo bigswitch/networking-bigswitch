@@ -20,16 +20,16 @@ Create Date: 2017-06-27 12:10:07.018858
 
 """
 
+from alembic import op
+from oslo_utils import uuidutils
+import sqlalchemy as sa
+from sqlalchemy.types import Enum
+
 # revision identifiers, used by Alembic.
 revision = '66cc6bc031de'
 down_revision = '2dc6f1b7c0a1'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-from oslo_utils import uuidutils
-import sqlalchemy as sa
-from sqlalchemy.types import Enum
 
 
 def upgrade():

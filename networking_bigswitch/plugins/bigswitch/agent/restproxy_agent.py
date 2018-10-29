@@ -20,15 +20,18 @@ import sys
 import time
 
 import eventlet
-eventlet.monkey_patch()
+import oslo_messaging
 
+from neutron_lib.agent import topics
+from neutron_lib import constants as q_const
+from neutron_lib import context as q_context
 from oslo_config import cfg
 from oslo_log import log
-import oslo_messaging
 from oslo_service import loopingcall
 from oslo_utils import excutils
 from oslo_utils import importutils
 
+from networking_bigswitch.plugins.bigswitch import config as pl_config
 from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
 from neutron.agent import rpc as agent_rpc
@@ -36,11 +39,8 @@ from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api.rpc.handlers import securitygroups_rpc as api_sg_rpc
 from neutron.common import config
 from neutron.extensions import securitygroup as ext_sg
-from neutron_lib.agent import topics
-from neutron_lib import constants as q_const
-from neutron_lib import context as q_context
 
-from networking_bigswitch.plugins.bigswitch import config as pl_config
+eventlet.monkey_patch()
 
 IVS_PORT_MTU = 9000
 IVS_VM_PORT_PREFIX = 'qvo'

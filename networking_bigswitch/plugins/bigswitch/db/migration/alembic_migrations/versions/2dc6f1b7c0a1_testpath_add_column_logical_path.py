@@ -20,18 +20,18 @@ Create Date: 2017-10-12 14:12:51.467479
 
 """
 
-# revision identifiers, used by Alembic.
-revision = '2dc6f1b7c0a1'
-down_revision = 'f774eae87144'
-branch_labels = None
-depends_on = None
-
 import sqlalchemy as sa
 
 from alembic import op
 from oslo_serialization import jsonutils
 from sqlalchemy.dialects.mysql.base import VARCHAR
 from sqlalchemy.types import TypeDecorator
+
+# revision identifiers, used by Alembic.
+revision = '2dc6f1b7c0a1'
+down_revision = 'f774eae87144'
+branch_labels = None
+depends_on = None
 
 
 class JSONEncodedDict(TypeDecorator):

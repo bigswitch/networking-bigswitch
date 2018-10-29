@@ -21,18 +21,18 @@ Create Date: 2016-01-04 17:59:34.311932
 
 """
 
-# revision identifiers, used by Alembic.
-revision = 'kilo'
-down_revision = None
-branch_labels = None
-depends_on = None
-
 from alembic import op
 from oslo_serialization import jsonutils
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.mysql.base import VARCHAR
 from sqlalchemy.types import Enum, TIMESTAMP, TypeDecorator
+
+# revision identifiers, used by Alembic.
+revision = 'kilo'
+down_revision = None
+branch_labels = None
+depends_on = None
 
 
 class JSONEncodedDict(TypeDecorator):

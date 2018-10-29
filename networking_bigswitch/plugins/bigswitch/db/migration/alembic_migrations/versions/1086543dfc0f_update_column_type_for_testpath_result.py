@@ -21,14 +21,14 @@ Create Date: 2016-04-25 11:54:44.646798
 
 """
 
+from alembic import op
+from sqlalchemy.types import Enum
+
 # revision identifiers, used by Alembic.
 revision = '1086543dfc0f'
 down_revision = 'kilo'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-from sqlalchemy.types import Enum
 
 
 def upgrade():

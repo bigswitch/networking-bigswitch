@@ -63,8 +63,8 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
     def setUp(self, plugin=None, service_plugins=None, ext_mgr=None):
         ext_mgr = TaasExtensionManager()
         service_plugins = {'taas_plugin_name': DB_TAAS_PLUGIN_KLASS}
-        taas_provider = (taas_const.TAAS + ':BSN:' + BSN_TAAS_DRIVER_KLASS
-                         + ':default')
+        taas_provider = (taas_const.TAAS + ':BSN:' + BSN_TAAS_DRIVER_KLASS +
+                         ':default')
         mock.patch.object(provconf.NeutronModule, 'service_providers',
                           return_value=[taas_provider]).start()
         manager = sdb.ServiceTypeManager.get_instance()

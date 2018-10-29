@@ -240,16 +240,16 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
         # we retain this section for security groups, because it handles
         # other events as well. Ignore security group events if disabled in
         # config
-        if (event_type == 'security_group.create.end'
-                and cfg.CONF.RESTPROXY.sync_security_groups):
+        if (event_type == 'security_group.create.end' and
+                cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group created: %s", payload)
             self.bsn_create_security_group(sg=payload['security_group'])
-        elif (event_type == 'security_group.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
+        elif (event_type == 'security_group.delete.end' and
+                cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group deleted: %s", payload)
             self.bsn_delete_security_group(payload['security_group_id'])
-        elif (event_type == 'security_group_rule.delete.end'
-              and cfg.CONF.RESTPROXY.sync_security_groups):
+        elif (event_type == 'security_group_rule.delete.end' and
+                cfg.CONF.RESTPROXY.sync_security_groups):
             LOG.debug("Security group rule deleted: %s", payload)
             self.bsn_delete_sg_rule(payload['security_group_rule'], ctxt)
         elif event_type == 'identity.project.deleted':
