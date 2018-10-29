@@ -266,7 +266,8 @@ class TestBigSwitchMechDriverPortsV2(test_db_base_plugin_v2.TestPortsV2,
         host_arg = {portbindings.HOST_ID: 'hostname',
                     portbindings.VNIC_TYPE: portbindings.VNIC_DIRECT}
         with\
-            mock.patch(SERVER_POOL + '.rest_get_switch', return_value=True) as rmock,\
+            mock.patch(SERVER_POOL + '.rest_get_switch',
+                       return_value=True) as rmock,\
             self.port(arg_list=(portbindings.HOST_ID, portbindings.VNIC_TYPE),
                       **host_arg):
 

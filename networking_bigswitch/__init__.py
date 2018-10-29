@@ -14,6 +14,12 @@
 #    under the License.
 
 import gettext
+import six
 
 
-gettext.install('neutron', unicode=1)
+if six.PY2:
+    # E1123: unexpected keyword argument
+    gettext.install('neutron', unicode=1)  # pylint: disable=E1123
+else:
+    gettext.install('neutron')
+

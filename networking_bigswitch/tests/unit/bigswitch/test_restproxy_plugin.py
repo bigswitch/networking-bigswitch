@@ -213,8 +213,8 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
             self.subnet() as s,\
             patch(HTTPCON, create=True,
                   new=fake_server.HTTPConnectionMock404),\
-            patch(bsn_test_base.RESTPROXY_PKG_PATH
-                  + '.NeutronRestProxyV2._send_all_data') as mock_send_all:
+            patch(bsn_test_base.RESTPROXY_PKG_PATH +
+                  '.NeutronRestProxyV2._send_all_data') as mock_send_all:
             with self.port(subnet=s, device_id='somedevid') as p:
                 # wait for the async port thread to finish
                 plugin = directory.get_plugin()
