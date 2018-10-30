@@ -140,17 +140,17 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
     def _validate_priority(self, priority):
         msg = None
         int_priority = int(priority)
-        if (int_priority not in range(1, 3001)
-                and int_priority != DEFAULT_POLICY_PRIORITY):
+        if (int_priority not in range(1, 3001) and
+                int_priority != DEFAULT_POLICY_PRIORITY):
             msg = _("User must provide valid priority between 1 and 3000. "
                     "%s was provided.") % priority
         return msg
 
     def _validate_port_protocol(self, policy_data):
         msg = None
-        if ((int(policy_data['source_port']) > 0
-             or int(policy_data['destination_port']) > 0)
-                and policy_data['protocol'] not in ['tcp', 'udp']):
+        if ((int(policy_data['source_port']) > 0 or
+                int(policy_data['destination_port']) > 0) and
+                policy_data['protocol'] not in ['tcp', 'udp']):
             msg = _("Protocol must be select if either source or destination "
                     "port is specified.")
         return msg

@@ -302,8 +302,9 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
         pl.servers.ssl = True
         cfg.CONF.set_override('ssl_sticky', False, 'RESTPROXY')
         # pretend base dir exists, 3 children don't, and host cert does
-        with mock.patch('os.path.exists', side_effect=[True, False, False,
-                                                       False, True]) as exmock,\
+        with mock.patch('os.path.exists',
+                        side_effect=[True, False, False,
+                                     False, True]) as exmock,\
                 mock.patch('os.makedirs') as makemock,\
                 mock.patch(
                     SERVERMANAGER + '.ServerPool._combine_certs_to_file')\
