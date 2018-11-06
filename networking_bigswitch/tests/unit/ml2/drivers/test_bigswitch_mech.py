@@ -97,7 +97,7 @@ class TestBigSwitchMechDriverNetworksV2(test_db_base_plugin_v2.TestNetworksV2,
             rv.getresponse.return_value = HTTPResponseMock(None)
             with self.network(name=name) as net:
                 # for debug
-                print (rv.request.mock_calls)
+                print(rv.request.mock_calls)
                 network = jsonutils.loads(rv.request.mock_calls[0][1][2])
                 self.assertIn('tenant_name', network['network'])
                 self.assertEqual('tenant_name',

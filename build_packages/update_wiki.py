@@ -27,10 +27,10 @@ conf_user = sys.argv[1]
 conf_token = sys.argv[2]
 page_id = sys.argv[3]
 html_href = sys.argv[4]
-print ("page_id is: %(page_id)s" % {'page_id': page_id})
-print ("html_href is: %(html_href)s" % {'html_href': html_href})
+print("page_id is: %(page_id)s" % {'page_id': page_id})
+print("html_href is: %(html_href)s" % {'html_href': html_href})
 basic_auth = (conf_user, conf_token)
-print ("basic_auth is %(auth)s" % {'auth': basic_auth})
+print("basic_auth is %(auth)s" % {'auth': basic_auth})
 
 headers = {'content-type': 'application/json'}
 
@@ -58,4 +58,4 @@ data = ('{"id":"%(page_id)s",'
            'title': json_out['title']})
 
 p = requests.put(url, data=data, headers=headers, auth=basic_auth)
-print (p.json())
+print(p.json())
