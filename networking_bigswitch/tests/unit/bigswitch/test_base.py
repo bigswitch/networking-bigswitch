@@ -51,6 +51,7 @@ KSCLIENT = 'keystoneclient.v3.client.Client'
 BACKGROUND = SERVER_MANAGER + '.ServerPool.start_background_tasks'
 MAP_TENANT_NAME = ('networking_bigswitch.plugins.bigswitch.plugin.'
                    'NeutronRestProxyV2Base._map_tenant_name')
+LIB_RPC_TRANSPORT = ('neutron_lib.rpc.TRANSPORT')
 
 
 class BigSwitchTestBase(object):
@@ -95,6 +96,8 @@ class BigSwitchTestBase(object):
         self.ksclient_p = mock.patch(KSCLIENT)
         self.map_tenant_name_p = mock.patch(
             MAP_TENANT_NAME, side_effect=self.map_tenant_name_side_effect)
+        self.lib_rpc_transport_p = mock.patch(LIB_RPC_TRANSPORT)
+        # start all mock patches
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
         self.spawn_p.start()
@@ -102,6 +105,7 @@ class BigSwitchTestBase(object):
         self.dhcp_notifier_p.start()
         self.ksclient_p.start()
         self.map_tenant_name_p.start()
+        self.lib_rpc_transport_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
