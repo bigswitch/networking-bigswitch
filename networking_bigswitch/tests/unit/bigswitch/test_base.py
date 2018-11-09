@@ -20,6 +20,7 @@ import mock
 from oslo_config import cfg
 
 import neutron.common.test_lib as test_lib
+from neutron.db import api  # noqa
 
 from networking_bigswitch.plugins.bigswitch import config
 from networking_bigswitch.plugins.bigswitch.db import consistency_db
