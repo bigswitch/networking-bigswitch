@@ -3,7 +3,58 @@
 # setup the requirements. If any packages are added that are
 # specific to bsnstack lib, put them here.
 
+pbr!=2.1.0,>=2.0.0 # Apache-2.0
+
+Paste>=2.0.2 # MIT
+PasteDeploy>=1.5.0 # MIT
+Routes>=2.3.1 # MIT
+debtcollector>=1.2.0 # Apache-2.0
+eventlet!=0.18.3,!=0.20.1,>=0.18.2 # MIT
+pecan!=1.0.2,!=1.0.3,!=1.0.4,!=1.2,>=1.3.2 # BSD
+httplib2>=0.9.1 # MIT
+requests>=2.14.2 # Apache-2.0
+Jinja2>=2.10 # BSD License (3 clause)
+keystonemiddleware>=4.17.0 # Apache-2.0
+netaddr>=0.7.18 # BSD
+netifaces>=0.10.4 # MIT
+neutron-lib!=1.20.0,>=1.19.0 # Apache-2.0
+python-neutronclient>=6.7.0 # Apache-2.0
+tenacity>=3.2.1 # Apache-2.0
+ryu>=4.24 # Apache-2.0
+SQLAlchemy!=1.1.5,!=1.1.6,!=1.1.7,!=1.1.8,>=1.2.0 # MIT
+WebOb>=1.8.2 # MIT
+keystoneauth1>=3.4.0 # Apache-2.0
+alembic>=0.8.10 # MIT
 six>=1.10.0 # MIT
+stevedore>=1.20.0 # Apache-2.0
+oslo.cache>=1.26.0 # Apache-2.0
+oslo.concurrency>=3.25.0 # Apache-2.0
+oslo.config>=5.1.0 # Apache-2.0
+oslo.context>=2.19.2 # Apache-2.0
+oslo.db>=4.27.0 # Apache-2.0
+oslo.i18n>=3.15.3 # Apache-2.0
+oslo.log>=3.36.0 # Apache-2.0
+oslo.messaging>=5.29.0 # Apache-2.0
+oslo.middleware>=3.31.0 # Apache-2.0
+oslo.policy>=1.30.0 # Apache-2.0
+oslo.privsep>=1.23.0 # Apache-2.0
+oslo.reports>=1.18.0 # Apache-2.0
+oslo.rootwrap>=5.8.0 # Apache-2.0
+oslo.serialization!=2.19.1,>=2.18.0 # Apache-2.0
+oslo.service!=1.28.1,>=1.24.0 # Apache-2.0
+oslo.upgradecheck>=0.1.0 # Apache-2.0
+oslo.utils>=3.33.0 # Apache-2.0
+oslo.versionedobjects>=1.31.2 # Apache-2.0
+osprofiler>=1.4.0 # Apache-2.0
+ovs>=2.8.0 # Apache-2.0
+ovsdbapp>=0.9.1 # Apache-2.0
+psutil>=3.2.2 # BSD
+pyroute2>=0.4.21;sys_platform!='win32' # Apache-2.0 (+ dual licensed GPL2)
+weakrefmethod>=1.0.2;python_version=='2.7' # PSF
+
+python-novaclient>=9.1.0 # Apache-2.0
+python-designateclient>=2.7.0 # Apache-2.0
+os-xenapi>=0.3.1 # Apache-2.0
 
 # These repos are installed from git in OpenStack CI if the job
 # configures them as required-projects:
