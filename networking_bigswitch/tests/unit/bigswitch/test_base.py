@@ -17,10 +17,9 @@
 import os
 
 import mock
-from oslo_config import cfg
-
 import neutron.common.test_lib as test_lib
 from neutron.db import api  # noqa
+from oslo_config import cfg
 
 from networking_bigswitch.plugins.bigswitch import config
 from networking_bigswitch.plugins.bigswitch.db import consistency_db
@@ -31,36 +30,32 @@ from networking_bigswitch.plugins.bigswitch.servermanager\
     import TOPO_RESPONSE_OK
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 
-
-RESTPROXY_PKG_PATH = 'networking_bigswitch.plugins.bigswitch.plugin'
-L3_RESTPROXY_PKG_PATH = ('networking_bigswitch.plugins.bigswitch'
-                         '.l3_router_plugin')
-BSN_SERVICE_PLUGIN_PATH = ('networking_bigswitch.plugins.bigswitch'
-                           '.bsn_service_plugin')
-NOTIFIER = 'networking_bigswitch.plugins.bigswitch.plugin.AgentNotifierApi'
-DHCP_NOTIFIER = ('neutron.api.rpc.agentnotifiers.dhcp_rpc_agent_api.'
-                 'DhcpAgentNotifyAPI.notify')
-CERTFETCH = ('networking_bigswitch.plugins.bigswitch.servermanager.ServerPool'
-             '._fetch_cert')  # noqa
-SERVER_MANAGER = 'networking_bigswitch.plugins.bigswitch.servermanager'
-HTTPCON = ('networking_bigswitch.plugins.bigswitch.servermanager.httplib'
-           '.HTTPConnection')
-SPAWN = ('networking_bigswitch.plugins.bigswitch.plugin.eventlet.GreenPool'
-         '.spawn_n')
-KSCLIENT = 'keystoneclient.v3.client.Client'
-BACKGROUND = SERVER_MANAGER + '.ServerPool.start_background_tasks'
-MAP_DISPLAY_NAME_OR_TENANT = ('networking_bigswitch.plugins.bigswitch.plugin.'
-                              'NeutronRestProxyV2Base.'
-                              '_map_display_name_or_tenant')
-IS_UNICODE_ENABLED = ('networking_bigswitch.plugins.bigswitch.servermanager.'
-                      'ServerPool.is_unicode_enabled')
-LIB_RPC_TRANSPORT = ('neutron_lib.rpc.TRANSPORT')
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import BACKGROUND
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    BSN_SERVICE_PLUGIN_PATH
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import DHCP_NOTIFIER
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import HTTPCON
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    IS_UNICODE_ENABLED
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    KEYSTONE_CLIENT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import L3_PLUGIN_PATH
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    LIB_RPC_TRANSPORT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    MAP_DISPLAY_NAME_OR_TENANT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NOTIFIER
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import PLUGIN_PATH
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    POOL_TOPO_SYNC
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SERVER_MANAGER
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SPAWN
 
 
 class BigSwitchTestBase(object):
 
-    _plugin_name = ('%s.NeutronRestProxyV2' % RESTPROXY_PKG_PATH)
-    _l3_plugin_name = ('%s.L3RestProxy' % L3_RESTPROXY_PKG_PATH)
+    _plugin_name = ('%s.NeutronRestProxyV2' % PLUGIN_PATH)
+    _l3_plugin_name = ('%s.L3RestProxy' % L3_PLUGIN_PATH)
     _bsn_service_plugin_name = ('%s.BSNServicePlugin'
                                 % BSN_SERVICE_PLUGIN_PATH)
 
@@ -101,20 +96,24 @@ class BigSwitchTestBase(object):
         # disable exception log to prevent json parse error from showing
         self.log_exc_p = mock.patch(SERVER_MANAGER + ".LOG.exception",
                                     new=lambda *args, **kwargs: None)
-        self.ksclient_p = mock.patch(KSCLIENT)
+
+        self.ksclient_p = mock.patch(KEYSTONE_CLIENT)
+
         self.map_display_name_or_tenant_p = mock.patch(
             MAP_DISPLAY_NAME_OR_TENANT,
             side_effect=self.map_tenant_name_side_effect)
         self.is_unicode_enabled_p = mock.patch(
             IS_UNICODE_ENABLED,
             side_effect=self.is_unicode_enabled_side_effect)
+        # TODO(weifan): Find out why Mocking Transport does not work
+        # This mock fixes problems on zuul, but it is still broken locally
         self.lib_rpc_transport_p = mock.patch(LIB_RPC_TRANSPORT)
         # start all mock patches
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
+        self.dhcp_notifier_p.start()
         self.spawn_p.start()
         self.watch_p.start()
-        self.dhcp_notifier_p.start()
         self.ksclient_p.start()
         self.map_display_name_or_tenant_p.start()
         self.is_unicode_enabled_p.start()
@@ -127,8 +126,7 @@ class BigSwitchTestBase(object):
 
     def startTopoSyncPatch(self):
         self.topo_sync_p = \
-            mock.patch(SERVER_MANAGER + '.ServerPool.force_topo_sync',
-                       return_value=(True, TOPO_RESPONSE_OK))
+            mock.patch(POOL_TOPO_SYNC, return_value=(True, TOPO_RESPONSE_OK))
         self.topo_sync_p.start()
 
     def setup_db(self):
