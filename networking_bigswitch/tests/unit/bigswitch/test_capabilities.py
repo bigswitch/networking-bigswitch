@@ -22,22 +22,21 @@ from neutron_lib.plugins import directory
 
 from networking_bigswitch.tests.unit.bigswitch import test_router_db
 
-PLUGIN = 'networking_bigswitch.plugins.bigswitch.plugin'
-SERVERMANAGER = PLUGIN + '.servermanager'
-SERVERPOOL = SERVERMANAGER + '.ServerPool'
-SERVERRESTCALL = SERVERMANAGER + '.ServerProxy.rest_call'
-HTTPCON = SERVERMANAGER + '.httplib.HTTPConnection'
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import HTTPCON
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SERVER_POOL
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    SERVER_REST_CALL
 
 
 class CapabilitiesTests(test_router_db.RouterDBTestBase):
 
     def test_floating_ip_capability(self):
         with\
-            mock.patch(SERVERRESTCALL,
+            mock.patch(SERVER_REST_CALL,
                        return_value=(200, None, '["floatingip"]', None)),\
-            mock.patch(SERVERPOOL + '.rest_create_floatingip',
+            mock.patch(SERVER_POOL + '.rest_create_floatingip',
                        return_value=(200, None, None, None)) as mock_create,\
-            mock.patch(SERVERPOOL + '.rest_delete_floatingip',
+            mock.patch(SERVER_POOL + '.rest_delete_floatingip',
                        return_value=(200, None, None, None)) as mock_delete:
             with self.floatingip_with_assoc() as fip:
                 # we have to grab the floating ip object from the service
@@ -58,9 +57,9 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
 
     def test_floating_ip_capability_neg(self):
         with\
-            mock.patch(SERVERRESTCALL,
+            mock.patch(SERVER_REST_CALL,
                        return_value=(200, None, '[""]', None)),\
-            mock.patch(SERVERPOOL + '.rest_update_network',
+            mock.patch(SERVER_POOL + '.rest_update_network',
                        return_value=(200, None, None, None)) as mock_netupdate:
             with self.floatingip_with_assoc() as fip:
                 pass
@@ -75,7 +74,7 @@ class CapabilitiesTests(test_router_db.RouterDBTestBase):
                       "their assignment to the servermanager object is not "
                       "thread-safe")
         with mock.patch(
-            SERVERRESTCALL, return_value=(200, None, '["keep-alive"]', None)
+            SERVER_REST_CALL, return_value=(200, None, '["keep-alive"]', None)
         ):
             # perform a task to cause capabilities to be retrieved
             with self.floatingip_with_assoc():
