@@ -84,10 +84,6 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
 class RouterDBTestCase(RouterDBTestBase,
                        test_l3.L3NatDBIntTestCase):
 
-    def test__notify_gateway_port_ip_changed(self):
-        # TODO(weifan): OSP-255, skipping this test for now
-        pass
-
     def test_router_create(self):
         name = 'router1'
         tenant_id = _uuid()
