@@ -24,8 +24,7 @@ YEAR, COUNT, REVISION = vcsversion.NEUTRONRESTPROXY_VERSION
 
 
 def canonical_version_string():
-    return '.'.join(filter(None,
-                           vcsversion.NEUTRONRESTPROXY_VERSION))
+    return '.'.join([_f for _f in vcsversion.NEUTRONRESTPROXY_VERSION if _f])
 
 
 def version_string():

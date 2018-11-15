@@ -14,23 +14,23 @@
 #    under the License.
 
 import mock
-from oslo_utils import importutils
-
 from neutron.tests import base
+from oslo_utils import importutils
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 
-OVSBRIDGE = 'neutron.agent.common.ovs_lib.OVSBridge'
-PLUGINAPI = 'neutron.agent.rpc.PluginApi'
-CONTEXT = 'neutron_lib.context'
-CONSUMERCREATE = 'neutron.agent.rpc.create_consumers'
-SGRPC = 'neutron.agent.securitygroups_rpc'
-AGENTMOD = 'networking_bigswitch.plugins.bigswitch.agent.restproxy_agent'
-SGAGENT = AGENTMOD + '.FilterDeviceIDMixin'
-IVSBRIDGE = AGENTMOD + '.IVSBridge'
-NFVSWBRIDGE = AGENTMOD + '.NFVSwitchBridge'
-NEUTRONCFG = 'neutron.common.config'
-PLCONFIG = 'networking_bigswitch.plugins.bigswitch.config'
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import AGENT_MOD
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    CONSUMER_CREATE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import CONTEXT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import IVS_BRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NEUTRON_CFG
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NFV_SW_BRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import OVS_BRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import PL_CONFIG
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import PLUGIN_API
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SG_AGENT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SG_RPC
 
 
 class BaseAgentTestCase(base.BaseTestCase):
@@ -38,19 +38,19 @@ class BaseAgentTestCase(base.BaseTestCase):
     def setUp(self):
         pl_config.register_config()
         super(BaseAgentTestCase, self).setUp()
-        self.mod_agent = importutils.import_module(AGENTMOD)
+        self.mod_agent = importutils.import_module(AGENT_MOD)
 
 
 class TestRestProxyAgentOVS(BaseAgentTestCase):
     def setUp(self):
         super(TestRestProxyAgentOVS, self).setUp()
-        self.plapi = mock.patch(PLUGINAPI).start()
-        self.ovsbridge_p = mock.patch(OVSBRIDGE)
+        self.plapi = mock.patch(PLUGIN_API).start()
+        self.ovsbridge_p = mock.patch(OVS_BRIDGE)
         self.ovsbridge = self.ovsbridge_p.start()
         self.context = mock.patch(CONTEXT).start()
-        self.rpc = mock.patch(CONSUMERCREATE).start()
-        self.sg_agent = mock.patch(SGAGENT).start()
-        self.sg_rpc = mock.patch(SGRPC).start()
+        self.rpc = mock.patch(CONSUMER_CREATE).start()
+        self.sg_agent = mock.patch(SG_AGENT).start()
+        self.sg_rpc = mock.patch(SG_RPC).start()
 
     def mock_agent(self):
         mock_context = mock.Mock(return_value='abc')
@@ -170,10 +170,10 @@ class TestRestProxyAgent(BaseAgentTestCase):
                      'CONF.AGENT.root_helper': 'helper',
                      'CONF.AGENT.report_interval': 60}
         with\
-            mock.patch(AGENTMOD + '.cfg', **cfg_attrs) as mock_conf,\
-            mock.patch(AGENTMOD + '.config.init'),\
-            mock.patch(NEUTRONCFG) as mock_log_conf,\
-                mock.patch(PLCONFIG):
+            mock.patch(AGENT_MOD + '.cfg', **cfg_attrs) as mock_conf,\
+            mock.patch(AGENT_MOD + '.config.init'),\
+            mock.patch(NEUTRON_CFG) as mock_log_conf,\
+                mock.patch(PL_CONFIG):
             self.mod_agent.main()
 
         mock_log_conf.assert_has_calls([
@@ -182,7 +182,7 @@ class TestRestProxyAgent(BaseAgentTestCase):
 
     def test_main(self):
         agent_attrs = {'daemon_loop.side_effect': SystemExit(0)}
-        with mock.patch(AGENTMOD + '.RestProxyAgent',
+        with mock.patch(AGENT_MOD + '.RestProxyAgent',
                         **agent_attrs) as mock_agent:
             self.assertRaises(SystemExit, self.mock_main)
 
@@ -199,7 +199,7 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
         # we don't want to mock out the whole class, just the part that
         # tries to run commands on the system
         self.ovsbridge_p.stop()
-        self.runvsctl = mock.patch(IVSBRIDGE + '.run_vsctl').start()
+        self.runvsctl = mock.patch(IVS_BRIDGE + '.run_vsctl').start()
 
     def mock_agent(self):
         mock_context = mock.Mock(return_value='abc')
@@ -219,7 +219,7 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
     def test_port_update_not_vifport(self):
         port = {'id': '1', 'security_groups': 'default'}
 
-        with mock.patch(IVSBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(IVS_BRIDGE + '.get_vif_port_by_id',
                         return_value=False) as get_vif:
             self.mock_port_update(port=port)
 
@@ -229,7 +229,7 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
     def test_port_update_without_secgroup(self):
         port = {'id': '1'}
 
-        with mock.patch(IVSBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(IVS_BRIDGE + '.get_vif_port_by_id',
                         return_value='1') as get_vif:
             self.mock_port_update(port=port)
 
@@ -239,7 +239,7 @@ class TestRestProxyAgentIVS(TestRestProxyAgentOVS):
     def test_port_update(self):
         port = {'id': '1', 'security_groups': 'default'}
 
-        with mock.patch(IVSBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(IVS_BRIDGE + '.get_vif_port_by_id',
                         return_value='1') as get_vif:
             self.mock_port_update(port=port)
 
@@ -347,7 +347,7 @@ class TestRestProxyAgentNFVSwitch(TestRestProxyAgentOVS):
     def test_port_update_not_vifport(self):
         port = {'id': '1', 'security_groups': 'default'}
 
-        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(NFV_SW_BRIDGE + '.get_vif_port_by_id',
                         return_value=False) as get_vif:
             self.mock_port_update(port=port)
 
@@ -357,7 +357,7 @@ class TestRestProxyAgentNFVSwitch(TestRestProxyAgentOVS):
     def test_port_update_without_secgroup(self):
         port = {'id': '1'}
 
-        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(NFV_SW_BRIDGE + '.get_vif_port_by_id',
                         return_value=False) as get_vif:
             self.mock_port_update(port=port)
 
@@ -367,7 +367,7 @@ class TestRestProxyAgentNFVSwitch(TestRestProxyAgentOVS):
     def test_port_update(self):
         port = {'id': '1', 'security_groups': 'default'}
 
-        with mock.patch(NFVSWBRIDGE + '.get_vif_port_by_id',
+        with mock.patch(NFV_SW_BRIDGE + '.get_vif_port_by_id',
                         return_value=False) as get_vif:
             self.mock_port_update(port=port)
 
