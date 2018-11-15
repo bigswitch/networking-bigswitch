@@ -17,8 +17,6 @@
 import functools
 
 import mock
-from oslo_serialization import jsonutils
-
 from neutron.conf.plugins.ml2 import config as ml2_config
 from neutron.db import l3_db
 from neutron.plugins.ml2.drivers import type_vlan as vlan_config
@@ -32,6 +30,8 @@ from neutron_lib import context as neutron_context
 from neutron_lib import exceptions as n_exc
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
+from oslo_serialization import jsonutils
+from oslo_utils import uuidutils
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch import servermanager
@@ -40,18 +40,16 @@ from networking_bigswitch.plugins.ml2.drivers.mech_bigswitch \
 # from networking_bigswitch.tests.unit.bigswitch.fake_server \
 #     import HTTPResponseMock
 import networking_bigswitch.tests.unit.bigswitch.test_restproxy_plugin as trp
-from oslo_utils import uuidutils
+
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import DRIVER
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import DRIVER_MOD
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SERVER_POOL
 
 _uuid = uuidutils.generate_uuid
 
 PHYS_NET = 'physnet1'
 VLAN_START = 1000
 VLAN_END = 1100
-SERVER_MANAGER = 'networking_bigswitch.plugins.bigswitch.servermanager'
-SERVER_POOL = SERVER_MANAGER + '.ServerPool'
-DRIVER_MOD = 'networking_bigswitch.plugins.ml2.drivers.mech_bigswitch.driver'
-DRIVER = DRIVER_MOD + '.BigSwitchMechanismDriver'
-HTTPCON = SERVER_MANAGER + '.httplib.HTTPConnection'
 
 
 class TestBigSwitchMechDriverBase(trp.BigSwitchProxyPluginV2TestCase):

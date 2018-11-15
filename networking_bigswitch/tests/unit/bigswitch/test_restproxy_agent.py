@@ -14,23 +14,22 @@
 #    under the License.
 
 import mock
-from oslo_utils import importutils
-
 from neutron.tests import base
+from oslo_utils import importutils
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 
-OVSBRIDGE = 'neutron.agent.common.ovs_lib.OVSBridge'
-PLUGINAPI = 'neutron.agent.rpc.PluginApi'
-CONTEXT = 'neutron_lib.context'
-CONSUMERCREATE = 'neutron.agent.rpc.create_consumers'
-SGRPC = 'neutron.agent.securitygroups_rpc'
-AGENTMOD = 'networking_bigswitch.plugins.bigswitch.agent.restproxy_agent'
-SGAGENT = AGENTMOD + '.FilterDeviceIDMixin'
-IVSBRIDGE = AGENTMOD + '.IVSBridge'
-NFVSWBRIDGE = AGENTMOD + '.NFVSwitchBridge'
-NEUTRONCFG = 'neutron.common.config'
-PLCONFIG = 'networking_bigswitch.plugins.bigswitch.config'
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import AGENTMOD
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import CONSUMER_CREATE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import CONTEXT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import IVSBRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NEUTRON_CFG
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NFVSWBRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import OVS_BRIDGE
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import PL_CONFIG
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import PLUGIN_API
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SGAGENT
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import SG_RPC
 
 
 class BaseAgentTestCase(base.BaseTestCase):
@@ -44,13 +43,13 @@ class BaseAgentTestCase(base.BaseTestCase):
 class TestRestProxyAgentOVS(BaseAgentTestCase):
     def setUp(self):
         super(TestRestProxyAgentOVS, self).setUp()
-        self.plapi = mock.patch(PLUGINAPI).start()
-        self.ovsbridge_p = mock.patch(OVSBRIDGE)
+        self.plapi = mock.patch(PLUGIN_API).start()
+        self.ovsbridge_p = mock.patch(OVS_BRIDGE)
         self.ovsbridge = self.ovsbridge_p.start()
         self.context = mock.patch(CONTEXT).start()
-        self.rpc = mock.patch(CONSUMERCREATE).start()
+        self.rpc = mock.patch(CONSUMER_CREATE).start()
         self.sg_agent = mock.patch(SGAGENT).start()
-        self.sg_rpc = mock.patch(SGRPC).start()
+        self.sg_rpc = mock.patch(SG_RPC).start()
 
     def mock_agent(self):
         mock_context = mock.Mock(return_value='abc')
@@ -172,8 +171,8 @@ class TestRestProxyAgent(BaseAgentTestCase):
         with\
             mock.patch(AGENTMOD + '.cfg', **cfg_attrs) as mock_conf,\
             mock.patch(AGENTMOD + '.config.init'),\
-            mock.patch(NEUTRONCFG) as mock_log_conf,\
-                mock.patch(PLCONFIG):
+            mock.patch(NEUTRON_CFG) as mock_log_conf,\
+                mock.patch(PL_CONFIG):
             self.mod_agent.main()
 
         mock_log_conf.assert_has_calls([
