@@ -23,14 +23,14 @@ from networking_bigswitch.tests.unit.bigswitch import test_base
 class RestProxySecurityGroupsTestCase(test_sg.SecurityGroupDBTestCase,
                                       test_base.BigSwitchTestBase):
     plugin_str = ('%s.NeutronRestProxyV2' %
-                  test_base.RESTPROXY_PKG_PATH)
+                  test_base.PLUGIN_PATH)
 
     def setUp(self, plugin=None):
         test_sg_rpc.set_firewall_driver(test_sg_rpc.FIREWALL_HYBRID_DRIVER)
         self.setup_config_files()
         self.setup_patches()
         self._attribute_map_bk_ = {}
-        super(RestProxySecurityGroupsTestCase, self).setUp(self.plugin_str)
+        test_sg.SecurityGroupDBTestCase.setUp(self, self.plugin_str)
         self.setup_db()
         plugin = directory.get_plugin()
         self.notifier = plugin.notifier
