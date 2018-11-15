@@ -14,7 +14,6 @@
 #    under the License.
 
 import argparse
-import ctypes
 from ctypes import c_byte
 from ctypes import c_char_p
 from ctypes import c_uint
@@ -40,7 +39,7 @@ import subprocess
 import syslog as LOG
 import time
 try:
-    from rhlib import get_network_interface_map
+    from networking_bigswitch.bsnlldp.rhlib import get_network_interface_map
 except ImportError:
     pass
 
@@ -154,7 +153,7 @@ def get_network_interfaces():
             family, addr = getfamaddr(ifa.ifa_addr.contents)
             if addr:
                 i.addresses[family] = addr
-        return retval.values()
+        return list(retval.values())
     finally:
         libc.freeifaddrs(ifap)
 
