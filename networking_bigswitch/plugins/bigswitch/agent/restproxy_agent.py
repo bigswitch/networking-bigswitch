@@ -92,13 +92,13 @@ class IVSBridge(object):
         try:
             resp = self.run_vsctl(['list-ports'], True,
                                   log_fail_as_error=False).strip().splitlines()
-            port_names = map(lambda x: x.strip(), resp)
+            port_names = [x.strip() for x in resp]
         except RuntimeError:
             resp = self.run_vsctl(['show'], True)
             # get rid of stats and blank lines
             lines = resp.split('ivs:')[1].split('ports:')[1].splitlines()
             ports = [x for x in lines if 'packets=' not in x and x.strip()]
-            port_names = map(lambda x: x.strip().split(' ')[1], ports)
+            port_names = [x.strip().split(' ')[1] for x in ports]
         LOG.debug("Ports on IVS: %s", port_names)
         return port_names
 
@@ -174,7 +174,7 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
                 self.firewall.prepare_port_filter(device)
             if self.use_enhanced_rpc:
                 LOG.debug("Update security group information for ports %s",
-                          devices.keys())
+                          list(devices.keys()))
                 self._update_security_group_info(
                     security_groups, security_group_member_ips)
 
