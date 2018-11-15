@@ -14,6 +14,8 @@
 #    under the License.
 from neutron_lib import exceptions as n_exc
 
+from networking_bigswitch.plugins.bigswitch.i18n import _
+
 
 class Util(object):
     """Util
