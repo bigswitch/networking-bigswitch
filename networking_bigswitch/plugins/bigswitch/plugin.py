@@ -42,7 +42,6 @@ on port-attach) on an additional PUT to do a bulk dump of all persistent data.
 
 import copy
 import functools
-import httplib
 import re
 
 import eventlet
@@ -50,6 +49,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 from oslo_utils import importutils
+from six.moves import http_client
 from sqlalchemy.orm import exc as sqlexc
 
 from neutron.agent import rpc as agent_rpc
@@ -928,7 +928,7 @@ class NeutronRestProxyV2Base(db_base_plugin_v2.NeutronDbPluginV2,
             # and the data in the backend.
             # Run a sync to get it consistent.
             if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
-                    e.status == httplib.NOT_FOUND and
+                    e.status == http_client.NOT_FOUND and
                     servermanager.NXNETWORK in e.reason):
                 LOG.error("Inconsistency with backend controller "
                           "triggering full synchronization.")
