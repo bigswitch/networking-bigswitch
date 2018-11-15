@@ -58,7 +58,7 @@ class HTTPResponseMock500(HTTPResponseMock):
 
 class HTTPConnectionMock(object):
 
-    def __init__(self, server, port, timeout):
+    def __init__(self, host, port, timeout):
         self.response = None
         self.broken = False
         # Port 9000 is the broken server
@@ -101,14 +101,14 @@ class HTTPConnectionMock(object):
 
 class HTTPConnectionMock404(HTTPConnectionMock):
 
-    def __init__(self, server, port, timeout):
+    def __init__(self, host, port, timeout):
         self.response = HTTPResponseMock404(None)
         self.broken = True
 
 
 class HTTPConnectionMock500(HTTPConnectionMock):
 
-    def __init__(self, server, port, timeout):
+    def __init__(self, host, port, timeout):
         self.response = HTTPResponseMock500(None)
         self.broken = True
 
@@ -138,47 +138,8 @@ class VerifyMultiTenantFloatingIP(HTTPConnectionMock):
 
 
 class HTTPSMockBase(HTTPConnectionMock):
-    expected_cert = ''
-    combined_cert = None
-
-    def __init__(self, host, port=None, key_file=None, cert_file=None,
-                 strict=None, timeout=None, source_address=None):
+    def __init__(self, host, port=None, context=None, timeout=None,
+                 source_address=None):
         self.host = host
+        self.ssl_context = context
         super(HTTPSMockBase, self).__init__(host, port, timeout)
-
-    def request(self, method, url, body=None, headers=None):
-        self.connect()
-        if headers is None:
-            headers = {}
-        super(HTTPSMockBase, self).request(method, url, body, headers)
-
-
-class HTTPSNoValidation(HTTPSMockBase):
-
-    def connect(self):
-        if self.combined_cert:
-            raise Exception('combined_cert set on NoValidation')
-
-
-class HTTPSCAValidation(HTTPSMockBase):
-    expected_cert = 'DUMMYCERTIFICATEAUTHORITY'
-
-    def connect(self):
-        contents = get_cert_contents(self.combined_cert)
-        if self.expected_cert not in contents:
-            raise Exception('No dummy CA cert in cert_file')
-
-
-class HTTPSHostValidation(HTTPSMockBase):
-    expected_cert = 'DUMMYCERTFORHOST%s'
-
-    def connect(self):
-        contents = get_cert_contents(self.combined_cert)
-        expected = self.expected_cert % self.host
-        if expected not in contents:
-            raise Exception(_('No host cert for %(server)s in cert %(cert)s'),
-                            {'server': self.host, 'cert': contents})
-
-
-def get_cert_contents(path):
-    raise Exception('METHOD MUST BE MOCKED FOR TEST')
