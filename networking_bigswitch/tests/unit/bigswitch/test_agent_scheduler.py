@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from neutron.tests.unit.db import test_agentschedulers_db
 
 from networking_bigswitch.tests.unit.bigswitch import test_base
-from neutron.tests.unit.db import test_agentschedulers_db
 
 
 class BigSwitchDhcpAgentNotifierTestCase(
@@ -23,12 +23,12 @@ class BigSwitchDhcpAgentNotifierTestCase(
         test_base.BigSwitchTestBase):
 
     plugin_str = ('%s.NeutronRestProxyV2' %
-                  test_base.RESTPROXY_PKG_PATH)
+                  test_base.PLUGIN_PATH)
 
     def setUp(self):
         self.setup_config_files()
         self.setup_patches()
-        super(BigSwitchDhcpAgentNotifierTestCase, self).setUp()
+        test_agentschedulers_db.OvsDhcpAgentNotifierTestCase.setUp(self)
         self.setup_db()
         self.startHttpPatch()
         self.dhcp_notifier_p.stop()

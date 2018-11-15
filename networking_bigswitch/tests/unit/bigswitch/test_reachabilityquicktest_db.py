@@ -14,9 +14,10 @@
 #
 # Adapted from neutron.tests.unit.db.test_agents_db.py
 
-from networking_bigswitch.plugins.bigswitch.db import reachability_test_db
 from neutron.tests.unit import testlib_api
 from neutron_lib import context
+
+from networking_bigswitch.plugins.bigswitch.db import reachability_test_db
 
 
 class TestReachabilityQuickTestDbMixin(testlib_api.SqlTestCase):
