@@ -15,6 +15,12 @@
 # Adapted from neutron.tests.unit.extensions,test_l3
 
 import mock
+from neutron.extensions import l3
+from neutron.tests.unit.api.v2 import test_base
+from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
+from neutron.tests.unit.extensions import test_l3 as test_l3
+from neutron_lib import context
+from neutron_lib.plugins import directory
 from oslo_config import cfg
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
@@ -24,16 +30,9 @@ from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db  # noqa
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 from networking_bigswitch.tests.unit.bigswitch \
     import test_base as bsn_test_base
-from neutron.extensions import l3
-from neutron.tests.unit.api.v2 import test_base
-from neutron.tests.unit.extensions import test_extra_dhcp_opt as test_dhcpopts
-from neutron.tests.unit.extensions import test_l3 as test_l3
-from neutron_lib import context
-from neutron_lib.plugins import directory
 
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import HTTPCON
 
-HTTPCON = ('networking_bigswitch.plugins.bigswitch.servermanager.httplib'
-           '.HTTPConnection')
 _uuid = uuidutils.generate_uuid
 
 
@@ -55,8 +54,7 @@ class DHCPOptsTestCase(bsn_test_base.BigSwitchTestBase,
     def setUp(self, plugin=None):
         self.setup_patches()
         self.setup_config_files()
-        super(test_dhcpopts.ExtraDhcpOptDBTestCase,
-              self).setUp(plugin=self._plugin_name)
+        test_dhcpopts.TestExtraDhcpOpt.setUp(self, plugin=self._plugin_name)
         self.setup_db()
         self.startHttpPatch()
 
@@ -72,9 +70,11 @@ class RouterDBTestBase(bsn_test_base.BigSwitchTestBase,
         self.setup_config_files()
         ext_mgr = RouterRulesTestExtensionManager()
         service_plugins = {'L3_ROUTER_NAT': self._l3_plugin_name}
-        super(RouterDBTestBase, self).setUp(plugin=self._plugin_name,
-                                            ext_mgr=ext_mgr,
-                                            service_plugins=service_plugins)
+        test_l3.L3BaseForIntTests.setUp(self,
+                                        plugin=self._plugin_name,
+                                        ext_mgr=ext_mgr,
+                                        service_plugins=service_plugins)
+
         self.setup_db()
         cfg.CONF.set_default('allow_overlapping_ips', False)
         self.plugin_obj = directory.get_plugin('L3_ROUTER_NAT')

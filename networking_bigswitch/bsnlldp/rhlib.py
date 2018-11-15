@@ -15,11 +15,12 @@
 
 from enum import Enum
 import os
-from os_net_config import utils
-from oslo_serialization import jsonutils
 import re
 import syslog as LOG
 import time
+
+from os_net_config import utils
+from oslo_serialization import jsonutils
 
 # constants for RHOSP
 NET_CONF_PATH = "/etc/os-net-config/config.json"
@@ -135,7 +136,7 @@ def _get_intf_index(nic_name):
     :param nic_name:
     :return: index or name. both in string format.
     """
-    indexes = map(int, re.findall(r'\d+', nic_name))
+    indexes = list(map(int, re.findall(r'\d+', nic_name)))
     if len(indexes) == 1 and nic_name.startswith("nic"):
         intf_index = str(indexes[0] - 1)
     else:
