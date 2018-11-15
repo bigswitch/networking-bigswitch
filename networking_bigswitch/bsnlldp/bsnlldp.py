@@ -13,14 +13,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import platform
-from rhlib import BCFMode
-from rhlib import get_bcf_mode
-from send_lldp import send_lldp
+import distro
+
+from networking_bigswitch.bsnlldp.rhlib import BCFMode
+from networking_bigswitch.bsnlldp.rhlib import get_bcf_mode
+from networking_bigswitch.bsnlldp.send_lldp import send_lldp
 
 
 def main():
-    platform_os = platform.linux_distribution()[0]
+    platform_os = distro.linux_distribution(full_distribution_name=False)[0]
     if "red hat" in platform_os.strip().lower():
         if BCFMode.MODE_P_V == get_bcf_mode():
             return
