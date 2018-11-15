@@ -27,32 +27,32 @@ The following functionality is handled by this module:
 
 """
 import base64
-import httplib
+import os
 import re
 import socket
 import ssl
 import time
-
-from neutron_lib import exceptions
-
-from oslo_log import log as logging
 
 import eventlet
 import eventlet.corolocal
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 from keystoneclient.v3 import client as ksclient
+from neutron_lib import exceptions
+from oslo_config import cfg
+from oslo_log import log as logging
+from oslo_serialization import jsonutils
+from oslo_utils import excutils
+import six
+from six.moves import http_client
+from sqlalchemy.types import Enum
+
 from networking_bigswitch.plugins.bigswitch.db import consistency_db as cdb
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
 from networking_bigswitch.plugins.bigswitch.utils import Util
-import os
-from oslo_config import cfg
-from oslo_serialization import jsonutils
-from oslo_utils import excutils
-from sqlalchemy.types import Enum
 
 LOG = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL = 3
 
 KEYSTONE_SYNC_RATE_LIMIT = 30  # Limit KeyStone sync to once in 30 secs
 # TOPO_SYNC Responses
-TOPO_RESPONSE_OK = (httplib.OK, httplib.OK, True, True)
+TOPO_RESPONSE_OK = (http_client.OK, http_client.OK, True, True)
 TOPO_RESPONSE_FAIL = (0, None, None, None)
 
 # RE pattern for checking BCF supported names
@@ -252,11 +252,11 @@ def get_keystoneauth_cfg(conf, name):
 class ServerProxy(object):
     """REST server proxy to a network controller."""
 
-    def __init__(self, server, port, ssl, auth, neutron_id, timeout,
+    def __init__(self, server, port, is_ssl_enabled, auth, neutron_id, timeout,
                  base_uri, name, mypool, combined_cert):
         self.server = server
         self.port = port
-        self.ssl = ssl
+        self.is_ssl_enabled = is_ssl_enabled
         self.base_uri = base_uri
         self.timeout = timeout
         self.name = name
@@ -268,16 +268,40 @@ class ServerProxy(object):
         self.capabilities = []
         # enable server to reference parent pool
         self.mypool = mypool
-        # cache connection here to avoid a SSL handshake for every connection
-        self.currentconn = None
+
+        # TODO(weifan): cache connection to avoid a SSL handshake for every
+        # connection
+        self.cached_conn = None
+
+        # ssl_context is the new standard interface for handling certificates
+        # initialize ssl context
+        self.ssl_context = None
 
         if auth:
             if ':' in auth:
-                self.auth = 'Basic ' + base64.encodestring(auth).strip()
+                if six.PY2:
+                    self.auth = 'Basic ' + base64.encodestring(auth).strip()
+                else:
+                    self.auth = 'Basic ' + base64.b64encode(auth.encode(
+                        'utf-8')).decode('utf-8')
             else:
                 self.auth_token = 'session_cookie="' + auth + '"'
 
-        self.combined_cert = combined_cert
+        if is_ssl_enabled:
+            # initialize ssl context
+            self.ssl_context = None
+
+            # Uses PROTOCOL_TLS (new default)
+            # or PROTOCOL_SSLv23(deprecated, old default)
+            # both works with BCF TLS connections
+            self.ssl_context = ssl.create_default_context(cafile=combined_cert)
+
+            if six.PY2:
+                # Monkey Patch to skip hostname check for ssl in py2
+                # There is a bug with the old version
+                ssl.match_hostname = lambda cert, hostname: True
+            else:
+                self.ssl_context.check_hostname = False
 
     def get_capabilities(self):
         try:
@@ -317,8 +341,9 @@ class ServerProxy(object):
             headers['Authorization'] = self.auth
 
         LOG.debug("ServerProxy: server=%(server)s, port=%(port)d, "
-                  "ssl=%(ssl)r",
-                  {'server': self.server, 'port': self.port, 'ssl': self.ssl})
+                  "is_ssl_enabled=%(is_ssl_enabled)r",
+                  {'server': self.server, 'port': self.port,
+                   'is_ssl_enabled': self.is_ssl_enabled})
         LOG.debug("ServerProxy: resource=%(resource)s, data=%(data)r, "
                   "headers=%(headers)r, action=%(action)s",
                   {'resource': resource, 'data': data, 'headers': headers,
@@ -333,26 +358,39 @@ class ServerProxy(object):
             # need a new connection if timeout has changed
             reconnect = True
 
-        if not self.currentconn or reconnect:
-            if self.currentconn:
-                self.currentconn.close()
-            if self.ssl:
-                currentconn = HTTPSConnectionWithValidation(
-                    self.server, self.port, timeout=timeout)
+        if not self.cached_conn or reconnect:
+            if self.cached_conn:
+                self.cached_conn.close()
+            if self.is_ssl_enabled:
+                currentconn = http_client.HTTPSConnection(
+                    self.server, self.port, timeout=timeout,
+                    context=self.ssl_context)
+
                 if currentconn is None:
                     LOG.error('ServerProxy: Could not establish HTTPS '
                               'connection')
                     return 0, None, None, None
-                currentconn.combined_cert = self.combined_cert
+
+                # TODO(weifan): cache connection and reuse
+                # require keep-alive
+                # self.cached_conn = currentconn
+
             else:
-                currentconn = httplib.HTTPConnection(
+                currentconn = http_client.HTTPConnection(
                     self.server, self.port, timeout=timeout)
                 if currentconn is None:
                     LOG.error('ServerProxy: Could not establish HTTP '
                               'connection')
                     return 0, None, None, None
 
+                # TODO(weifan): cache connection and reuse
+                # require keep-alive
+                # self.cached_conn = currentconn
+
         try:
+            # TODO(weifan): use cache connection instead of currentconn
+            # require keep alive
+
             bcf_request_time = time.time()
             currentconn.request(action, uri, body, headers)
             response = currentconn.getresponse()
@@ -369,7 +407,12 @@ class ServerProxy(object):
                     pass
 
             ret = (response.status, response.reason, respstr, respdata)
-        except httplib.HTTPException:
+
+            # TODO(weifan): use cache connection
+            # currently closing every connection after use
+            currentconn.close()
+
+        except http_client.HTTPException:
             # If we were using a cached connection, try again with a new one.
             with excutils.save_and_reraise_exception() as ctxt:
                 currentconn.close()
@@ -393,6 +436,7 @@ class ServerProxy(object):
                                                  'reason': ret[1],
                                                  'ret': ret[2],
                                                  'data': ret[3]})
+
         return ret
 
 
@@ -415,7 +459,7 @@ class ServerPool(object):
         # till next failure). Use 'server_auth' to encode api-key
         servers = cfg.CONF.RESTPROXY.servers
         self.auth = cfg.CONF.RESTPROXY.server_auth
-        self.ssl = cfg.CONF.RESTPROXY.server_ssl
+        self.is_ssl_enabled = cfg.CONF.RESTPROXY.server_ssl
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
         # unicode config
         self.cfg_unicode_enabled = cfg.CONF.RESTPROXY.naming_scheme_unicode
@@ -609,9 +653,12 @@ class ServerPool(object):
             return False
 
     def server_proxy_for(self, server, port):
+        # TODO(weifan): use ssl_context to load certificates instead of our
+        # own codes
         combined_cert = self._get_combined_cert_for_server(server, port)
-        return ServerProxy(server, port, self.ssl, self.auth, self.neutron_id,
-                           self.timeout, self.base_uri, self.name, mypool=self,
+        return ServerProxy(server, port, self.is_ssl_enabled, self.auth,
+                           self.neutron_id, self.timeout, self.base_uri,
+                           self.name, mypool=self,
                            combined_cert=combined_cert)
 
     def _get_combined_cert_for_server(self, server, port):
@@ -619,7 +666,7 @@ class ServerPool(object):
         # so we make one containing the trusted CAs and the corresponding
         # host cert for this server
         combined_cert = None
-        if self.ssl and not cfg.CONF.RESTPROXY.no_ssl_validation:
+        if self.is_ssl_enabled and not cfg.CONF.RESTPROXY.no_ssl_validation:
             base_ssl = cfg.CONF.RESTPROXY.ssl_cert_directory
             host_dir = os.path.join(base_ssl, 'host_certs')
             ca_dir = os.path.join(base_ssl, 'ca_certs')
@@ -681,9 +728,30 @@ class ServerPool(object):
         Grabs a certificate from a server and writes it to
         a given path.
         """
+
         try:
-            cert = ssl.get_server_certificate((server, port),
-                                              ssl_version=ssl.PROTOCOL_SSLv23)
+            if six.PY2:
+                # TODO(weifan): Test if this works in PY3.5
+                # or some later PY3 versions
+                cert = ssl.get_server_certificate((server, port))
+            else:
+                # There is some issue with ssl.get_server_certificate in PY3.4
+                # 'with' statements are causing __exit__ errors
+                # The code here is basically duplicate logic of upstream ssl
+                # Except that it does not use 'with' keyword
+                # https://github.com/python/cpython/blob/3.4/Lib/ssl.py#L933
+                # Note: This error is only observed in OSP, it seems to work in
+                # interactive console.
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                conn = socket.create_connection((server, port))
+                ssl_sock = ctx.wrap_socket(conn)
+                dercert = ssl_sock.getpeercert(True)
+                cert = ssl.DER_cert_to_PEM_cert(dercert)
+                ssl_sock.close()
+                conn.close()
+
         except Exception as e:
             raise cfg.Error(_('Could not retrieve initial '
                               'certificate from controller %(server)s. '
@@ -692,6 +760,7 @@ class ServerPool(object):
 
         LOG.warning("Storing to certificate for host %(server)s "
                     "at %(path)s", {'server': server, 'path': path})
+
         self._file_put_contents(path, cert)
 
         return cert
@@ -734,7 +803,7 @@ class ServerPool(object):
                 ret = active_server.rest_call(action, resource, data, headers,
                                               timeout,
                                               reconnect=self.always_reconnect)
-                if ret[0] != httplib.SERVICE_UNAVAILABLE:
+                if ret[0] != http_client.SERVICE_UNAVAILABLE:
                     break
                 eventlet.sleep(HTTP_SERVICE_UNAVAILABLE_RETRY_INTERVAL)
 
@@ -1186,27 +1255,3 @@ class ServerPool(object):
         while True:
             eventlet.sleep(polling_interval)
             self._update_tenant_cache()
-
-
-class HTTPSConnectionWithValidation(httplib.HTTPSConnection):
-
-    # If combined_cert is None, the connection will continue without
-    # any certificate validation.
-    combined_cert = None
-
-    def connect(self):
-        sock = socket.create_connection((self.host, self.port),
-                                        self.timeout, self.source_address)
-        if self._tunnel_host:
-            self.sock = sock
-            self._tunnel()
-
-        if self.combined_cert:
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
-                                        cert_reqs=ssl.CERT_REQUIRED,
-                                        ca_certs=self.combined_cert,
-                                        ssl_version=ssl.PROTOCOL_SSLv23)
-        else:
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
-                                        cert_reqs=ssl.CERT_NONE,
-                                        ssl_version=ssl.PROTOCOL_SSLv23)

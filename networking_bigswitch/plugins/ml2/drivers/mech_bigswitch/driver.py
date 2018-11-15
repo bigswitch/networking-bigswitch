@@ -14,15 +14,9 @@
 #    under the License.
 import copy
 import datetime
-import httplib
 import os
 
 import eventlet
-from oslo_config import cfg
-from oslo_log import log
-import oslo_messaging
-from oslo_utils import excutils
-from oslo_utils import timeutils
 
 from neutron.extensions import securitygroup as ext_sg
 from neutron_lib.api.definitions import portbindings
@@ -34,6 +28,12 @@ from neutron_lib import context as ctx
 from neutron_lib.plugins import directory
 from neutron_lib.plugins.ml2 import api
 from neutron_lib import rpc as lib_rpc
+from oslo_config import cfg
+from oslo_log import log
+import oslo_messaging
+from oslo_utils import excutils
+from oslo_utils import timeutils
+from six.moves import http_client
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch.i18n import _
@@ -391,7 +391,7 @@ class BigSwitchMechanismDriver(plugin.NeutronRestProxyV2Base,
             except servermanager.RemoteRestError as e:
                 with excutils.save_and_reraise_exception() as ctxt:
                     if (cfg.CONF.RESTPROXY.auto_sync_on_failure and
-                            e.status == httplib.NOT_FOUND and
+                            e.status == http_client.NOT_FOUND and
                             servermanager.NXNETWORK in e.reason):
                         ctxt.reraise = False
                         LOG.error("Inconsistency with backend controller "

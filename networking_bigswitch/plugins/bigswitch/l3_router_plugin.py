@@ -22,16 +22,9 @@ Big Switch core plugin.
 """
 import copy
 
-from oslo_log import helpers as log_helper
-from oslo_log import log as logging
-from oslo_utils import excutils
-from oslo_utils import uuidutils
-
 from neutron.api import extensions as neutron_extensions
 from neutron.db import dns_db
 from neutron.db import l3_db
-
-
 from neutron_lib.api.definitions import l3 as l3_apidef
 from neutron_lib.callbacks import events
 from neutron_lib.callbacks import registry
@@ -41,6 +34,10 @@ from neutron_lib.db import api as db_api
 from neutron_lib import exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
+from oslo_log import helpers as log_helper
+from oslo_log import log as logging
+from oslo_utils import excutils
+from oslo_utils import uuidutils
 
 from networking_bigswitch.plugins.bigswitch.db import tenant_policy_db
 from networking_bigswitch.plugins.bigswitch import extensions
