@@ -15,9 +15,7 @@
 # limitations under the License.
 
 import mock
-from oslo_config import cfg
-import webob.exc
-
+from mock import patch
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit.api.v2 import test_base
 from neutron.tests.unit.db import test_allowedaddresspairs_db as test_addr_pair
@@ -26,20 +24,20 @@ from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants
 from neutron_lib import context
 from neutron_lib.plugins import directory
+from oslo_config import cfg
+import webob.exc
 
 from networking_bigswitch.plugins.bigswitch import config as pl_config
 from networking_bigswitch.plugins.bigswitch import constants as bsn_constants
-from networking_bigswitch.plugins.bigswitch.servermanager import\
+from networking_bigswitch.plugins.bigswitch.servermanager import \
     TenantIDNotFound
 from networking_bigswitch.tests.unit.bigswitch import fake_server
 from networking_bigswitch.tests.unit.bigswitch \
     import test_base as bsn_test_base
 
-patch = mock.patch
-HTTPCON = ('networking_bigswitch.plugins.bigswitch.servermanager.httplib'
-           '.HTTPConnection')
-IS_UNICODE_ENABLED = ('networking_bigswitch.plugins.bigswitch.servermanager.'
-                      'ServerPool.is_unicode_enabled')
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import HTTPCON
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    IS_UNICODE_ENABLED
 
 
 class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
@@ -60,10 +58,11 @@ class BigSwitchProxyPluginV2TestCase(bsn_test_base.BigSwitchTestBase,
             service_plugins.update(bsn_service_plugins)
         else:
             service_plugins = bsn_service_plugins
-        super(BigSwitchProxyPluginV2TestCase,
-              self).setUp(self._plugin_name,
-                          service_plugins=service_plugins,
-                          ext_mgr=ext_mgr)
+
+        test_plugin.NeutronDbPluginV2TestCase.setUp(
+            self, self._plugin_name,
+            service_plugins=service_plugins,
+            ext_mgr=ext_mgr)
 
         self.port_create_status = 'BUILD'
         self.startHttpPatch()
@@ -108,7 +107,7 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
         with self.port(name='test'):
             ports = directory.get_plugin().get_ports(
                 context.get_admin_context(), fields=['name'])
-            self.assertEqual(['name'], ports[0].keys())
+            self.assertEqual(['name'], list(ports[0].keys()))
 
     def test_router_port_status_active(self):
         # router ports screw up port auto-deletion so it has to be
@@ -217,8 +216,9 @@ class TestBigSwitchProxyPortsV2(test_plugin.TestPortsV2,
             self.subnet() as s,\
             patch(HTTPCON, create=True,
                   new=fake_server.HTTPConnectionMock404),\
-            patch(bsn_test_base.RESTPROXY_PKG_PATH +
+            patch(bsn_test_base.PLUGIN_PATH +
                   '.NeutronRestProxyV2._send_all_data') as mock_send_all:
+
             with self.port(subnet=s, device_id='somedevid') as p:
                 # wait for the async port thread to finish
                 plugin = directory.get_plugin()
