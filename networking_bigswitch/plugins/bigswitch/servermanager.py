@@ -75,10 +75,16 @@ TENANT_PATH = "/tenants/%s"
 TOPOLOGY_PATH = "/topology"
 HEALTH_PATH = "/health"
 SWITCHES_PATH = "/switches/%s"
-TESTPATH_PATH = ('/testpath/controller-view'
+TESTPATH_PATH = ('/testpath/logical-trace'
                  '?src-tenant=%(src-tenant)s'
                  '&src-segment=%(src-segment)s&src-ip=%(src-ip)s'
                  '&dst-ip=%(dst-ip)s')
+# pre-5.0.0 controller would still use old path
+# TODO(wolverineav) remove once support for BCF-4.7.0 is dropped
+TESTPATH_PATH_OLD = ('/testpath/controller-view'
+                     '?src-tenant=%(src-tenant)s'
+                     '&src-segment=%(src-segment)s&src-ip=%(src-ip)s'
+                     '&dst-ip=%(dst-ip)s')
 TENANTPOLICY_RESOURCE_PATH = "/tenants/%s/policies"
 TENANTPOLICIES_PATH = "/tenants/%s/policies/%s"
 SUCCESS_CODES = range(200, 207)
@@ -994,13 +1000,20 @@ class ServerPool(object):
         return None if resp[0] == 404 else resp[3]
 
     def rest_get_testpath(self, src, dst):
-        resource = TESTPATH_PATH % {'src-tenant': src['tenant'],
-                                    'src-segment': src['segment'],
-                                    'src-ip': src['ip'],
-                                    'dst-ip': dst['ip']}
+        rest_param_dict = {'src-tenant': src['tenant'],
+                           'src-segment': src['segment'],
+                           'src-ip': src['ip'],
+                           'dst-ip': dst['ip']}
+        resource = TESTPATH_PATH % rest_param_dict
         errstr = _("Unable to retrieve results for testpath ID: %s")
         resp = self.rest_action('GET', resource, errstr=errstr,
                                 ignore_codes=[404])
+        if resp[0] == 404:
+            # might be an old controller with non-existent new path, try with
+            # old path. TODO(wolverinav) remove with support drop of BCF-4.7.0
+            resource = TESTPATH_PATH_OLD % rest_param_dict
+            resp = self.rest_action('GET', resource, errstr=errstr,
+                                    ignore_codes=[404])
         # return None if testpath not found, else return testpath info
         return None if (resp[0] not in range(200, 300)) else resp[3]
 
