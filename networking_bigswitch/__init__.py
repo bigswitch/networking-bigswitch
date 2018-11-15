@@ -14,8 +14,8 @@
 #    under the License.
 
 import gettext
-import six
 
+import six
 
 if six.PY2:
     # E1123: unexpected keyword argument
