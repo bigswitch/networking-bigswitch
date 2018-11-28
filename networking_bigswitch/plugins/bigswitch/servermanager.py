@@ -413,6 +413,7 @@ class ServerPool(object):
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
         # unicode config
         self.cfg_unicode_enabled = cfg.CONF.RESTPROXY.naming_scheme_unicode
+        self.capabilities = set()
 
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
@@ -450,7 +451,6 @@ class ServerPool(object):
         self._update_tenant_cache(reconcile=False)
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
-        self.capabilities = []
         default_port = 8000
         if timeout is not False:
             self.timeout = timeout
@@ -477,6 +477,9 @@ class ServerPool(object):
                 # strip [] for ipv6 address
                 server = server[1:-1]
             self.servers.append(self.server_proxy_for(server, int(port)))
+
+        # update capabilities
+        self.get_capabilities_force_update()
         self.start_background_tasks()
 
         ServerPool._instance = self
@@ -484,10 +487,6 @@ class ServerPool(object):
         LOG.debug("ServerPool: initialization done")
 
     def start_background_tasks(self):
-        # update capabilities, starts immediately
-        # updates every 5 minutes, mostly for bcf upgrade/downgrade cases
-        eventlet.spawn(self._capability_watchdog, 300)
-
         # consistency check, starts after 1* consistency_interval
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
@@ -531,8 +530,10 @@ class ServerPool(object):
 
         new_capabilities = set.union(*capability_list)
 
-        self.log_unicode_status_change(new_capabilities)
-        self.capabilities = new_capabilities
+        if new_capabilities and self.capabilities != new_capabilities:
+            # Log before changes
+            self.log_unicode_status_change(new_capabilities)
+            self.capabilities = new_capabilities
 
         # With multiple workers enabled, the fork may occur after the
         # connections to the DB have been established. We need to clear the
@@ -592,14 +593,17 @@ class ServerPool(object):
         True: enabled
         False: disabled
         """
+        LOG.debug('Current Capabilities: %s', self.get_capabilities())
         if not self.get_capabilities():
             msg = 'Capabilities unknown! Please check BCF controller status.'
             raise RemoteRestError(reason=msg)
 
         if self.cfg_unicode_enabled and 'display-name' in \
                 self.get_capabilities():
+            LOG.debug('Unicode Check=True')
             return True
         else:
+            LOG.debug('Unicode Check=False')
             return False
 
     def server_proxy_for(self, server, port):
@@ -1037,19 +1041,6 @@ class ServerPool(object):
             except Exception:
                 LOG.exception("Encountered an error checking controller "
                               "health.")
-
-    def _capability_watchdog(self, polling_interval=300):
-        """Check capabilities based on polling_interval
-
-        :param polling_interval: interval in seconds
-        """
-        while True:
-            try:
-                self.get_capabilities_force_update()
-            except Exception:
-                LOG.exception("Encountered an error checking capabilities.")
-            finally:
-                eventlet.sleep(polling_interval)
 
     def force_topo_sync(self, check_ts=True):
         """Execute a topology_sync between OSP and BCF.
