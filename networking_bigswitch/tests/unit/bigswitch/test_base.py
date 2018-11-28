@@ -51,6 +51,8 @@ MAP_DISPLAY_NAME_OR_TENANT = ('networking_bigswitch.plugins.bigswitch.plugin.'
                               '_map_display_name_or_tenant')
 IS_UNICODE_ENABLED = ('networking_bigswitch.plugins.bigswitch.servermanager.'
                       'ServerPool.is_unicode_enabled')
+GET_CAPABILITIES_OR_DIE = ('networking_bigswitch.plugins.bigswitch'
+                           '.servermanager.ServerPool.get_capabilities_or_die')
 
 
 class BigSwitchTestBase(object):
@@ -105,6 +107,7 @@ class BigSwitchTestBase(object):
         self.is_unicode_enabled_p = mock.patch(
             IS_UNICODE_ENABLED,
             side_effect=self.is_unicode_enabled_side_effect)
+        self.get_capability_or_die_p = mock.patch(GET_CAPABILITIES_OR_DIE)
 
         self.log_exc_p.start()
         self.plugin_notifier_p.start()
@@ -114,6 +117,7 @@ class BigSwitchTestBase(object):
         self.ksclient_p.start()
         self.map_display_name_or_tenant_p.start()
         self.is_unicode_enabled_p.start()
+        self.get_capability_or_die_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
