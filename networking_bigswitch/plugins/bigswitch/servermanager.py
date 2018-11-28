@@ -413,6 +413,7 @@ class ServerPool(object):
         self.neutron_id = cfg.CONF.RESTPROXY.neutron_id
         # unicode config
         self.cfg_unicode_enabled = cfg.CONF.RESTPROXY.naming_scheme_unicode
+        self.capabilities = set()
 
         if 'keystone_authtoken' in cfg.CONF:
             self.auth_user = get_keystoneauth_cfg(cfg.CONF, 'username')
@@ -447,10 +448,9 @@ class ServerPool(object):
         # The cache is maintained in a separate thread and sync'ed with
         # Keystone periodically.
         self.keystone_tenants = {}
-        self._update_tenant_cache(reconcile=False)
+
         self.timeout = cfg.CONF.RESTPROXY.server_timeout
         self.always_reconnect = not cfg.CONF.RESTPROXY.cache_connections
-        self.capabilities = []
         default_port = 8000
         if timeout is not False:
             self.timeout = timeout
@@ -477,6 +477,12 @@ class ServerPool(object):
                 # strip [] for ipv6 address
                 server = server[1:-1]
             self.servers.append(self.server_proxy_for(server, int(port)))
+
+        # update capabilities
+        self.get_capabilities()
+
+        self._update_tenant_cache(reconcile=False)
+
         self.start_background_tasks()
 
         ServerPool._instance = self
@@ -484,10 +490,6 @@ class ServerPool(object):
         LOG.debug("ServerPool: initialization done")
 
     def start_background_tasks(self):
-        # update capabilities, starts immediately
-        # updates every 5 minutes, mostly for bcf upgrade/downgrade cases
-        eventlet.spawn(self._capability_watchdog, 300)
-
         # consistency check, starts after 1* consistency_interval
         eventlet.spawn(self._consistency_watchdog,
                        cfg.CONF.RESTPROXY.consistency_interval)
@@ -512,18 +514,8 @@ class ServerPool(object):
         # if capabilities is empty, the check is either not done, or failed
         if self.capabilities:
             return self.capabilities
-        else:
-            return self.get_capabilities_force_update()
 
-    def get_capabilities_force_update(self):
-        """Do REST calls to update capabilities
-
-        Logs a unicode change message when:
-        1. the first time that plugin gets capabilities from BCF
-        2. plugin notices the unicode mode is changed
-
-        :return: combined capability list from all servers
-        """
+        # Do REST calls to update capabilities at startup
         # Servers should be the same version
         # If one server is down, use online server's capabilities
         capability_list = [set(server.get_capabilities())
@@ -531,8 +523,10 @@ class ServerPool(object):
 
         new_capabilities = set.union(*capability_list)
 
-        self.log_unicode_status_change(new_capabilities)
-        self.capabilities = new_capabilities
+        if new_capabilities:
+            # Log unicode status
+            self.log_unicode_status(new_capabilities)
+            self.capabilities = new_capabilities
 
         # With multiple workers enabled, the fork may occur after the
         # connections to the DB have been established. We need to clear the
@@ -553,38 +547,25 @@ class ServerPool(object):
             LOG.error('Failed to get capabilities on any controller. ')
         return self.capabilities
 
-    def log_unicode_status_change(self, new_capabilities):
-        """Log unicode status, if capabilities is initialized or if changed
+    def log_unicode_status(self, new_capabilities):
+        """Log unicode running status
 
-        Compares old capabilities with new capabilities
         :param new_capabilities: new capabilities
         :return:
         """
-        if new_capabilities and self.capabilities != new_capabilities:
-            # unicode disabled by user
-            if not self.cfg_unicode_enabled:
-                # Log only during Initialization
-                if not self.capabilities:
-                    LOG.info('naming_scheme_unicode is set to False,'
-                             ' Unicode names Disabled')
-            # unicode enabled and supported by controller
-            elif 'display-name' in new_capabilities:
-                # Log for 2 situations:
-                # 1. Initialization
-                # 2. BCF is upgraded to support unicode
-                if 'display-name' not in self.capabilities:
-                    LOG.info('naming_scheme_unicode is set to True,'
-                             ' Unicode names Enabled')
-            # unicode enabled, but not supported by controller
-            else:
-                # Log for 2 situations:
-                # 1. Initialization
-                # 2. BCF is downgraded, no longer supports unicode
-                if not self.capabilities or 'display-name' in \
-                        self.capabilities:
-                    LOG.warning('naming_scheme_unicode is set to True,'
-                                ' but BCF does not support it.'
-                                ' Unicode names Disabled')
+        # unicode disabled by user
+        if not self.cfg_unicode_enabled:
+            LOG.info('naming_scheme_unicode is set to False,'
+                     ' Unicode names Disabled')
+        # unicode enabled and supported by controller
+        elif 'display-name' in new_capabilities:
+            LOG.info('naming_scheme_unicode is set to True,'
+                     ' Unicode names Enabled')
+        # unicode enabled, but not supported by controller
+        else:
+            LOG.warning('naming_scheme_unicode is set to True,'
+                        ' but BCF does not support it.'
+                        ' Unicode names Disabled')
 
     def is_unicode_enabled(self):
         """Check unicode running status
@@ -592,14 +573,17 @@ class ServerPool(object):
         True: enabled
         False: disabled
         """
+        LOG.debug('Current Capabilities: %s', self.get_capabilities())
         if not self.get_capabilities():
             msg = 'Capabilities unknown! Please check BCF controller status.'
             raise RemoteRestError(reason=msg)
 
         if self.cfg_unicode_enabled and 'display-name' in \
                 self.get_capabilities():
+            LOG.debug('Unicode Check=True')
             return True
         else:
+            LOG.debug('Unicode Check=False')
             return False
 
     def server_proxy_for(self, server, port):
@@ -1037,19 +1021,6 @@ class ServerPool(object):
             except Exception:
                 LOG.exception("Encountered an error checking controller "
                               "health.")
-
-    def _capability_watchdog(self, polling_interval=300):
-        """Check capabilities based on polling_interval
-
-        :param polling_interval: interval in seconds
-        """
-        while True:
-            try:
-                self.get_capabilities_force_update()
-            except Exception:
-                LOG.exception("Encountered an error checking capabilities.")
-            finally:
-                eventlet.sleep(polling_interval)
 
     def force_topo_sync(self, check_ts=True):
         """Execute a topology_sync between OSP and BCF.
