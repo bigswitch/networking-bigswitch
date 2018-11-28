@@ -80,6 +80,7 @@ BACKGROUND = SERVER_POOL + '.start_background_tasks'
 POOL_TOPO_SYNC = SERVER_POOL + '.force_topo_sync'
 POOL_UPDATE_TENANT_CACHE = SERVER_POOL + '._update_tenant_cache'
 POOL_GET_CAPABILITIES = SERVER_POOL + '.get_capabilities'
+POOL_GET_CAPABILITIES_OR_DIE = SERVER_POOL + '.get_capabilities_or_die'
 IS_UNICODE_ENABLED = SERVER_POOL + '.is_unicode_enabled'
 
 # SSL Cert Related

@@ -44,6 +44,8 @@ from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     MAP_DISPLAY_NAME_OR_TENANT
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import PLUGIN_PATH
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import  \
+    POOL_GET_CAPABILITIES_OR_DIE
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     POOL_TOPO_SYNC
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
@@ -105,6 +107,9 @@ class BigSwitchTestBase(object):
         self.is_unicode_enabled_p = mock.patch(
             IS_UNICODE_ENABLED,
             side_effect=self.is_unicode_enabled_side_effect)
+
+        self.get_capability_or_die_p = mock.patch(POOL_GET_CAPABILITIES_OR_DIE)
+
         # start all mock patches
         self.log_exc_p.start()
         self.lib_rpc_transport_p.start()
@@ -114,6 +119,7 @@ class BigSwitchTestBase(object):
         self.ksclient_p.start()
         self.map_display_name_or_tenant_p.start()
         self.is_unicode_enabled_p.start()
+        self.get_capability_or_die_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,
