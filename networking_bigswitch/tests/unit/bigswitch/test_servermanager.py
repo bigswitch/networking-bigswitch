@@ -212,7 +212,7 @@ class ServerManagerTests(test_rp.BigSwitchProxyPluginV2TestCase):
             self.assertEqual(set(['a', 'b', 'c', 'd']), sp.get_capabilities())
             self.assertEqual(2, rv.read.call_count)
 
-            # the pool should cache after the first call during a short period
+            # the pool should cache after the first call
             # so no more HTTP calls should be made
             rv.read.side_effect = ['["w","x","y"]', '["x","y","z"]']
             self.assertEqual(set(['a', 'b', 'c', 'd']), sp.get_capabilities())

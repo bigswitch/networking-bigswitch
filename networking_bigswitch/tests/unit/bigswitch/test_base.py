@@ -105,6 +105,7 @@ class BigSwitchTestBase(object):
         self.is_unicode_enabled_p = mock.patch(
             IS_UNICODE_ENABLED,
             side_effect=self.is_unicode_enabled_side_effect)
+
         # start all mock patches
         self.log_exc_p.start()
         self.lib_rpc_transport_p.start()
