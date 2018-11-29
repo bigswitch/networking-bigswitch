@@ -13,12 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sqlalchemy as sa
+
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from neutron.db import common_db_mixin
 from neutron_lib.db import model_base
+from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions
 from oslo_db import exception as db_exc
-import sqlalchemy as sa
 from sqlalchemy.orm import exc
 
 
@@ -36,7 +38,7 @@ class NetworkTemplateNotFound(exceptions.NotFound):
 class NetworkTemplateDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_networktemplate_dict(self, template, fields=None):
-        return self._fields({
+        return db_utils.resource_fields({
             'id': template.id,
             'body': template.body,
             'name': template.name}, fields)
@@ -108,7 +110,7 @@ class NetworkTemplateAssignmentDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_networktemplateassignment_dict(self, templateassignment,
                                              fields=None):
-        return self._fields({
+        return db_utils.resource_fields({
             'id': templateassignment.id,
             'template_id': templateassignment.template_id,
             'tenant_id': templateassignment.tenant_id,
