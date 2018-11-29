@@ -23,7 +23,7 @@
 # print command and output for every line. verbosity++
 set -eux
 
-git clean -fxd
+sudo git clean -fxd
 GIT_REPO=`pwd`
 
 # fetch tags before going to the container.
