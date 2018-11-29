@@ -13,14 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sqlalchemy as sa
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
 from neutron.db import common_db_mixin
-from neutron_lib.db import model_base
 from neutron_lib import exceptions
+from neutron_lib.db import model_base
+from neutron_lib.db import utils as db_utils
 from oslo_serialization import jsonutils
-
-import sqlalchemy as sa
 from sqlalchemy.dialects.mysql.base import VARCHAR
 from sqlalchemy.orm import exc
 from sqlalchemy.types import Enum, TIMESTAMP, TypeDecorator
@@ -130,7 +130,7 @@ class ReachabilityTestSegmentNameMissing(exceptions.NeutronException):
 class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_reachabilitytest_dict(self, reachabilitytest, fields=None):
-        return self._fields({
+        return db_utils.resource_fields({
             'id': reachabilitytest.id,
             'tenant_id': reachabilitytest.tenant_id,
             'name': reachabilitytest.name,
@@ -285,7 +285,7 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_reachabilityquicktest_dict(self, reachabilityquicktest,
                                          fields=None):
-        return self._fields({
+        return db_utils.resource_fields({
             'id': reachabilityquicktest.id,
             'tenant_id': reachabilityquicktest.tenant_id,
             'name': reachabilityquicktest.name,

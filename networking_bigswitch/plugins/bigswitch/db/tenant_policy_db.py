@@ -13,19 +13,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sqlalchemy as sa
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
 from neutron.db import common_db_mixin
 from neutron.db.models import l3 as l3_models
+from neutron_lib import exceptions as n_exc
 from neutron_lib.api import validators
 from neutron_lib.db import api as db_api
 from neutron_lib.db import model_base
-from neutron_lib import exceptions as n_exc
+from neutron_lib.db import utils as db_utils
 from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_log import log as logging
 from oslo_utils import uuidutils
-import sqlalchemy as sa
 from sqlalchemy.orm import exc, relationship
 from sqlalchemy.types import Enum
 
@@ -89,7 +90,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
     # internal methods
     def _make_tenantpolicy_dict(self, tenantpolicy, fields=None):
         nexthops = [hop['nexthop'] for hop in tenantpolicy.nexthops]
-        return self._fields({
+        return db_utils.resource_fields({
             'id': tenantpolicy.id,
             'tenant_id': tenantpolicy.tenant_id,
             'priority': tenantpolicy.priority,
