@@ -33,7 +33,6 @@ from networking_bigswitch.tests.unit.bigswitch import fake_server
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import BACKGROUND
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     BSN_SERVICE_PLUGIN_PATH
-from networking_bigswitch.tests.unit.bigswitch.mock_paths import DHCP_NOTIFIER
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import HTTPCON
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     IS_UNICODE_ENABLED
@@ -44,10 +43,11 @@ from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     LIB_RPC_TRANSPORT
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     MAP_DISPLAY_NAME_OR_TENANT
-from networking_bigswitch.tests.unit.bigswitch.mock_paths import NOTIFIER
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import PLUGIN_PATH
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
     POOL_TOPO_SYNC
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import \
+    RPC_SERVER_START
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import SERVER_MANAGER
 from networking_bigswitch.tests.unit.bigswitch.mock_paths import SPAWN
 
@@ -87,8 +87,8 @@ class BigSwitchTestBase(object):
         return False
 
     def setup_patches(self):
-        self.plugin_notifier_p = mock.patch(NOTIFIER)
-        self.dhcp_notifier_p = mock.patch(DHCP_NOTIFIER)
+        self.lib_rpc_transport_p = mock.patch(LIB_RPC_TRANSPORT)
+        self.rpc_server_start_p = mock.patch(RPC_SERVER_START)
         # prevent any greenthreads from spawning
         self.spawn_p = mock.patch(SPAWN, new=lambda *args, **kwargs: None)
         # prevent the consistency watchdog and keystone sync from starting
@@ -105,19 +105,15 @@ class BigSwitchTestBase(object):
         self.is_unicode_enabled_p = mock.patch(
             IS_UNICODE_ENABLED,
             side_effect=self.is_unicode_enabled_side_effect)
-        # TODO(weifan): Find out why Mocking Transport does not work
-        # This mock fixes problems on zuul, but it is still broken locally
-        self.lib_rpc_transport_p = mock.patch(LIB_RPC_TRANSPORT)
         # start all mock patches
         self.log_exc_p.start()
-        self.plugin_notifier_p.start()
-        self.dhcp_notifier_p.start()
+        self.lib_rpc_transport_p.start()
+        self.rpc_server_start_p.start()
         self.spawn_p.start()
         self.watch_p.start()
         self.ksclient_p.start()
         self.map_display_name_or_tenant_p.start()
         self.is_unicode_enabled_p.start()
-        self.lib_rpc_transport_p.start()
 
     def startHttpPatch(self):
         self.httpPatch = mock.patch(HTTPCON,

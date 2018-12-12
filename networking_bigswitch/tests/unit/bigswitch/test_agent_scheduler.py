@@ -31,4 +31,3 @@ class BigSwitchDhcpAgentNotifierTestCase(
         test_agentschedulers_db.OvsDhcpAgentNotifierTestCase.setUp(self)
         self.setup_db()
         self.startHttpPatch()
-        self.dhcp_notifier_p.stop()

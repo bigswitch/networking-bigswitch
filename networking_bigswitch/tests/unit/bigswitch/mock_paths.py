@@ -22,9 +22,6 @@ import six
 KEYSTONE_CLIENT = 'keystoneclient.v3.client.Client'
 
 # Neutron
-DHCP_NOTIFIER = ('neutron.api.rpc.agentnotifiers.dhcp_rpc_agent_api'
-                 '.DhcpAgentNotifyAPI.notify')
-
 NEUTRON_AGENT = 'neutron.agent'
 OVS_BRIDGE = NEUTRON_AGENT + '.common.ovs_lib.OVSBridge'
 PLUGIN_API = NEUTRON_AGENT + '.rpc.PluginApi'
@@ -36,6 +33,9 @@ CONTEXT = 'neutron_lib.context'
 
 NEUTRON_CFG = 'neutron.common.config'
 LIB_RPC_TRANSPORT = 'neutron_lib.rpc.TRANSPORT'
+
+# oslo_messaging
+RPC_SERVER_START = ('oslo_messaging.server.MessageHandlingServer.start')
 
 # BSN
 BSN_DIR = 'networking_bigswitch.plugins.bigswitch'
