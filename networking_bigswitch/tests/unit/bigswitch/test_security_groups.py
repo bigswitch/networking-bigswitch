@@ -13,12 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import mock
 from neutron.tests.unit.agent import test_securitygroups_rpc as test_sg_rpc
 from neutron.tests.unit.extensions import test_securitygroup as test_sg
 from neutron_lib.plugins import directory
 
 from networking_bigswitch.tests.unit.bigswitch import test_base
 
+from networking_bigswitch.tests.unit.bigswitch.mock_paths import NOTIFIER
 
 class RestProxySecurityGroupsTestCase(test_sg.SecurityGroupDBTestCase,
                                       test_base.BigSwitchTestBase):
@@ -27,8 +29,10 @@ class RestProxySecurityGroupsTestCase(test_sg.SecurityGroupDBTestCase,
 
     def setUp(self, plugin=None):
         test_sg_rpc.set_firewall_driver(test_sg_rpc.FIREWALL_HYBRID_DRIVER)
+        self.plugin_notifier_p = mock.patch(NOTIFIER)
         self.setup_config_files()
         self.setup_patches()
+        self.plugin_notifier_p.start()
         self._attribute_map_bk_ = {}
         test_sg.SecurityGroupDBTestCase.setUp(self, self.plugin_str)
         self.setup_db()
