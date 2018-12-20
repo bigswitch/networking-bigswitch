@@ -1,0 +1,10 @@
+Code-Review+2: Weifan Fu <weifan.fu@bigswitch.com>
+Workflow+1: Weifan Fu <weifan.fu@bigswitch.com>
+Code-Review+2: Aditya Vaja <wolverine.av@gmail.com>
+Workflow+1: Aditya Vaja <wolverine.av@gmail.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 20 Dec 2018 23:46:11 +0000
+Reviewed-on: https://review.openstack.org/608789
+Project: openstack/networking-bigswitch
+Branch: refs/heads/stable/queens
