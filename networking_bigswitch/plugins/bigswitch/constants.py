@@ -14,3 +14,16 @@
 #    under the License.
 
 BSN_SERVICE_PLUGIN = 'BSNSERVICEPLUGIN'
+
+# state_syncer constants
+NOVA_CLIENT_VERSION = '2'
+INTF_MAC_ADDR = 'OS-EXT-IPS-MAC:mac_addr'
+INTF_IP_ADDR = 'addr'
+INTF_IP_TYPE = 'OS-EXT-IPS:type'
+INTF_IP_VERSION = 'version'
+HYPERVISOR_HOSTNAME = 'OS-EXT-SRV-ATTR:hypervisor_hostname'
+VM_STATE = 'OS-EXT-STS:vm_state'
+
+# os-net-config constants
+OVS_AGENT_INI_FILEPATH = '/etc/neutron/plugins/ml2/openvswitch_agent.ini'
+RH_NET_CONF_PATH = "/etc/os-net-config/config.json"
