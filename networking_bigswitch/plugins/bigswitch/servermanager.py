@@ -1,3 +1,4 @@
+
 # Copyright 2014 Big Switch Networks, Inc.
 # All Rights Reserved.
 #
@@ -47,6 +48,7 @@ from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.i18n import _LE
 from networking_bigswitch.plugins.bigswitch.i18n import _LI
 from networking_bigswitch.plugins.bigswitch.i18n import _LW
+from networking_bigswitch.plugins.bigswitch import state_syncer
 from networking_bigswitch.plugins.bigswitch.utils import Util
 import os
 from oslo_config import cfg
@@ -81,6 +83,7 @@ TESTPATH_PATH = ('/testpath/controller-view'
                  '&dst-ip=%(dst-ip)s')
 TENANTPOLICY_RESOURCE_PATH = "/tenants/%s/policies"
 TENANTPOLICIES_PATH = "/tenants/%s/policies/%s"
+OOSM_OSP_RESOURCE_PATH = "/orchestrator/openstack"
 SUCCESS_CODES = range(200, 207)
 FAILURE_CODES = [0, 301, 302, 303, 400, 401, 403, 404, 500, 501, 502, 503,
                  504, 505]
@@ -90,6 +93,8 @@ HASH_MATCH_HEADER = 'X-BSN-BVS-HASH-MATCH'
 SERVICE_TENANT = 'VRRP_Service'
 KS_AUTH_GROUP_NAME = 'keystone_authtoken'
 KS_AUTH_DOMAIN_DEFAULT = 'default'
+# nova auth group name
+NOVA_AUTH_GROUP_NAME = 'nova'
 # error messages
 NXNETWORK = 'NXVNS'
 HTTP_SERVICE_UNAVAILABLE_RETRY_COUNT = 3
@@ -241,6 +246,29 @@ def get_keystoneauth_cfg(conf, name):
         LOG.warning("Config does not have property %(name)s "
                     "in group keystone_authtoken", {'name': name})
         raise e
+
+
+def get_novaauth_cfg(conf, name):
+    """get the nova auth cfg
+
+    Fetch value of nova group from config file when not
+    available as part of GroupAttr.
+
+    :rtype: String
+    :param conf: oslo config cfg.CONF
+    :param name: property name to be retrieved
+    """
+    try:
+
+        value_list = conf._namespace._get_file_value([(NOVA_AUTH_GROUP_NAME,
+                                                       name)])
+        return value_list[0]
+    except KeyError:
+        LOG.debug("Config does not have property %(name)s "
+                  "in group nova", {'name': name})
+        # no need to raise exception - if property is missing in nova group,
+        # we reuse what was set for keystone :)
+        # raise e
 
 
 class ServerProxy(object):
@@ -442,6 +470,43 @@ class ServerPool(object):
         elif "v3" not in self.auth_url:
             self.auth_url = "%s/v3" % self.auth_url
 
+        # load nova auth separately if available (true for Devstack)
+        nova_auth_dict = {}
+        if 'nova' in cfg.CONF:
+            nova_auth_dict['auth_url'] = self.auth_url
+            username = get_novaauth_cfg(cfg.CONF, 'username')
+            nova_auth_dict['username'] = (self.auth_user
+                                          if username is None else username)
+            password = get_novaauth_cfg(cfg.CONF, 'password')
+            nova_auth_dict['password'] = (self.auth_password
+                                          if password is None else password)
+            project_name = get_novaauth_cfg(cfg.CONF, 'project_name')
+            nova_auth_dict['project_name'] = (
+                self.auth_tenant
+                if project_name is None else project_name)
+            user_domain_name = get_novaauth_cfg(cfg.CONF, 'user_domain_name')
+            nova_auth_dict['user_domain_name'] = (
+                self.user_domain_name
+                if user_domain_name is None else user_domain_name)
+            project_domain_name = get_novaauth_cfg(
+                cfg.CONF, 'project_domain_name')
+            nova_auth_dict['project_domain_name'] = (
+                self.project_domain_name
+                if project_domain_name is None else project_domain_name)
+
+        # create a dict for keystone and nova auth to pass to state_syncer
+        ks_auth_dict = {}
+        ks_auth_dict['auth_url'] = self.auth_url
+        ks_auth_dict['username'] = self.auth_user
+        ks_auth_dict['password'] = self.auth_password
+        ks_auth_dict['project_name'] = self.auth_tenant
+        ks_auth_dict['user_domain_name'] = self.user_domain_name
+        ks_auth_dict['project_domain_name'] = self.project_domain_name
+
+        # once all auth info is loaded, init the state_syncer
+        self.state_syncer = state_syncer.StateSyncer(
+            ks_auth_dict=ks_auth_dict, nova_auth_dict=nova_auth_dict)
+
         self.base_uri = base_uri
         self.name = name
         # Cache for Openstack projects
@@ -501,6 +566,10 @@ class ServerPool(object):
             5 * cfg.CONF.RESTPROXY.consistency_interval,
             self._keystone_sync,
             cfg.CONF.RESTPROXY.keystone_sync_interval)
+        # start a periodic state syncer with BCF
+        # this provides hypervisor, vm and other misc info to BCF for
+        # integration dashboard
+        eventlet.spawn_after(60, self.state_syncer.periodic_update, 60 * 5)
 
     def get_capabilities(self):
         """Get capabilities
@@ -1000,6 +1069,11 @@ class ServerPool(object):
         resource = TENANTPOLICIES_PATH % (tenant_id, policy_prio)
         errstr = _("Unable to delete remote policy: %s")
         self.rest_action('DELETE', resource, errstr=errstr)
+
+    def rest_update_osp_cluster_info(self, data):
+        resource = OOSM_OSP_RESOURCE_PATH
+        errstr = _("Unable to update cluster visibility info: %s")
+        self.rest_action('POST', resource, data, errstr)
 
     def _consistency_watchdog(self, polling_interval=60):
         if 'consistency' not in self.get_capabilities():
