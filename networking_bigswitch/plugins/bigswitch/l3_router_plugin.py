@@ -31,6 +31,7 @@ from neutron_lib.callbacks import registry
 from neutron_lib.callbacks import resources
 from neutron_lib import constants as lib_constants
 from neutron_lib.db import api as db_api
+from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
@@ -410,7 +411,7 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
             floatingip, fields=fields,
             process_extensions=process_extensions)
         res['floating_port_id'] = floatingip['floating_port_id']
-        return self._fields(res, fields)
+        return db_utils.resource_fields(res, fields)
 
     @add_debug_log
     @log_helper.log_method_call
