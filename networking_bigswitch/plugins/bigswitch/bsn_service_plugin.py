@@ -16,7 +16,6 @@
 from datetime import datetime
 import eventlet
 
-from neutron.db import common_db_mixin
 from neutron_lib.db import api as db_api
 from neutron_lib.services import base as service_base
 from oslo_log import log
@@ -34,8 +33,7 @@ LOG = log.getLogger(__name__)
 
 
 class BSNServicePlugin(service_base.ServicePluginBase,
-                       bsnserviceextension.BSNServicePluginBase,
-                       common_db_mixin.CommonDbMixin):
+                       bsnserviceextension.BSNServicePluginBase):
 
     supported_extension_aliases = ["bsn-service-extension"]
 

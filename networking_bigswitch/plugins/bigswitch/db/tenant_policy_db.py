@@ -17,11 +17,11 @@ import sqlalchemy as sa
 
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
-from neutron.db import common_db_mixin
 from neutron.db.models import l3 as l3_models
 from neutron_lib.api import validators
 from neutron_lib.db import api as db_api
 from neutron_lib.db import model_base
+from neutron_lib.db import model_query
 from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions as n_exc
 from oslo_config import cfg
@@ -87,7 +87,7 @@ class TenantRouterDoesNotExist(n_exc.NotFound):
                 "Please create a router before adding policies.")
 
 
-class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
+class TenantPolicyDbMixin(object):
     # internal methods
     def _make_tenantpolicy_dict(self, tenantpolicy, fields=None):
         nexthops = [hop['nexthop'] for hop in tenantpolicy.nexthops]
@@ -105,7 +105,7 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
 
     def _get_tenantpolicy(self, context, id):
         try:
-            tenantpolicy = self._get_by_id(context, TenantPolicy, id)
+            tenantpolicy = model_query.get_by_id(context, TenantPolicy, id)
         except exc.NoResultFound:
             raise TenantPolicyNotFound(id=id)
         return tenantpolicy
@@ -214,9 +214,9 @@ class TenantPolicyDbMixin(common_db_mixin.CommonDbMixin):
                            page_reverse=False):
         with db_api.CONTEXT_READER.using(context):
             tenantpolicies = \
-                self._get_collection(context, TenantPolicy,
-                                     self._make_tenantpolicy_dict,
-                                     filters=filters, fields=fields)
+                model_query.get_collection(context, TenantPolicy,
+                                           self._make_tenantpolicy_dict,
+                                           filters=filters, fields=fields)
         return tenantpolicies
 
     def get_tenantpolicy(self, context, id, fields=None):

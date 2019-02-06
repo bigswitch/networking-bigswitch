@@ -79,6 +79,7 @@ from neutron_lib.api.definitions import portbindings
 from neutron_lib import constants as const
 from neutron_lib import context as qcontext
 from neutron_lib.db import api as db_api
+from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions as lib_exceptions
 from neutron_lib.plugins import constants as plugin_constants
 from neutron_lib.plugins import directory
@@ -1220,7 +1221,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
             port = super(NeutronRestProxyV2, self).get_port(context, id,
                                                             fields)
             self._extend_port_dict_binding(context, port)
-        return self._fields(port, fields)
+        return db_utils.resource_fields(port, fields)
 
     def get_ports(self, context, filters=None, fields=None):
         with db_api.CONTEXT_READER.using(context):
@@ -1228,7 +1229,7 @@ class NeutronRestProxyV2(NeutronRestProxyV2Base,
                                                               fields)
             for port in ports:
                 self._extend_port_dict_binding(context, port)
-        return [self._fields(port, fields) for port in ports]
+        return [db_utils.resource_fields(port, fields) for port in ports]
 
     @add_debug_log
     def update_port(self, context, port_id, port):

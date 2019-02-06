@@ -17,8 +17,8 @@ import sqlalchemy as sa
 
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from networking_bigswitch.plugins.bigswitch.utils import Util
-from neutron.db import common_db_mixin
 from neutron_lib.db import model_base
+from neutron_lib.db import model_query
 from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions
 from oslo_serialization import jsonutils
@@ -128,7 +128,7 @@ class ReachabilityTestSegmentNameMissing(exceptions.NeutronException):
                 "Please recreate the network and update Test %(test_name)s.")
 
 
-class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
+class ReachabilityTestDbMixin(object):
     # internal methods
     def _make_reachabilitytest_dict(self, reachabilitytest, fields=None):
         return db_utils.resource_fields({
@@ -150,7 +150,8 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
 
     def _get_reachabilitytest(self, context, id):
         try:
-            reachabilitytest = self._get_by_id(context, ReachabilityTest, id)
+            reachabilitytest = model_query.get_by_id(
+                context, ReachabilityTest, id)
         except exc.NoResultFound:
             raise ReachabilityTestNotFound(id=id)
         return reachabilitytest
@@ -160,9 +161,9 @@ class ReachabilityTestDbMixin(common_db_mixin.CommonDbMixin):
                               sorts=None, limit=None, marker=None,
                               page_reverse=False):
         reachabilitytests = \
-            self._get_collection(context, ReachabilityTest,
-                                 self._make_reachabilitytest_dict,
-                                 filters=filters, fields=fields)
+            model_query.get_collection(context, ReachabilityTest,
+                                       self._make_reachabilitytest_dict,
+                                       filters=filters, fields=fields)
         return reachabilitytests
 
     def get_reachabilitytest(self, context, id, fields=None):
@@ -282,7 +283,7 @@ class ReachabilityQuickTest(model_base.BASEV2,
         return destination
 
 
-class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
+class ReachabilityQuickTestDbMixin(object):
     # internal methods
     def _make_reachabilityquicktest_dict(self, reachabilityquicktest,
                                          fields=None):
@@ -305,7 +306,7 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
 
     def _get_reachabilityquicktest(self, context, id):
         try:
-            reachabilityquicktest = self._get_by_id(
+            reachabilityquicktest = model_query.get_by_id(
                 context, ReachabilityQuickTest, id)
         except exc.NoResultFound:
             raise ReachabilityTestNotFound(id=id)
@@ -316,9 +317,9 @@ class ReachabilityQuickTestDbMixin(common_db_mixin.CommonDbMixin):
                                    sorts=None, limit=None, marker=None,
                                    page_reverse=False):
         reachabilityquicktests = \
-            self._get_collection(context, ReachabilityQuickTest,
-                                 self._make_reachabilityquicktest_dict,
-                                 filters=filters, fields=fields)
+            model_query.get_collection(context, ReachabilityQuickTest,
+                                       self._make_reachabilityquicktest_dict,
+                                       filters=filters, fields=fields)
         return reachabilityquicktests
 
     def get_reachabilityquicktest(self, context, id, fields=None):
