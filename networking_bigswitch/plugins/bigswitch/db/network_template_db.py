@@ -18,6 +18,7 @@ import sqlalchemy as sa
 from networking_bigswitch.plugins.bigswitch.i18n import _
 from neutron.db import common_db_mixin
 from neutron_lib.db import model_base
+from neutron_lib.db import model_query
 from neutron_lib.db import utils as db_utils
 from neutron_lib import exceptions
 from oslo_db import exception as db_exc
@@ -45,7 +46,8 @@ class NetworkTemplateDbMixin(common_db_mixin.CommonDbMixin):
 
     def _get_networktemplate(self, context, id):
         try:
-            networktemplate = self._get_by_id(context, NetworkTemplate, id)
+            networktemplate = model_query.get_by_id(
+                context, NetworkTemplate, id)
         except exc.NoResultFound:
             raise NetworkTemplateNotFound(id=id)
         return networktemplate
@@ -55,9 +57,9 @@ class NetworkTemplateDbMixin(common_db_mixin.CommonDbMixin):
                              sorts=None, limit=None, marker=None,
                              page_reverse=False):
         networktemplates = \
-            self._get_collection(context, NetworkTemplate,
-                                 self._make_networktemplate_dict,
-                                 filters=filters, fields=fields)
+            model_query.get_collection(context, NetworkTemplate,
+                                       self._make_networktemplate_dict,
+                                       filters=filters, fields=fields)
         return networktemplates
 
     def get_networktemplate(self, context, id, fields=None):
@@ -118,7 +120,7 @@ class NetworkTemplateAssignmentDbMixin(common_db_mixin.CommonDbMixin):
 
     def _get_networktemplateassignment(self, context, id):
         try:
-            networktemplateassignment = self._get_by_id(
+            networktemplateassignment = model_query.get_by_id(
                 context, NetworkTemplateAssignment, id)
         except exc.NoResultFound:
             raise NetworkTemplateAssignmentNotFound(id=id)
@@ -129,9 +131,10 @@ class NetworkTemplateAssignmentDbMixin(common_db_mixin.CommonDbMixin):
                                        fields=None, sorts=None, limit=None,
                                        marker=None, page_reverse=False):
         networktemplateassignments = \
-            self._get_collection(context, NetworkTemplateAssignment,
-                                 self._make_networktemplateassignment_dict,
-                                 filters=filters, fields=fields)
+            model_query.get_collection(
+                context, NetworkTemplateAssignment,
+                self._make_networktemplateassignment_dict,
+                filters=filters, fields=fields)
         return networktemplateassignments
 
     def get_networktemplateassignment(self, context, id, fields=None):
