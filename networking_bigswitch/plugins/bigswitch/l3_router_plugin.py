@@ -308,12 +308,12 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
     @log_helper.log_method_call
     def router_interface_before_create_callback(self, resource, event, trigger,
-                                                **kwargs):
-        context = kwargs.get('context')
-        router = kwargs.get('router_db')
-        port = kwargs.get('port')
-        interface_info = kwargs.get('interface_info')
-        router_id = kwargs.get('router_id')
+                                                payload):
+        context = payload.context
+        router = payload.latest_state
+        port = payload.metadata.get('port')
+        interface_info = payload.metadata.get('interface_info')
+        router_id = payload.resource_id
 
         if 'port_id' in interface_info:
             subnet_id = port['fixed_ips'][0]['subnet_id']
@@ -337,9 +337,9 @@ class L3RestProxy(cplugin.NeutronRestProxyV2Base,
 
     @log_helper.log_method_call
     def router_interface_after_create_callback(self, resource, event, trigger,
-                                               **kwargs):
-        context = kwargs.get('context')
-        port = kwargs.get('port')
+                                               payload=None):
+        context = payload.context
+        port = payload.metadata.get('port')
 
         directory.get_plugin().update_port(context, port['id'],
                                            {'port': {'status': 'ACTIVE'}})
