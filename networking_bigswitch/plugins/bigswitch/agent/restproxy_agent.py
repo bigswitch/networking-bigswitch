@@ -27,7 +27,6 @@ from oslo_log import log
 import oslo_messaging
 from oslo_service import loopingcall
 from oslo_utils import excutils
-from oslo_utils import importutils
 
 from neutron.agent.common import ovs_lib
 from neutron.agent.linux import utils
@@ -136,21 +135,30 @@ class NFVSwitchBridge(object):
 
 
 class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
+    """Override SecurityGroupAgentRpc methods that call firewall_driver.
 
-    def init_firewall(self, defer_refresh_firewall=False,
-                      integration_bridge=None):
-        super(FilterDeviceIDMixin, self).init_firewall(defer_refresh_firewall,
-                                                       integration_bridge)
-        firewall_driver = ('neutron.agent.linux.iptables_firewall.'
-                           'OVSHybridIptablesFirewallDriver')
-        self.firewall = importutils.import_object(firewall_driver)
+    This is to ensure that device ID sent to firewall driver is always without
+    any prefixes. Since the firewall_driver adds the prefix regardless of
+    whether it already has or not AND when reading local maps/dicts in
+    firewall driver, it tries to match the start of device ID _without_ prefix,
+    it fails and goes in an inconsistent state when adding and removing
+    interfaces and doing firewall operations.
+
+    Hence the name FilterDeviceIDMixin :)
+
+    """
 
     def prepare_devices_filter(self, device_ids):
         if not device_ids:
             return
+        LOG.info(_LI("Preparing filters for devices %r"), device_ids)
+        self._apply_port_filter(device_ids)
+
+    def _apply_port_filter(self, device_ids, update_filter=False):
         # use tap as a prefix because ml2 is hard-coded to expect that
         device_ids = [d.replace('qvo', 'tap') for d in device_ids]
-        LOG.info(_LI("Preparing filters for devices %s"), device_ids)
+        LOG.info(_LI("Applying port filter for devices %r"), device_ids)
+
         if self.use_enhanced_rpc:
             devices_info = self.plugin_rpc.security_group_info_for_devices(
                 self.context, list(device_ids))
@@ -162,21 +170,48 @@ class FilterDeviceIDMixin(sg_rpc.SecurityGroupAgentRpc):
                 self.context, list(device_ids))
 
         with self.firewall.defer_apply():
-            for device in devices.values():
-                # strip tap back off since prepare_port_filter will apply it
-                device['device'] = device['device'].replace('tap', '')
-                # fuel backport fix with conntrack,
-                # which may not exist in other installers
-                try:
-                    self.set_local_zone(device)
-                except AttributeError:
-                    LOG.debug("set_local_zone is not defined.")
-                self.firewall.prepare_port_filter(device)
             if self.use_enhanced_rpc:
                 LOG.debug("Update security group information for ports %s",
                           devices.keys())
                 self._update_security_group_info(
                     security_groups, security_group_member_ips)
+            for device in devices.values():
+                # strip off 'tap' prefix from device. all calls to
+                # self.firewall i.e. firewall_driver must pass plain device-id
+                # without annotations. firewall_driver adds the appropriate
+                # prefix
+                device['device'] = device['device'].replace('tap', '')
+                if update_filter:
+                    LOG.debug("Update port filter for %s", device['device'])
+                    self.firewall.update_port_filter(device)
+                else:
+                    LOG.debug("Prepare port filter for %s", device['device'])
+                    self.firewall.prepare_port_filter(device)
+
+    def refresh_firewall(self, device_ids=None):
+        LOG.info(_LI("Refresh firewall rules"))
+        if not device_ids:
+            device_ids = self.firewall.ports.keys()
+            if not device_ids:
+                LOG.info(_LI("No ports here to refresh firewall"))
+                return
+        self._apply_port_filter(device_ids, update_filter=True)
+
+    def remove_devices_filter(self, device_ids):
+        if not device_ids:
+            return
+        # strip off 'qvo' prefix from device. all calls to
+        # self.firewall i.e. firewall_driver must pass plain device-id
+        # without annotations. firewall_driver adds the appropriate
+        # prefix
+        device_ids = [d.replace('qvo', '') for d in device_ids]
+        LOG.info(_LI("Remove device filter for %r"), device_ids)
+        with self.firewall.defer_apply():
+            for device_id in device_ids:
+                device = self.firewall.ports.get(device_id)
+                if not device:
+                    continue
+                self.firewall.remove_port_filter(device)
 
 
 class RestProxyAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin):
