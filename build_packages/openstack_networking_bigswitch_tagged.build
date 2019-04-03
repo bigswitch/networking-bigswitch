@@ -39,6 +39,13 @@ esac
 # PAGE_ID = wiki page ID to be updated with tarball
 # OSP_REL_NAME = openstack release name to be used in tarball name
 case "$GIT_BRANCH" in
+  *"stein"*)
+    GIT_TAG_REGEX="14.*.*"
+    PAGE_ID="981303390"
+    OSP_REL_NAME="STEIN"
+    RHOSP_REL_NAME="RHOSP-15"
+    BOSI_BRANCH="4.7.0"
+    ;;
   *"rocky"*)
     GIT_TAG_REGEX="13.*.*"
     PAGE_ID="866942996"
