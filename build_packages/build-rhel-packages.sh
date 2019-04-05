@@ -16,11 +16,13 @@ BUILDDIR=$(mktemp -d)
 mkdir -p $BUILDDIR/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
 # update spec file with correct version number and changelog
-# NOTE update refs/tags/12.*.* according to version string for each branch
+# NOTE update refs/tags/14.*.* according to version string for each branch
 # latest version
-CURR_VERSION=`git for-each-ref refs/tags/12.*.* --sort="-*committerdate" --format="%(refname:short)" --count=1`
+CURR_VERSION=`git for-each-ref refs/tags/14.*.* --sort="-*committerdate"
+--format="%(refname:short)" --count=1`
 # get changelog for tags
-CHANGE_LOG=`git for-each-ref refs/tags/12.*.* --sort="-*committerdate" --format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
+CHANGE_LOG=`git for-each-ref refs/tags/14.*.* --sort="-*committerdate"
+--format="* %(*committerdate:local) %(*authorname) %(*authoremail) - %(refname:short)%0a- %(subject)"`
 # replace newline chars with \n
 CHANGE_LOG="${CHANGE_LOG//$'\n'/\\n}"
 # remove timestamp from changelog string
