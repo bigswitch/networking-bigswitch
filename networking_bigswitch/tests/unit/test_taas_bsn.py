@@ -74,6 +74,7 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
               self).setUp(service_plugins=service_plugins,
                           ext_mgr=ext_mgr)
         self.ext_api = test_ex.setup_extensions_middleware(ext_mgr)
+        self.setup_patches()
 
     def _create_tap_service(self, port_id, name=None, tenant_id=None):
         t_s = {'tap_service': {'port_id': port_id}}
@@ -86,7 +87,7 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
         return ts_req.get_response(self.ext_api)
 
     def _create_tap_flow(self, tap_service_id, source_port, direction,
-                         name=None, tenant_id=None):
+                         name=None, tenant_id=None, vlan_filter=None):
         t_f = {'tap_flow': {'tap_service_id': tap_service_id,
                             'source_port': source_port,
                             'direction': direction}}
@@ -105,11 +106,14 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
         return self.deserialize(self.fmt, res)
 
     def _make_tap_flow(self, tap_service_id, source_port, direction,
-                       name=None, tenant_id=None):
+                       name=None, tenant_id=None, vlan_filter=None):
         res = self._create_tap_flow(tap_service_id,
                                     source_port,
                                     direction,
-                                    name, tenant_id)
+                                    name,
+                                    tenant_id,
+                                    vlan_filter)
+        print res.text
         if res.status_int >= webob.exc.HTTPBadRequest.code:
             raise webob.exc.HTTPClientError(code=res.status_int)
         return self.deserialize(self.fmt, res)
@@ -121,9 +125,11 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
 
     @contextlib.contextmanager
     def tap_flow(self, tap_service_id, source_port,
-                 direction='BOTH', name='tap_flow1', tenant_id=TENANT1):
+                 direction='BOTH', name='tap_flow1', tenant_id=TENANT1,
+                 vlan_filter=None):
         tf = self._make_tap_flow(tap_service_id, source_port,
-                                 direction, name, tenant_id)
+                                 direction, name, tenant_id,
+                                 vlan_filter)
         yield tf
 
     @contextlib.contextmanager
