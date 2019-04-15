@@ -86,10 +86,11 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
         return ts_req.get_response(self.ext_api)
 
     def _create_tap_flow(self, tap_service_id, source_port, direction,
-                         name=None, tenant_id=None):
+                         name=None, tenant_id=None, vlan_filter=None):
         t_f = {'tap_flow': {'tap_service_id': tap_service_id,
                             'source_port': source_port,
-                            'direction': direction}}
+                            'direction': direction,
+                            'vlan_filter': vlan_filter}}
         if name:
             t_f['tap_flow']['name'] = name
         if tenant_id:
@@ -105,11 +106,13 @@ class TestBSNTaasCase(test_bsm.TestBigSwitchMechDriverBase):
         return self.deserialize(self.fmt, res)
 
     def _make_tap_flow(self, tap_service_id, source_port, direction,
-                       name=None, tenant_id=None):
+                       name=None, tenant_id=None, vlan_filter=None):
         res = self._create_tap_flow(tap_service_id,
                                     source_port,
                                     direction,
-                                    name, tenant_id)
+                                    name,
+                                    tenant_id,
+                                    vlan_filter)
         if res.status_int >= webob.exc.HTTPBadRequest.code:
             raise webob.exc.HTTPClientError(code=res.status_int)
         return self.deserialize(self.fmt, res)
