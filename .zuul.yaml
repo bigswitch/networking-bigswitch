@@ -15,35 +15,27 @@
         - openstack-tox-pep8:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py27:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py35:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py36:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py37:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
 
     gate:
       jobs:
         - openstack-tox-pep8:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py27:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
         - openstack-tox-py36:
             required-projects:
               - name: openstack/neutron
-              - name: openstack/tap-as-a-service
